@@ -3,9 +3,9 @@
 // ============================================================
 import { AuthApi, UserApi } from '../api/userApi.js';
 import { getToken, setToken, removeToken } from '../api/apiClient.js';
-import { 
-  getCurrentUser, setCurrentUser, isLoggedIn, logoutUser, 
-  CURRENT_USER_STORAGE_KEY, User, USER_ROLE 
+import {
+  getCurrentUser, setCurrentUser, isLoggedIn, logoutUser,
+  CURRENT_USER_STORAGE_KEY, User, USER_ROLE
 } from '../models/user_model.js';
 import { renderUserProfileModal } from '../components/user_profile_modal_container.js';
 
@@ -29,8 +29,8 @@ export async function loginUser(usernameOrEmail, password) {
     return { success: true, message: 'Logged in successfully!', user: userInstance };
   } catch (err) {
     // If backend is offline or mock testing, check DEFAULT_USERS
-    const matched = DEFAULT_USERS.find(u => 
-      (u.username && u.username.toLowerCase() === cleanIdentifier) || 
+    const matched = DEFAULT_USERS.find(u =>
+      (u.username && u.username.toLowerCase() === cleanIdentifier) ||
       (u.email && u.email.toLowerCase() === cleanIdentifier)
     );
     if (matched) {
