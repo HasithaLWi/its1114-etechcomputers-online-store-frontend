@@ -2,11 +2,20 @@
 //  src/js/api/index.js — Unified API Client Barrel Export
 // ============================================================
 
-export { ajaxRequest, API_BASE_URL, getToken, setToken, removeToken } from './apiClient.js';
+export { ajaxRequest, API_BASE_URL, getToken, setToken, removeToken, sanitizeForLogging } from './apiClient.js';
 export { AuthApi, UserApi } from './userApi.js';
 export { ProductsApi } from './productsApi.js';
 export { CategoriesApi } from './categoriesApi.js';
 export { BrandsApi } from './brandsApi.js';
 export { BadgesApi } from './badgesApi.js';
+export { BranchesApi } from './branchesApi.js';
+export { PromotionsApi } from './promotionsApi.js';
+export { OrdersApi } from './ordersApi.js';
 export { WishlistApi } from './wishlistApi.js';
+export { ReviewsApi } from './reviewsApi.js';
+export { TransfersApi } from './transfersApi.js';
+export { InventoryApi } from './inventoryApi.js';
 export { NewsletterApi } from './newsletterApi.js';
+export { PoliciesApi } from './policiesApi.js';
+export { ChatApi } from './chatApi.js';
+export { AnalyticsApi } from './analyticsApi.js';

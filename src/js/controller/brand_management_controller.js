@@ -7,8 +7,27 @@ import {
 } from '../models/brand_data.js';
 import { getCategories } from '../models/taxonomy_data.js';
 import { getStoredProducts } from '../models/data.js';
-import { showToast } from './cart_controller.js';
 import { switchAdminTab, updateTrashSidebarBadge } from './admin_dashboard_controller.js';
+import {
+  iconBuilding,
+  iconPackage,
+  iconStar,
+  iconFolder,
+  iconTrash,
+  iconPlus,
+  iconEdit,
+  iconClose,
+  iconSearch,
+  iconRefresh,
+  iconEye,
+  renderCountBadge,
+  renderFeaturedBadge,
+  renderIconBox,
+  renderUserStatusBadge,
+  showToast,
+  etechAlert
+} from '../util/index.js';
+
 
 let currentEditingBrandId = null;
 let brandSearchQuery = '';
@@ -242,10 +261,10 @@ export function renderBrandsTab(shouldSync = true) {
                     </td>
 
                     <!-- Origin & Website -->
-                    <td class="py-3 px-4">
+                    <td class="py-3 px-4 min-w-[150px]">
                       <div class="space-y-0.5">
-                        <div class="flex items-center space-x-1 font-semibold text-[#0f172a]">
-                          <span>🌍</span>
+                        <div class="flex items-center space-x-1.5 font-semibold text-[#0f172a] text-xs">
+                          ${iconBuilding('w-3.5 h-3.5 text-slate-500 flex-shrink-0')}
                           <span>${brand.country || 'Global'}</span>
                           ${brand.founded ? `<span class="text-[10px] text-slate-400 font-mono">(Est. ${brand.founded})</span>` : ''}
                         </div>
@@ -259,44 +278,41 @@ export function renderBrandsTab(shouldSync = true) {
                     </td>
 
                     <!-- Store Products Count -->
-                    <td class="py-3 px-4 text-center">
-                      <a href="#shop?brand=${brand.slug}" title="View ${productCount} products in store catalog"
-                        class="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-lg ${productCount > 0 ? 'bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100' : 'bg-slate-50 text-slate-400 border border-slate-200'} font-mono font-bold transition-all">
-                        <span>📦</span>
-                        <span>${productCount} items</span>
+                    <td class="py-3 px-4 text-center min-w-[130px] whitespace-nowrap">
+                      <a href="#shop?brand=${brand.slug}" title="View ${productCount} products in store catalog">
+                        ${renderCountBadge(productCount, 'item', 'items', 'blue')}
                       </a>
                     </td>
 
                     <!-- Featured Toggle -->
-                    <td class="py-3 px-4 text-center">
+                    <td class="py-3 px-4 text-center min-w-[120px] whitespace-nowrap">
                       <button type="button" onclick="handleToggleBrandFeatured('${brand.id}')"
-                        class="px-2.5 py-1 rounded-full text-[10px] font-mono font-bold border transition-all cursor-pointer ${brand.featured ? 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100' : 'bg-slate-50 text-slate-400 border-slate-200 hover:bg-slate-100'}">
-                        ${brand.featured ? '● Featured' : '○ Standard'}
+                        class="cursor-pointer transition-all hover:opacity-80">
+                        ${renderFeaturedBadge(brand.featured)}
                       </button>
                     </td>
 
                     <!-- 1-Click Status Switcher (ACTIVE / INACTIVE) -->
-                    <td class="py-3 px-4 text-center">
+                    <td class="py-3 px-4 text-center min-w-[120px] whitespace-nowrap">
                       <button type="button" onclick="toggleBrandStatus('${brand.id}')"
                         title="Click to toggle between ACTIVE and INACTIVE"
-                        class="px-2.5 py-1 rounded-full text-[10px] font-mono font-extrabold uppercase transition-all inline-flex items-center space-x-1.5 shadow-2xs cursor-pointer ${isActive ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100' : 'bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100'}">
-                        <span class="w-1.5 h-1.5 rounded-full ${isActive ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}"></span>
-                        <span>${status}</span>
+                        class="cursor-pointer transition-all hover:opacity-80">
+                        ${renderUserStatusBadge(status)}
                       </button>
                     </td>
 
                     <!-- Actions -->
-                    <td class="py-3 px-4 text-right whitespace-nowrap">
+                    <td class="py-3 px-4 text-right whitespace-nowrap min-w-[130px]">
                       <div class="flex items-center justify-end space-x-1.5">
                         
                         <a href="#shop?brand=${brand.slug}" title="View Brand Catalog in Store"
                           class="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors border border-transparent hover:border-blue-200">
-                          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                          ${iconEye('w-4 h-4')}
                         </a>
 
                         <button type="button" onclick="openBrandFormPage('${brand.id}')" title="Edit Brand Details"
                           class="px-2.5 py-1 text-xs font-bold text-blue-600 hover:bg-blue-50 rounded-lg transition-colors border border-blue-200 flex items-center space-x-1 cursor-pointer">
-                          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                          ${iconEdit('w-3.5 h-3.5')}
                           <span>Edit</span>
                         </button>
 
@@ -728,7 +744,7 @@ export async function handleSaveBrandFormPage(event) {
 
   const name = document.getElementById('bf-brand-name').value.trim();
   if (!name) {
-    showToast('Brand name is required.', 'error');
+    etechAlert.warning('Validation Error', 'Brand partner name is required.');
     return;
   }
 
@@ -742,6 +758,13 @@ export async function handleSaveBrandFormPage(event) {
   const featured = document.getElementById('bf-brand-featured').checked;
   const status = document.getElementById('bf-brand-status')?.value || 'ACTIVE';
   const displayOrder = Number(document.getElementById('bf-brand-order').value) || 1;
+
+  const isEdit = Boolean(currentEditingBrandId);
+  const confirmed = isEdit
+    ? await etechAlert.confirmUpdate(`Brand "${name}"`, `Origin: ${country} | Status: ${status} | Slug: #${slug}`)
+    : await etechAlert.confirmCreate(`Brand "${name}"`, `Origin: ${country} | Status: ${status} | Slug: #${slug}`);
+
+  if (!confirmed) return;
 
   const brandData = {
     id: currentEditingBrandId,
@@ -767,12 +790,18 @@ export async function handleSaveBrandFormPage(event) {
     showToast(result.message, 'success');
     closeBrandFormPage();
   } else {
-    showToast(result.message, 'error');
+    etechAlert.error('Save Brand Failed', result.message);
   }
 }
 
 export function handleBrandSearch(query) {
   brandSearchQuery = query;
+  renderBrandsTab();
+}
+
+export function handleClearBrandFilters() {
+  brandSearchQuery = '';
+  brandFeaturedFilter = 'all';
   renderBrandsTab();
 }
 
@@ -798,7 +827,8 @@ export function handleToggleBrandFeatured(id) {
 }
 
 export async function handleDeleteBrand(id, name) {
-  if (!confirm(`Move brand "${name}" to the Trash Bin?`)) return;
+  const confirmed = await etechAlert.confirmDelete(`Brand "${name}"`, 'Moving brand partner to Trash Bin.');
+  if (!confirmed) return;
 
   const result = await deleteBrand(id);
   if (result.success) {
@@ -806,7 +836,7 @@ export async function handleDeleteBrand(id, name) {
     renderBrandsTab();
     updateTrashSidebarBadge();
   } else {
-    showToast(result.message, 'error');
+    etechAlert.error('Delete Failed', result.message);
   }
 }
 

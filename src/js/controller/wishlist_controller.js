@@ -1,9 +1,41 @@
 // ETech Computers - Wishlist Controller & State Management System
 import { products, getStoredProducts, getProductById } from '../models/data.js';
-import { addToCart, showToast, updateCartBadge } from './cart_controller.js';
+import { addToCart, updateCartBadge } from './cart_controller.js';
 import { getHotDealByProductId } from '../models/deals_data.js';
+import { WishlistApi } from '../api/wishlistApi.js';
+import {
+  iconHeart,
+  iconCart,
+  iconStar,
+  iconTrash,
+  iconEye,
+  iconClose,
+  formatLKR,
+  showToast,
+  etechAlert
+} from '../util/index.js';
 
-const WISHLIST_STORAGE_KEY = 'etech_wishlist';
+
+// Reactive In-Memory Wishlist State
+let memoryWishlist = [];
+
+/**
+ * Sync wishlist from backend API into memory
+ */
+export async function syncWishlistFromApi() {
+  try {
+    const data = await WishlistApi.getWishlist();
+    if (Array.isArray(data)) {
+      memoryWishlist = data;
+    } else if (data && Array.isArray(data.content)) {
+      memoryWishlist = data.content;
+    }
+    updateWishlistBadge();
+  } catch (err) {
+    console.warn('[WishlistController] Wishlist API sync fallback:', err.message || err);
+  }
+  return memoryWishlist;
+}
 
 // Internal filtering and sorting state
 let wishlistSearchQuery = '';
@@ -12,31 +44,21 @@ let wishlistInStockOnly = false;
 let wishlistSortBy = 'date-desc';
 
 /**
- * Retrieves the current wishlist from localStorage
+ * Retrieves the current wishlist from in-memory state
  * @returns {Array<Object>} List of wishlisted product items
  */
 export function getWishlist() {
-  try {
-    const data = localStorage.getItem(WISHLIST_STORAGE_KEY);
-    return data ? JSON.parse(data) : [];
-  } catch (err) {
-    console.error('Error reading wishlist from localStorage:', err);
-    return [];
-  }
+  return [...memoryWishlist];
 }
 
 /**
- * Saves wishlist to localStorage and triggers badge & DOM sync
+ * Saves wishlist to in-memory state and triggers badge & DOM sync
  * @param {Array<Object>} wishlist 
  */
 export function saveWishlist(wishlist) {
-  try {
-    localStorage.setItem(WISHLIST_STORAGE_KEY, JSON.stringify(wishlist));
-    updateWishlistBadge();
-    window.dispatchEvent(new CustomEvent('wishlistUpdated', { detail: wishlist }));
-  } catch (err) {
-    console.error('Error saving wishlist to localStorage:', err);
-  }
+  memoryWishlist = Array.isArray(wishlist) ? [...wishlist] : [];
+  updateWishlistBadge();
+  window.dispatchEvent(new CustomEvent('wishlistUpdated', { detail: memoryWishlist }));
 }
 
 /**
@@ -71,7 +93,7 @@ export function updateWishlistBadge() {
   badges.forEach(badge => {
     if (!badge) return;
     badge.textContent = count;
-    
+
     // Scale animation
     badge.classList.remove('scale-125');
     void badge.offsetWidth;
@@ -132,9 +154,14 @@ export function toggleWishlist(productId, btnElement) {
       addedAt: Date.now()
     });
     saveWishlist(wishlist);
-    showToast(`Added "${product.name.split(' ').slice(0, 3).join(' ')}" to your wishlist! ❤️`);
+    showToast(`Added "${product.name.split(' ').slice(0, 3).join(' ')}" to your wishlist!`, 'success');
     updateButtonVisualState(pId, true, btnElement);
   }
+
+  // Live background sync with backend API
+  WishlistApi.toggleWishlist(pId).catch(err => {
+    console.warn('[WishlistController] Wishlist toggle API fallback:', err.message || err);
+  });
 
   // If currently on wishlist page, re-render it
   const wishlistPage = document.getElementById('wishlist-page');
@@ -191,36 +218,46 @@ export function removeFromWishlist(productId) {
   const pId = Number(productId);
   let wishlist = getWishlist();
   const item = wishlist.find(i => (i.id === pId || i.productId === pId));
-  
+
   if (item) {
     wishlist = wishlist.filter(i => (i.id !== pId && i.productId !== pId));
     saveWishlist(wishlist);
     showToast(`Removed "${item.name.split(' ').slice(0, 3).join(' ')}" from wishlist.`);
     updateButtonVisualState(pId, false);
     renderWishlistPage();
+
+    WishlistApi.removeFromWishlist(pId).catch(err => {
+      console.warn('[WishlistController] Remove from wishlist API fallback:', err.message || err);
+    });
   }
 }
 
 /**
  * Clears all items from the wishlist
  */
-export function clearWishlist() {
+export async function clearWishlist() {
   const wishlist = getWishlist();
   if (wishlist.length === 0) {
     showToast('Your wishlist is already empty.', 'error');
     return;
   }
 
-  if (confirm('Are you sure you want to remove all items from your wishlist?')) {
-    saveWishlist([]);
-    showToast('All items removed from your wishlist.');
-    updateWishlistBadge();
-    renderWishlistPage();
-    // Refresh visual state across shop and home
-    document.querySelectorAll('[data-wishlist-btn]').forEach(btn => {
-      applyHeartVisuals(btn, false);
-    });
-  }
+  const confirmed = await etechAlert.confirmDelete('all saved items from your wishlist', 'You can re-add items anytime while browsing the shop catalog.');
+  if (!confirmed) return;
+
+  saveWishlist([]);
+  showToast('All items removed from your wishlist.', 'info');
+  updateWishlistBadge();
+  renderWishlistPage();
+  // Refresh visual state across shop and home
+  document.querySelectorAll('[data-wishlist-btn]').forEach(btn => {
+    applyHeartVisuals(btn, false);
+  });
+
+  WishlistApi.clearWishlist().catch(err => {
+    console.warn('[WishlistController] Clear wishlist API fallback:', err.message || err);
+  });
+
 }
 
 /**
@@ -254,7 +291,7 @@ export function moveAllWishlistToCart() {
     addedCount++;
   });
 
-  showToast(`🛒 Successfully moved ${addedCount} items to your shopping cart!`, 'success');
+  showToast(`Successfully moved ${addedCount} items to your shopping cart!`, 'success');
 }
 
 /**
@@ -299,6 +336,11 @@ export function handleWishlistSort(sortBy) {
 export function initWishlistLogic() {
   updateWishlistBadge();
   renderWishlistPage();
+
+  syncWishlistFromApi().then(() => {
+    updateWishlistBadge();
+    renderWishlistPage();
+  }).catch(() => { });
 }
 
 /**
@@ -574,12 +616,12 @@ export function renderWishlistPage() {
       ` : `
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
           ${filteredItems.map(item => {
-            const targetId = item.productId || item.id;
-            const savingsPercent = item.originalPrice && item.originalPrice > item.price 
-              ? Math.round(((item.originalPrice - item.price) / item.originalPrice) * 100) 
-              : 0;
+    const targetId = item.productId || item.id;
+    const savingsPercent = item.originalPrice && item.originalPrice > item.price
+      ? Math.round(((item.originalPrice - item.price) / item.originalPrice) * 100)
+      : 0;
 
-            return `
+    return `
               <div class="group rounded-2xl bg-white border border-[#e2e8f0] hover:border-[#cbd5e1] p-4 flex flex-col justify-between transition-all duration-200 hover:-translate-y-1 shadow-sm hover:shadow-md relative">
                 
                 <div>
@@ -600,14 +642,14 @@ export function renderWishlistPage() {
 
                     <!-- Right Rating Pill -->
                     <span class="absolute top-2.5 right-2.5 bg-white/95 text-[#475569] text-[10px] font-bold px-1.5 py-0.5 rounded border border-[#e2e8f0] flex items-center space-x-1 shadow-sm">
-                      <span class="text-amber-500">★</span>
+                      ${iconStar('w-3 h-3 text-amber-500')}
                       <span>${item.rating || 4.8}</span>
                     </span>
 
                     <!-- Quick View Overlay -->
                     <div class="absolute inset-0 bg-[#0f172a]/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                       <span class="px-3 py-1.5 rounded-xl bg-blue-600 text-white text-xs font-bold shadow-md flex items-center space-x-1">
-                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                        ${iconEye('w-3.5 h-3.5')}
                         <span>View Specs</span>
                       </span>
                     </div>
@@ -658,7 +700,7 @@ export function renderWishlistPage() {
 
               </div>
             `;
-          }).join('')}
+  }).join('')}
         </div>
       `}
 

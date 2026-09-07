@@ -1,5 +1,5 @@
 // ============================================================
-//  rating_data.js — Product Ratings & Text Reviews Data Model
+//  rating_data.js — Product Ratings & Reviews In-Memory Model Layer
 // ============================================================
 import { getStoredProducts, saveStoredProducts } from './data.js';
 import { runAutoBadgeAssignment, recordProductBehaviorEvent } from './taxonomy_data.js';
@@ -9,39 +9,56 @@ import {
   defaultReviews,
   defaultRatings
 } from '../../data/ratings_reviews.js';
+import { ReviewsApi } from '../api/reviewsApi.js';
 
 export { DEFAULT_REVIEWS, DEFAULT_RATINGS, defaultReviews, defaultRatings };
 
-const REVIEWS_STORAGE_KEY = 'etech_product_reviews';
+export const REVIEWS_STORAGE_KEY = 'etech_product_reviews';
+
+// Reactive In-Memory Reviews Store
+let memoryReviews = Array.isArray(defaultReviews) ? defaultReviews.map(r => ({ ...r })) : [];
 
 /**
- * Retrieve all reviews from localStorage (or seed defaults)
+ * Sync reviews from backend API for a product
  */
-export function getAllReviews() {
-  const data = localStorage.getItem(REVIEWS_STORAGE_KEY);
-  if (!data) {
-    localStorage.setItem(REVIEWS_STORAGE_KEY, JSON.stringify(defaultReviews));
-    return defaultReviews;
-  }
+export async function syncProductReviewsFromApi(productId) {
   try {
-    return JSON.parse(data);
+    const res = await ReviewsApi.getProductReviews(productId);
+    const body = res.body || res;
+    let list = [];
+    if (Array.isArray(body)) {
+      list = body;
+    } else if (body && Array.isArray(body.content)) {
+      list = body.content;
+    }
+
+    if (list.length > 0) {
+      const otherReviews = memoryReviews.filter(r => Number(r.productId) !== Number(productId));
+      memoryReviews = [...list, ...otherReviews];
+    }
   } catch (err) {
-    console.error('Error parsing stored reviews:', err);
-    return defaultReviews;
+    console.warn('[RatingModel] Reviews API sync notice:', err.message);
   }
 }
 
-// Alias for backward compatibility
+/**
+ * Retrieve all reviews from in-memory state
+ */
+export function getAllReviews() {
+  return memoryReviews;
+}
+
 export const getAllRatings = getAllReviews;
 
 /**
- * Save reviews list to localStorage
+ * Save reviews list to in-memory state
  */
 export function saveAllReviews(reviews) {
-  localStorage.setItem(REVIEWS_STORAGE_KEY, JSON.stringify(reviews));
+  if (Array.isArray(reviews)) {
+    memoryReviews = [...reviews];
+  }
 }
 
-// Alias for backward compatibility
 export const saveAllRatings = saveAllReviews;
 
 /**
@@ -49,13 +66,11 @@ export const saveAllRatings = saveAllReviews;
  */
 export function getProductReviews(productId) {
   const pId = Number(productId);
-  const all = getAllReviews();
-  return all
+  return memoryReviews
     .filter(r => Number(r.productId) === pId)
     .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
 }
 
-// Alias for backward compatibility
 export const getProductRatings = getProductReviews;
 
 /**
@@ -64,11 +79,9 @@ export const getProductRatings = getProductReviews;
 export function getUserReviewForProduct(productId, userId) {
   if (!userId) return null;
   const pId = Number(productId);
-  const all = getAllReviews();
-  return all.find(r => Number(r.productId) === pId && r.userId === userId) || null;
+  return memoryReviews.find(r => Number(r.productId) === pId && r.userId === userId) || null;
 }
 
-// Alias for backward compatibility
 export const getUserRatingForProduct = getUserReviewForProduct;
 
 /**
@@ -78,23 +91,12 @@ export function hasUserReviewedProduct(productId, userId) {
   return getUserReviewForProduct(productId, userId) !== null;
 }
 
-// Alias for backward compatibility
 export const hasUserRatedProduct = hasUserReviewedProduct;
 
 /**
  * Submit or override a product review + rating by a registered user.
- * Recalculates product aggregate rating, review count, behavior history, and auto badge rules.
- *
- * @param {Object} payload
- * @param {number} payload.productId
- * @param {string} payload.userId
- * @param {string} payload.userName
- * @param {string} payload.userEmail
- * @param {number} payload.rating (1 - 5)
- * @param {string} payload.comment (text-only customer review)
- * @returns {Object} { success: boolean, isOverride: boolean, reviewRecord: Object, product: Object, message: string }
  */
-export function submitProductReview({ productId, userId, userName, userEmail, rating, comment = '' }) {
+export async function submitProductReview({ productId, userId, userName, userEmail, rating, comment = '' }) {
   const pId = Number(productId);
   const ratingNum = Math.max(1, Math.min(5, Math.round(Number(rating || 5))));
   const cleanComment = (comment || '').trim();
@@ -103,7 +105,7 @@ export function submitProductReview({ productId, userId, userName, userEmail, ra
     return { success: false, message: 'Authentication is required to review products.' };
   }
 
-  const allReviews = getAllReviews();
+  const allReviews = memoryReviews;
   const existingIndex = allReviews.findIndex(r => Number(r.productId) === pId && r.userId === userId);
   const isOverride = existingIndex !== -1;
   const oldRatingVal = isOverride ? allReviews[existingIndex].rating : null;
@@ -112,7 +114,6 @@ export function submitProductReview({ productId, userId, userName, userEmail, ra
   let reviewRecord;
 
   if (isOverride) {
-    // Update / override existing review
     allReviews[existingIndex] = {
       ...allReviews[existingIndex],
       rating: ratingNum,
@@ -123,7 +124,6 @@ export function submitProductReview({ productId, userId, userName, userEmail, ra
     };
     reviewRecord = allReviews[existingIndex];
   } else {
-    // Insert new review
     reviewRecord = {
       id: 'REV-' + Math.floor(10000 + Math.random() * 90000),
       productId: pId,
@@ -138,8 +138,17 @@ export function submitProductReview({ productId, userId, userName, userEmail, ra
     allReviews.unshift(reviewRecord);
   }
 
-  // Persist reviews dataset
   saveAllReviews(allReviews);
+
+  // Sync with API
+  try {
+    await ReviewsApi.submitReview(pId, {
+      rating: ratingNum,
+      comment: cleanComment
+    });
+  } catch (err) {
+    console.warn('[RatingModel] Submit review API notice:', err.message);
+  }
 
   // Recalculate product aggregate rating & review count in inventory
   const products = getStoredProducts();
@@ -153,12 +162,10 @@ export function submitProductReview({ productId, userId, userName, userEmail, ra
     let newReviewsCount;
 
     if (isOverride) {
-      // Override: review count stays constant, average adjusts by delta
       newReviewsCount = currentReviewsCount;
       const totalPoints = (currentProductRating * currentReviewsCount) - oldRatingVal + ratingNum;
       newAvgRating = Math.max(1, Math.min(5, Math.round((totalPoints / Math.max(1, newReviewsCount)) * 10) / 10));
     } else {
-      // New review: review count increments, average updates
       newReviewsCount = currentReviewsCount + 1;
       const totalPoints = (currentProductRating * currentReviewsCount) + ratingNum;
       newAvgRating = Math.max(1, Math.min(5, Math.round((totalPoints / newReviewsCount) * 10) / 10));
@@ -168,7 +175,6 @@ export function submitProductReview({ productId, userId, userName, userEmail, ra
     product.reviews = newReviewsCount;
     saveStoredProducts(products);
 
-    // Record Behavior Event Audit Trail
     try {
       recordProductBehaviorEvent({
         productId: product.id,
@@ -185,16 +191,11 @@ export function submitProductReview({ productId, userId, userName, userEmail, ra
         },
         actor: userName || userId
       });
-    } catch (e) {
-      console.warn('Behavior event logging failed:', e);
-    }
+    } catch (e) {}
 
-    // Trigger Automated Badge Assignment Engine
     try {
       runAutoBadgeAssignment();
-    } catch (e) {
-      console.warn('Auto badge assignment trigger failed:', e);
-    }
+    } catch (e) {}
 
     return {
       success: true,
@@ -218,5 +219,4 @@ export function submitProductReview({ productId, userId, userName, userEmail, ra
   };
 }
 
-// Alias for backward compatibility
 export const submitProductRating = submitProductReview;

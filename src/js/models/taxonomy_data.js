@@ -1,5 +1,5 @@
 // ============================================================
-//  taxonomy_data.js — Categories, Badges & Product Behavior History Data Model
+//  src/js/models/taxonomy_data.js — Categories & Badges In-Memory Models
 // ============================================================
 import { getStoredProducts, saveStoredProducts } from './data.js';
 import {
@@ -13,9 +13,10 @@ import { BadgesApi } from '../api/badgesApi.js';
 
 export { DEFAULT_CATEGORIES, DEFAULT_BADGES, defaultCategories, defaultBadges };
 
-const CATEGORIES_STORAGE_KEY = 'etech_categories_data';
-const BADGES_STORAGE_KEY = 'etech_badges_data';
-const BEHAVIOR_HISTORY_STORAGE_KEY = 'etech_product_behavior_history';
+// Reactive In-Memory Stores
+let memoryCategories = Array.isArray(defaultCategories) ? defaultCategories.map(c => ({ ...c })) : [];
+let memoryBadges = Array.isArray(defaultBadges) ? defaultBadges.map(b => ({ ...b })) : [];
+let memoryBehaviorHistory = [];
 
 // ============================================================
 //  1. CATEGORIES MANAGEMENT MODEL
@@ -23,17 +24,7 @@ const BEHAVIOR_HISTORY_STORAGE_KEY = 'etech_product_behavior_history';
 
 export function getCategories(options = {}) {
   const { includeDeleted = false, activeOnly = false } = options;
-  const stored = typeof localStorage !== 'undefined' ? localStorage.getItem(CATEGORIES_STORAGE_KEY) : null;
-  let list = [];
-
-  if (stored) {
-    try {
-      list = JSON.parse(stored);
-      if (!Array.isArray(list)) list = [];
-    } catch (e) {
-      list = [];
-    }
-  }
+  let list = memoryCategories;
 
   if (includeDeleted) return list;
   if (activeOnly) return list.filter(c => (c.categoryStatus || c.status || 'ACTIVE').toUpperCase() === 'ACTIVE');
@@ -50,21 +41,25 @@ export async function syncCategoriesFromApi(options = {}) {
     let apiList = [];
     if (Array.isArray(res)) {
       apiList = res;
+    } else if (res && Array.isArray(res.body)) {
+      apiList = res.body;
     } else if (res && Array.isArray(res.data)) {
       apiList = res.data;
     }
-    const normalized = apiList.map(c => ({
-      id: c.id,
-      name: c.name || '',
-      slug: c.slug || '',
-      icon: c.icon || '🏷️',
-      description: c.description || '',
-      featured: Boolean(c.featured),
-      displayOrder: Number(c.displayOrder || 1),
-      categoryStatus: (c.categoryStatus || c.status || 'ACTIVE').toUpperCase(),
-      status: (c.categoryStatus || c.status || 'ACTIVE').toUpperCase()
-    }));
-    saveCategories(normalized);
+
+    if (apiList.length > 0) {
+      memoryCategories = apiList.map(c => ({
+        id: c.id,
+        name: c.name || '',
+        slug: c.slug || '',
+        icon: c.icon || '🏷️',
+        description: c.description || '',
+        featured: Boolean(c.featured),
+        displayOrder: Number(c.displayOrder || 1),
+        categoryStatus: (c.categoryStatus || c.status || 'ACTIVE').toUpperCase(),
+        status: (c.categoryStatus || c.status || 'ACTIVE').toUpperCase()
+      }));
+    }
     return getCategories(options);
   } catch (err) {
     console.warn('[TaxonomyModel] Categories API sync notice:', err.message);
@@ -76,20 +71,12 @@ export async function syncCategoriesFromApi(options = {}) {
  * Retrieve only deleted categories for SuperADMIN Trash Bin
  */
 export function getDeletedCategories() {
-  const stored = typeof localStorage !== 'undefined' ? localStorage.getItem(CATEGORIES_STORAGE_KEY) : null;
-  if (!stored) return [];
-  try {
-    const list = JSON.parse(stored);
-    if (!Array.isArray(list)) return [];
-    return list.filter(c => (c.categoryStatus || c.status || '').toUpperCase() === 'DELETED');
-  } catch (e) {
-    return [];
-  }
+  return memoryCategories.filter(c => (c.categoryStatus || c.status || '').toUpperCase() === 'DELETED');
 }
 
 export function saveCategories(categories) {
-  if (typeof localStorage !== 'undefined') {
-    localStorage.setItem(CATEGORIES_STORAGE_KEY, JSON.stringify(categories));
+  if (Array.isArray(categories)) {
+    memoryCategories = [...categories];
   }
 }
 
@@ -100,7 +87,7 @@ export function getCategoryBySlug(slug) {
 }
 
 export async function saveCategory(categoryData, isEdit = false) {
-  const categories = getCategories({ includeDeleted: true });
+  const categories = memoryCategories;
   const slug = (categoryData.slug || categoryData.name || '').toLowerCase().trim().replace(/[^a-z0-9]+/g, '-');
   const categoryStatus = (categoryData.categoryStatus || categoryData.status || 'ACTIVE').toUpperCase();
 
@@ -114,9 +101,7 @@ export async function saveCategory(categoryData, isEdit = false) {
         status: categoryStatus,
         slug: slug || categories[index].slug
       };
-      saveCategories(categories);
 
-      // Async API update
       try {
         await CategoriesApi.update(categories[index].id, categories[index]);
       } catch (err) {
@@ -141,9 +126,7 @@ export async function saveCategory(categoryData, isEdit = false) {
   };
 
   categories.push(newCat);
-  saveCategories(categories);
 
-  // Async API create
   try {
     await CategoriesApi.create(newCat);
   } catch (err) {
@@ -158,21 +141,19 @@ export async function saveCategory(categoryData, isEdit = false) {
  */
 export async function updateCategoryStatus(idOrSlug, newStatus) {
   const upperStatus = (newStatus || 'ACTIVE').toUpperCase();
-  const categories = getCategories({ includeDeleted: true });
-  const index = categories.findIndex(c => c.id === idOrSlug || c.slug === idOrSlug);
+  const index = memoryCategories.findIndex(c => c.id === idOrSlug || c.slug === idOrSlug);
 
   if (index !== -1) {
-    categories[index].categoryStatus = upperStatus;
-    categories[index].status = upperStatus;
-    saveCategories(categories);
+    memoryCategories[index].categoryStatus = upperStatus;
+    memoryCategories[index].status = upperStatus;
 
     try {
-      await CategoriesApi.updateStatus(categories[index].id, upperStatus);
+      await CategoriesApi.updateStatus(memoryCategories[index].id, upperStatus);
     } catch (err) {
       console.warn(`[TaxonomyModel] Backend category status update notice for ${idOrSlug}:`, err.message);
     }
 
-    return { success: true, category: categories[index] };
+    return { success: true, category: memoryCategories[index] };
   }
   return { success: false, message: 'Category not found.' };
 }
@@ -181,9 +162,9 @@ export async function updateCategoryStatus(idOrSlug, newStatus) {
  * Soft delete category by slug/ID (sets status to DELETED)
  */
 export async function deleteCategory(slugOrId) {
+  const cat = getCategoryBySlug(slugOrId);
   const res = await updateCategoryStatus(slugOrId, 'DELETED');
   try {
-    const cat = getCategoryBySlug(slugOrId);
     if (cat) await CategoriesApi.delete(cat.id);
   } catch (err) {
     console.warn(`[TaxonomyModel] Backend category soft-delete notice for ${slugOrId}:`, err.message);
@@ -202,10 +183,8 @@ export async function restoreCategory(slugOrId) {
  * Permanently purge category from storage and backend (SuperADMIN only)
  */
 export async function permanentlyDeleteCategory(slugOrId) {
-  let categories = getCategories({ includeDeleted: true });
-  const target = categories.find(c => c.id === slugOrId || c.slug === slugOrId);
-  categories = categories.filter(c => c.id !== slugOrId && c.slug !== slugOrId);
-  saveCategories(categories);
+  const target = memoryCategories.find(c => c.id === slugOrId || c.slug === slugOrId);
+  memoryCategories = memoryCategories.filter(c => c.id !== slugOrId && c.slug !== slugOrId);
 
   try {
     if (target) await CategoriesApi.permaDelete(target.id);
@@ -222,17 +201,7 @@ export async function permanentlyDeleteCategory(slugOrId) {
 
 export function getBadges(options = {}) {
   const { includeDeleted = false, activeOnly = false } = options;
-  const stored = typeof localStorage !== 'undefined' ? localStorage.getItem(BADGES_STORAGE_KEY) : null;
-  let list = [];
-
-  if (stored) {
-    try {
-      list = JSON.parse(stored);
-      if (!Array.isArray(list)) list = [];
-    } catch (e) {
-      list = [];
-    }
-  }
+  let list = memoryBadges;
 
   if (includeDeleted) return list;
   if (activeOnly) return list.filter(b => (b.status || (b.isActive !== false ? 'ACTIVE' : 'INACTIVE')).toUpperCase() === 'ACTIVE');
@@ -249,29 +218,33 @@ export async function syncBadgesFromApi(options = {}) {
     let apiList = [];
     if (Array.isArray(res)) {
       apiList = res;
+    } else if (res && Array.isArray(res.body)) {
+      apiList = res.body;
     } else if (res && Array.isArray(res.data)) {
       apiList = res.data;
     }
-    const normalized = apiList.map(b => ({
-      id: b.id,
-      name: b.name || '',
-      slug: b.slug || '',
-      badgeType: b.badgeType || 'general',
-      description: b.description || '',
-      color: b.color || 'blue',
-      bgClass: b.bgClass || `bg-${b.color || 'blue'}-50`,
-      textClass: b.textClass || `text-${b.color || 'blue'}-700`,
-      borderClass: b.borderClass || `border-${b.color || 'blue'}-200`,
-      colorHex: b.colorHex || '#2563eb',
-      ruleType: b.ruleType || 'automatic',
-      isSystemDefault: Boolean(b.isSystemDefault),
-      canEdit: b.canEdit !== undefined ? b.canEdit : true,
-      canDelete: b.canDelete !== undefined ? b.canDelete : true,
-      status: (b.status || (b.isActive !== false ? 'ACTIVE' : 'INACTIVE')).toUpperCase(),
-      isActive: (b.status || '').toUpperCase() === 'ACTIVE' || b.isActive === true,
-      thresholds: b.thresholds || {}
-    }));
-    saveBadges(normalized);
+
+    if (apiList.length > 0) {
+      memoryBadges = apiList.map(b => ({
+        id: b.id,
+        name: b.name || '',
+        slug: b.slug || '',
+        badgeType: b.badgeType || 'general',
+        description: b.description || '',
+        color: b.color || 'blue',
+        bgClass: b.bgClass || `bg-${b.color || 'blue'}-50`,
+        textClass: b.textClass || `text-${b.color || 'blue'}-700`,
+        borderClass: b.borderClass || `border-${b.color || 'blue'}-200`,
+        colorHex: b.colorHex || '#2563eb',
+        ruleType: b.ruleType || 'automatic',
+        isSystemDefault: Boolean(b.isSystemDefault),
+        canEdit: b.canEdit !== undefined ? b.canEdit : true,
+        canDelete: b.canDelete !== undefined ? b.canDelete : true,
+        status: (b.status || (b.isActive !== false ? 'ACTIVE' : 'INACTIVE')).toUpperCase(),
+        isActive: (b.status || '').toUpperCase() === 'ACTIVE' || b.isActive === true,
+        thresholds: b.thresholds || {}
+      }));
+    }
     return getBadges(options);
   } catch (err) {
     console.warn('[TaxonomyModel] Badges API sync notice:', err.message);
@@ -283,20 +256,12 @@ export async function syncBadgesFromApi(options = {}) {
  * Retrieve only deleted badges for SuperADMIN Trash Bin
  */
 export function getDeletedBadges() {
-  const stored = typeof localStorage !== 'undefined' ? localStorage.getItem(BADGES_STORAGE_KEY) : null;
-  if (!stored) return [];
-  try {
-    const list = JSON.parse(stored);
-    if (!Array.isArray(list)) return [];
-    return list.filter(b => (b.status || '').toUpperCase() === 'DELETED');
-  } catch (e) {
-    return [];
-  }
+  return memoryBadges.filter(b => (b.status || '').toUpperCase() === 'DELETED');
 }
 
 export function saveBadges(badges) {
-  if (typeof localStorage !== 'undefined') {
-    localStorage.setItem(BADGES_STORAGE_KEY, JSON.stringify(badges));
+  if (Array.isArray(badges)) {
+    memoryBadges = [...badges];
   }
 }
 
@@ -306,7 +271,7 @@ export function getBadgeById(id) {
 }
 
 export async function saveBadge(badgeData, isEdit = false) {
-  const badges = getBadges({ includeDeleted: true });
+  const badges = memoryBadges;
   const slug = (badgeData.slug || badgeData.name || '').toLowerCase().trim().replace(/[^a-z0-9]+/g, '-');
   const thresholds = badgeData.thresholds || {};
   const status = (badgeData.status || (badgeData.isActive !== false ? 'ACTIVE' : 'INACTIVE')).toUpperCase();
@@ -339,7 +304,6 @@ export async function saveBadge(badgeData, isEdit = false) {
         },
         slug: slug || existing.slug
       };
-      saveBadges(badges);
 
       try {
         await BadgesApi.update(badges[index].id, badges[index]);
@@ -375,7 +339,6 @@ export async function saveBadge(badgeData, isEdit = false) {
   };
 
   badges.push(newBadge);
-  saveBadges(badges);
 
   try {
     await BadgesApi.create(newBadge);
@@ -391,21 +354,19 @@ export async function saveBadge(badgeData, isEdit = false) {
  */
 export async function updateBadgeStatus(badgeId, newStatus) {
   const upperStatus = (newStatus || 'ACTIVE').toUpperCase();
-  const badges = getBadges({ includeDeleted: true });
-  const index = badges.findIndex(b => b.id === badgeId || b.slug === badgeId);
+  const index = memoryBadges.findIndex(b => b.id === badgeId || b.slug === badgeId);
 
   if (index !== -1) {
-    badges[index].status = upperStatus;
-    badges[index].isActive = upperStatus === 'ACTIVE';
-    saveBadges(badges);
+    memoryBadges[index].status = upperStatus;
+    memoryBadges[index].isActive = upperStatus === 'ACTIVE';
 
     try {
-      await BadgesApi.updateStatus(badges[index].id, upperStatus);
+      await BadgesApi.updateStatus(memoryBadges[index].id, upperStatus);
     } catch (err) {
       console.warn(`[TaxonomyModel] Backend badge status update notice for ${badgeId}:`, err.message);
     }
 
-    return { success: true, badge: badges[index] };
+    return { success: true, badge: memoryBadges[index] };
   }
   return { success: false, message: 'Badge not found.' };
 }
@@ -414,8 +375,7 @@ export async function updateBadgeStatus(badgeId, newStatus) {
  * Soft delete badge by ID (sets status to DELETED)
  */
 export async function deleteBadge(badgeId) {
-  const badges = getBadges({ includeDeleted: true });
-  const target = badges.find(b => b.id === badgeId || b.slug === badgeId);
+  const target = memoryBadges.find(b => b.id === badgeId || b.slug === badgeId);
 
   if (target && (target.canDelete === false || target.isSystemDefault || target.id === 'bdg-hotdeal')) {
     console.warn('Cannot delete core system protected badge:', target.name);
@@ -439,13 +399,11 @@ export async function restoreBadge(badgeId) {
 }
 
 /**
- * Permanently delete badge from storage and database (SuperADMIN only)
+ * Permanently delete badge from memory and database (SuperADMIN only)
  */
 export async function permanentlyDeleteBadge(badgeId) {
-  let badges = getBadges({ includeDeleted: true });
-  const target = badges.find(b => b.id === badgeId || b.slug === badgeId);
-  badges = badges.filter(b => b.id !== badgeId && b.slug !== badgeId);
-  saveBadges(badges);
+  const target = memoryBadges.find(b => b.id === badgeId || b.slug === badgeId);
+  memoryBadges = memoryBadges.filter(b => b.id !== badgeId && b.slug !== badgeId);
 
   try {
     if (target) await BadgesApi.permaDelete(target.id);
@@ -503,18 +461,10 @@ export function getBadgeThresholdSummary(badge) {
 // ============================================================
 
 export function getProductBehaviorHistory() {
-  const stored = localStorage.getItem(BEHAVIOR_HISTORY_STORAGE_KEY);
-  if (!stored) return [];
-  try {
-    return JSON.parse(stored);
-  } catch (e) {
-    console.error('Failed to parse product behavior history:', e);
-    return [];
-  }
+  return memoryBehaviorHistory;
 }
 
 export function recordProductBehaviorEvent(eventData) {
-  const history = getProductBehaviorHistory();
   const event = {
     id: `pbe-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
     productId: eventData.productId,
@@ -528,20 +478,17 @@ export function recordProductBehaviorEvent(eventData) {
     timestamp: new Date().toISOString()
   };
 
-  history.unshift(event);
-  if (history.length > 500) history.pop();
-
-  localStorage.setItem(BEHAVIOR_HISTORY_STORAGE_KEY, JSON.stringify(history));
+  memoryBehaviorHistory.unshift(event);
+  if (memoryBehaviorHistory.length > 500) memoryBehaviorHistory.pop();
   return event;
 }
 
 export function getProductHistory(productId) {
-  const history = getProductBehaviorHistory();
-  return history.filter(h => String(h.productId) === String(productId));
+  return memoryBehaviorHistory.filter(h => String(h.productId) === String(productId));
 }
 
 export function clearProductBehaviorHistory() {
-  localStorage.removeItem(BEHAVIOR_HISTORY_STORAGE_KEY);
+  memoryBehaviorHistory = [];
   return true;
 }
 
@@ -599,7 +546,7 @@ export function evaluateBadgeForProduct(product, activeBadges = null) {
         return {
           badgeName: badge.name,
           badgeObj: badge,
-          reason: `Rating reached ${rating}/5.0 (>= ${minRatingReq}) with ${reviews} reviews (>= ${minReviewsReq}).`,
+          reason: `High customer satisfaction (${rating}★ with ${reviews} reviews).`,
           metrics: { price, origPrice, discountPct, rating, reviews, totalStock }
         };
       }
@@ -611,7 +558,7 @@ export function evaluateBadgeForProduct(product, activeBadges = null) {
         return {
           badgeName: badge.name,
           badgeObj: badge,
-          reason: `Review benchmark satisfied (${reviews} reviews >= ${minReviewsReq}).`,
+          reason: `Product achieved market sales volume (${reviews} customer verified reviews).`,
           metrics: { price, origPrice, discountPct, rating, reviews, totalStock }
         };
       }
@@ -623,106 +570,85 @@ export function evaluateBadgeForProduct(product, activeBadges = null) {
         return {
           badgeName: badge.name,
           badgeObj: badge,
-          reason: `Popular interest benchmark met with ${reviews} reviews (>= ${minReviewsReq}).`,
+          reason: `Popular item with ${reviews} verified purchaser reviews.`,
           metrics: { price, origPrice, discountPct, rating, reviews, totalStock }
         };
       }
     }
-
-    if (badge.criteria === 'new_arrival' && (product.badge === 'New Arrival' || product.isNew)) {
-      return {
-        badgeName: badge.name,
-        badgeObj: badge,
-        reason: `Product marked as recent catalog intake.`,
-        metrics: { price, origPrice, discountPct, rating, reviews, totalStock }
-      };
-    }
   }
 
-  const existingBadge = product.badge ? activeBadges.find(b => b.name.toLowerCase() === product.badge.toLowerCase()) : null;
-  if (existingBadge && existingBadge.ruleType === 'manual') {
-    return {
-      badgeName: existingBadge.name,
-      badgeObj: existingBadge,
-      reason: `Preserved manual specialist assignment: ${existingBadge.name}.`,
-      metrics: { price, origPrice, discountPct, rating, reviews, totalStock }
-    };
-  }
-
-  return {
-    badgeName: product.badge || '',
-    badgeObj: null,
-    reason: 'No automated rule triggered.',
-    metrics: { price, origPrice, discountPct, rating, reviews, totalStock }
-  };
+  return null;
 }
 
-export function runAutoBadgeAssignment() {
-  const products = getStoredProducts();
+export async function runAutoBadgeAssignment() {
+  try {
+    await BadgesApi.autoAssign();
+  } catch (e) {
+    console.warn('[TaxonomyModel] Auto-assign API notice:', e.message);
+  }
+
+  const productsList = getStoredProducts({ includeDeleted: false });
   const activeBadges = getBadges({ activeOnly: true });
-  let updatedCount = 0;
-  const changes = [];
+  let changesCount = 0;
 
-  products.forEach(p => {
-    const evaluation = evaluateBadgeForProduct(p, activeBadges);
-    const oldBadge = p.badge || '';
-    const newBadge = evaluation.badgeName;
+  productsList.forEach(product => {
+    if (product.badge && product.badge.toLowerCase() === 'hot deal') return;
 
-    if (newBadge !== oldBadge) {
-      p.badge = newBadge;
-      p.badgeId = evaluation.badgeObj ? evaluation.badgeObj.id : '';
-      updatedCount++;
+    const evalResult = evaluateBadgeForProduct(product, activeBadges);
+    if (evalResult) {
+      if (product.badge !== evalResult.badgeName) {
+        const prev = product.badge || 'None';
+        product.badge = evalResult.badgeName;
+        product.badgeId = evalResult.badgeObj.id;
+        changesCount++;
 
-      recordProductBehaviorEvent({
-        productId: p.id,
-        productName: p.name,
-        eventType: 'BADGE_AUTO_ASSIGNED',
-        previousValue: oldBadge || 'None',
-        newValue: newBadge || 'None',
-        triggerReason: evaluation.reason,
-        metricsSnapshot: evaluation.metrics,
-        actor: 'SYSTEM_AUTO_RULE'
-      });
-
-      changes.push({
-        id: p.id,
-        name: p.name,
-        oldBadge,
-        newBadge,
-        reason: evaluation.reason
-      });
+        recordProductBehaviorEvent({
+          productId: product.id,
+          productName: product.name,
+          eventType: 'AUTO_BADGE_PROMOTED',
+          previousValue: prev,
+          newValue: evalResult.badgeName,
+          triggerReason: evalResult.reason,
+          metricsSnapshot: evalResult.metrics,
+          actor: 'SYSTEM_AUTO_RULE'
+        });
+      }
     }
   });
 
-  if (updatedCount > 0) {
-    saveStoredProducts(products);
+  if (changesCount > 0) {
+    saveStoredProducts(productsList);
   }
 
-  return {
-    totalEvaluated: products.length,
-    updatedCount,
-    changes,
-    timestamp: new Date().toISOString()
-  };
+  return { success: true, changesCount, totalEvaluated: productsList.length };
 }
 
+/**
+ * Get visual Tailwind color badge classes for a badge color token
+ */
 export function getBadgeColorClass(color) {
-  switch (color) {
-    case 'blue':
-      return 'bg-blue-50 text-blue-700 border-blue-200';
-    case 'rose':
-      return 'bg-rose-50 text-rose-700 border-rose-200';
+  const c = (color || '').toLowerCase();
+  switch (c) {
     case 'emerald':
+    case 'green':
       return 'bg-emerald-50 text-emerald-700 border-emerald-200';
+    case 'rose':
+    case 'red':
+      return 'bg-rose-50 text-rose-700 border-rose-200';
     case 'amber':
+    case 'yellow':
+    case 'orange':
       return 'bg-amber-50 text-amber-700 border-amber-200';
     case 'purple':
+    case 'violet':
       return 'bg-purple-50 text-purple-700 border-purple-200';
+    case 'indigo':
+      return 'bg-indigo-50 text-indigo-700 border-indigo-200';
+    case 'sky':
     case 'cyan':
-      return 'bg-cyan-50 text-cyan-700 border-cyan-200';
-    case 'orange':
-      return 'bg-orange-50 text-orange-700 border-orange-200';
+      return 'bg-sky-50 text-sky-700 border-sky-200';
     default:
       return 'bg-blue-50 text-blue-700 border-blue-200';
   }
 }
+

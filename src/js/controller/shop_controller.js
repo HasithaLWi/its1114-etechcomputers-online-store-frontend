@@ -7,6 +7,18 @@ import { viewProductDetails } from './product-details_controller.js';
 import { getCategories, syncCategoriesFromApi } from '../models/taxonomy_data.js';
 import { getBrands, getBrandBySlug, syncBrandsFromApi } from '../models/brand_data.js';
 import { isInWishlist, toggleWishlist } from './wishlist_controller.js';
+import {
+  iconFolder,
+  iconBuilding,
+  iconTag,
+  iconStar,
+  iconClose,
+  iconEye,
+  iconCart,
+  iconHeart,
+  formatLKR
+} from '../util/index.js';
+
 
 // Module-level state for multi-selected filters
 let selectedCategorySlugs = [];
@@ -489,9 +501,10 @@ export function renderFilteredProducts() {
         );
         const name = cat ? cat.name : slug;
         return `
-          <span class="inline-flex items-center space-x-1.5 text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded font-mono shadow-sm">
-            <span>📁 ${name}</span>
-            <button type="button" onclick="removeCategoryFilter('${slug}')" class="text-blue-700 hover:text-red-600 ml-0.5 font-sans cursor-pointer" title="Remove filter">✕</button>
+          <span class="inline-flex items-center space-x-1 text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded font-mono shadow-sm">
+            ${iconFolder('w-3 h-3 flex-shrink-0')}
+            <span>${name}</span>
+            <button type="button" onclick="removeCategoryFilter('${slug}')" class="text-blue-700 hover:text-red-600 ml-1 font-sans cursor-pointer flex items-center justify-center" title="Remove filter">${iconClose('w-2.5 h-2.5')}</button>
           </span>
         `;
       }).join('');
@@ -506,9 +519,10 @@ export function renderFilteredProducts() {
         );
         const name = brandObj ? brandObj.name : slug;
         return `
-          <span class="inline-flex items-center space-x-1.5 text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 px-2 py-0.5 rounded font-mono shadow-sm">
-            <span>🏷️ ${name}</span>
-            <button type="button" onclick="removeBrandFilter('${slug}')" class="text-indigo-700 hover:text-red-600 ml-0.5 font-sans cursor-pointer" title="Remove filter">✕</button>
+          <span class="inline-flex items-center space-x-1 text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 px-2 py-0.5 rounded font-mono shadow-sm">
+            ${iconBuilding('w-3 h-3 flex-shrink-0')}
+            <span>${name}</span>
+            <button type="button" onclick="removeBrandFilter('${slug}')" class="text-indigo-700 hover:text-red-600 ml-1 font-sans cursor-pointer flex items-center justify-center" title="Remove filter">${iconClose('w-2.5 h-2.5')}</button>
           </span>
         `;
       }).join('');
@@ -563,13 +577,13 @@ export function renderFilteredProducts() {
             </div>
 
             <span class="absolute top-2.5 right-2.5 bg-white/95 text-[#475569] text-[10px] font-bold px-1.5 py-0.5 rounded border border-[#e2e8f0] flex items-center space-x-1 shadow-sm">
-              <span class="text-amber-500">★</span>
+              ${iconStar('w-3 h-3 text-amber-500')}
               <span>${product.rating || 4.8}</span>
             </span>
 
             <div class="absolute inset-0 bg-[#0f172a]/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
               <span class="px-3 py-1.5 rounded-xl bg-blue-600 text-white text-xs font-bold shadow-md flex items-center space-x-1">
-                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                ${iconEye('w-3.5 h-3.5')}
                 <span>View Specs</span>
               </span>
             </div>

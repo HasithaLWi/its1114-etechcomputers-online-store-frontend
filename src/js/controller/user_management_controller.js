@@ -5,6 +5,19 @@ import { UserApi } from '../api/userApi.js';
 import { getCurrentUser } from './login_controller.js';
 import { getBranches } from './branch_controller.js';
 import { getRoleBadge, buildRoleOptionsHtml, USER_ROLE, User } from '../models/user_model.js';
+import {
+  iconUser,
+  iconShield,
+  iconLock,
+  iconEdit,
+  iconTrash,
+  iconClose,
+  renderUserRoleBadge,
+  renderUserStatusBadge,
+  showToast,
+  etechAlert
+} from '../util/index.js';
+
 
 let cachedUsers = [];
 
@@ -125,7 +138,7 @@ export async function renderUsersTab() {
 export async function changeUserStatus(userId, newStatus) {
   const activeUser = getCurrentUser();
   if (activeUser && String(activeUser.id) === String(userId) && newStatus === 'INACTIVE') {
-    alert('Action Denied: You cannot set your currently logged-in account to INACTIVE.');
+    showToast('Action Denied: You cannot set your currently logged-in account to INACTIVE.', 'error');
     await renderUsersTab();
     return;
   }
@@ -137,9 +150,10 @@ export async function changeUserStatus(userId, newStatus) {
     }
 
     await UserApi.updateUserStatus(userId, newStatus);
+    showToast(`User status updated to ${newStatus}.`, 'success');
     await renderUsersTab();
   } catch (err) {
-    alert(err.message || 'Failed to update user status.');
+    showToast(err.message || 'Failed to update user status.', 'error');
     await renderUsersTab();
   }
 }
@@ -158,13 +172,14 @@ export async function changeUserRole(userId, newRole) {
     if (newRole === 'STAFF' && !assignedBranch) {
       const branches = getBranches();
       assignedBranch = branches.length > 0 ? branches[0].id : 'BR-COL';
-      alert(`Role set to STAFF. Assigned by default to branch: ${assignedBranch}. You can edit this in the user details modal.`);
+      showToast(`Role set to STAFF. Assigned by default to branch: ${assignedBranch}.`, 'info');
     }
 
     await UserApi.updateUserRole(userId, { role: newRole, assignedBranch });
+    showToast('User role updated successfully.', 'success');
     await renderUsersTab();
   } catch (err) {
-    alert(err.message || 'Failed to update user role.');
+    showToast(err.message || 'Failed to update user role.', 'error');
     await renderUsersTab();
   }
 }
@@ -176,18 +191,19 @@ export async function changeUserRole(userId, newRole) {
 export async function confirmDeleteUser(userId) {
   const activeUser = getCurrentUser();
   if (activeUser && String(activeUser.id) === String(userId)) {
-    alert('Cannot delete currently active logged in account.');
+    etechAlert.warning('Action Prohibited', 'Cannot delete your own currently active logged-in account.');
     return;
   }
 
-  if (confirm('Are you sure you want to delete this user account?')) {
-    try {
-      const res = await UserApi.deleteUser(userId);
-      alert(res.message || 'User account removed successfully.');
-      await renderUsersTab();
-    } catch (err) {
-      alert(err.message || 'Failed to delete user account.');
-    }
+  const confirmed = await etechAlert.confirmDelete(`User Account #${userId}`, 'This user will permanently lose access to the system.');
+  if (!confirmed) return;
+
+  try {
+    const res = await UserApi.deleteUser(userId);
+    showToast(res.message || 'User account removed successfully.', 'success');
+    await renderUsersTab();
+  } catch (err) {
+    etechAlert.error('Delete User Failed', err.message);
   }
 }
 
@@ -198,7 +214,7 @@ export async function confirmDeleteUser(userId) {
 export async function openUserModal(userId = null) {
   const activeUser = getCurrentUser();
   if (!activeUser) {
-    alert('Access Denied: Please log in to manage users.');
+    showToast('Access Denied: Please log in to manage users.', 'error');
     return;
   }
 
@@ -213,7 +229,7 @@ export async function openUserModal(userId = null) {
       const fetched = await UserApi.getUserById(userId);
       targetUser = fetched ? new User(fetched) : null;
     } catch (e) {
-      alert('Could not fetch user details.');
+      showToast('Could not fetch user details.', 'error');
       return;
     }
   }
@@ -230,7 +246,9 @@ export async function openUserModal(userId = null) {
             <h3 class="text-base font-extrabold text-[#0f172a]">${modalTitle}</h3>
             ${targetUser ? `<span class="text-[10px] text-blue-600 font-mono">ID: ${targetUser.id} (@${targetUser.username || ''})</span>` : ''}
           </div>
-          <button onclick="closeAdminModal()" class="text-[#64748b] hover:text-[#0f172a] text-lg font-bold">&times;</button>
+          <button onclick="closeAdminModal()" class="text-[#64748b] hover:text-[#0f172a] p-1 rounded-md transition-colors cursor-pointer" aria-label="Close">
+            ${iconClose('w-4 h-4')}
+          </button>
         </div>
 
         <form id="admin-user-form" onsubmit="handleSaveUserSubmit(event, ${targetUser ? `'${targetUser.id}'` : 'null'})" class="space-y-3.5 text-xs">
@@ -283,8 +301,8 @@ export async function openUserModal(userId = null) {
           </div>
 
           <div class="pt-2 flex items-center justify-end space-x-2.5">
-            <button type="button" onclick="closeAdminModal()" class="px-4 py-2 bg-[#f8fafc] hover:bg-[#f1f5f9] text-[#475569] rounded-md font-bold border border-[#e2e8f0]">Cancel</button>
-            <button type="submit" id="modal-user-submit-btn" class="px-5 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-md font-bold shadow-sm">${targetUser ? 'Save User Changes' : 'Create Account'}</button>
+            <button type="button" onclick="closeAdminModal()" class="px-4 py-2 bg-[#f8fafc] hover:bg-[#f1f5f9] text-[#475569] rounded-md font-bold border border-[#e2e8f0] cursor-pointer">Cancel</button>
+            <button type="submit" id="modal-user-submit-btn" class="px-5 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-md font-bold shadow-sm cursor-pointer">${targetUser ? 'Save User Changes' : 'Create Account'}</button>
           </div>
         </form>
       </div>
@@ -333,16 +351,23 @@ export async function handleSaveUserSubmit(e, userId) {
   const submitBtn = document.getElementById('modal-user-submit-btn');
 
   if (!name || !username || !email || (!userId && !password)) {
-    alert('Please fill in all required fields.');
+    etechAlert.warning('Incomplete Form', 'Please fill in all required user fields.');
     return;
   }
 
   // Critical Validation: STAFF must always be assigned to a branch
   if (role === 'STAFF' && !branch) {
-    alert('Validation Error: Staff members must always be assigned to a specific branch warehouse. Please select a branch from the Assigned Branch dropdown.');
+    etechAlert.error('Validation Error', 'Staff members must always be assigned to a specific branch warehouse.');
     if (branchEl) branchEl.focus();
     return;
   }
+
+  const isEdit = Boolean(userId);
+  const confirmed = isEdit
+    ? await etechAlert.confirmUpdate(`User Account "${name}"`, `Username: @${username} | Role: ${role} | Status: ${status}`)
+    : await etechAlert.confirmCreate(`User Account "${name}"`, `Username: @${username} | Role: ${role} | Status: ${status}`);
+
+  if (!confirmed) return;
 
   const userPayload = new User({
     name,
@@ -374,16 +399,16 @@ export async function handleSaveUserSubmit(e, userId) {
   try {
     if (userId) {
       await UserApi.updateUser(userId, payload);
-      alert('User details updated successfully!');
+      showToast('User details updated successfully!', 'success');
     } else {
       await UserApi.createUser(payload);
-      alert('User account created successfully!');
+      showToast('User account created successfully!', 'success');
     }
 
     if (window.closeAdminModal) window.closeAdminModal();
     await renderUsersTab();
   } catch (err) {
-    alert(err.message || 'Failed to save user account.');
+    etechAlert.error('Save User Failed', err.message);
   } finally {
     if (submitBtn) {
       submitBtn.disabled = false;

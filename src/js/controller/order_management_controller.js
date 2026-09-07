@@ -1,26 +1,37 @@
 import { getCurrentUser } from './login_controller.js';
 import { DEFAULT_ORDERS } from '../../data/orders.js';
+import { OrdersApi } from '../api/ordersApi.js';
+import { iconCheck, iconClose } from '../util/icons.js';
+import { etechAlert } from '../util/index.js';
 
 export { DEFAULT_ORDERS };
 
-const ORDERS_STORAGE_KEY = 'etech_orders';
+// Pure in-memory reactive state
+let memoryOrders = [...DEFAULT_ORDERS];
 
 /**
- * Get all orders from localStorage
+ * Sync orders from backend API into memory
+ */
+export async function syncOrdersFromApi() {
+  try {
+    const data = await OrdersApi.getAll();
+    if (Array.isArray(data)) {
+      memoryOrders = data;
+    } else if (data && Array.isArray(data.content)) {
+      memoryOrders = data.content;
+    }
+  } catch (err) {
+    console.warn('[OrdersController] Live order sync fallback to in-memory store:', err.message || err);
+  }
+  return memoryOrders;
+}
+
+/**
+ * Get all orders from memory
  * @returns {Array}
  */
 export function getAllOrders() {
-  const raw = localStorage.getItem(ORDERS_STORAGE_KEY);
-  if (!raw) {
-    localStorage.setItem(ORDERS_STORAGE_KEY, JSON.stringify(DEFAULT_ORDERS));
-    return [...DEFAULT_ORDERS];
-  }
-  try {
-    const list = JSON.parse(raw);
-    return Array.isArray(list) ? list : [...DEFAULT_ORDERS];
-  } catch (e) {
-    return [...DEFAULT_ORDERS];
-  }
+  return [...memoryOrders];
 }
 
 /**
@@ -30,11 +41,10 @@ export function getAllOrders() {
  */
 export function getOrderById(orderId) {
   if (!orderId) return null;
-  const orders = getAllOrders();
   const rawId = String(orderId).trim();
   const cleanId = rawId.replace(/^#/, '');
 
-  return orders.find(o => {
+  return memoryOrders.find(o => {
     const oId = String(o.orderId || '').trim();
     const cleanOId = oId.replace(/^#/, '');
     return oId.toLowerCase() === rawId.toLowerCase() || cleanOId.toLowerCase() === cleanId.toLowerCase();
@@ -42,10 +52,9 @@ export function getOrderById(orderId) {
 }
 
 /**
- * Save order details to order database
+ * Save order details to order database & API
  */
 export function saveOrder(orderData) {
-  const orders = getAllOrders();
   const currentUser = getCurrentUser();
 
   const sanitizedOrder = {
@@ -75,8 +84,12 @@ export function saveOrder(orderData) {
     status: 'Pending'
   };
 
-  orders.unshift(sanitizedOrder);
-  localStorage.setItem(ORDERS_STORAGE_KEY, JSON.stringify(orders));
+  memoryOrders.unshift(sanitizedOrder);
+
+  // Sync to backend asynchronously
+  OrdersApi.placeOrder(sanitizedOrder).catch(err => {
+    console.warn('[OrdersController] Live order backend dispatch fallback:', err.message || err);
+  });
 
   return sanitizedOrder;
 }
@@ -85,13 +98,17 @@ export function saveOrder(orderData) {
  * Update order status (Pending -> Processing -> Shipped -> Delivered -> Cancelled)
  */
 export function updateOrderStatus(orderId, newStatus) {
-  const orders = getAllOrders();
   const cleanId = String(orderId).trim().replace(/^#/, '');
-  const order = orders.find(o => String(o.orderId).trim().replace(/^#/, '').toLowerCase() === cleanId.toLowerCase());
+  const order = memoryOrders.find(o => String(o.orderId).trim().replace(/^#/, '').toLowerCase() === cleanId.toLowerCase());
   if (!order) return { success: false, message: 'Order not found.' };
 
   order.status = newStatus;
-  localStorage.setItem(ORDERS_STORAGE_KEY, JSON.stringify(orders));
+
+  // Sync with backend API
+  OrdersApi.updateStatus(orderId, newStatus).catch(err => {
+    console.warn('[OrdersController] Status update backend API fallback:', err.message || err);
+  });
+
   return { success: true, message: `Order #${order.orderId} status updated to ${newStatus}` };
 }
 
@@ -102,9 +119,8 @@ export function updateOrderStatus(orderId, newStatus) {
  * @returns {object}
  */
 export function cancelCustomerOrder(orderId, reason = 'Cancelled by customer request') {
-  const orders = getAllOrders();
   const cleanId = String(orderId).trim().replace(/^#/, '');
-  const order = orders.find(o => String(o.orderId).trim().replace(/^#/, '').toLowerCase() === cleanId.toLowerCase());
+  const order = memoryOrders.find(o => String(o.orderId).trim().replace(/^#/, '').toLowerCase() === cleanId.toLowerCase());
   if (!order) return { success: false, message: 'Order not found.' };
 
   if (order.status === 'Shipped' || order.status === 'Delivered') {
@@ -117,7 +133,11 @@ export function cancelCustomerOrder(orderId, reason = 'Cancelled by customer req
   order.status = 'Cancelled';
   order.cancellationReason = reason || 'Customer requested cancellation';
   order.cancelledAt = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-  localStorage.setItem(ORDERS_STORAGE_KEY, JSON.stringify(orders));
+
+  // Sync with backend API
+  OrdersApi.updateStatus(orderId, 'Cancelled').catch(err => {
+    console.warn('[OrdersController] Cancel order backend API fallback:', err.message || err);
+  });
 
   return { success: true, message: `Order #${order.orderId} has been cancelled successfully.` };
 }
@@ -196,7 +216,10 @@ export function handleCustomerCancelOrder(orderId) {
   }
 
   if (order.status === 'Shipped' || order.status === 'Delivered') {
-    alert(`Order #${order.orderId} cannot be cancelled because it is already ${order.status.toLowerCase()}. Please contact our support team at support@etechcomputers.lk.`);
+    etechAlert.warning(
+      'Order In Transit',
+      `Order #${order.orderId} cannot be cancelled online because it is already ${order.status.toLowerCase()}. Please contact our customer support hotline or dispatch team directly.`
+    );
     return;
   }
 
@@ -363,26 +386,26 @@ export function renderCustomerOrderDetailPage(orderId) {
     </div>
 
     <!-- Hero Order Header Card -->
-    <div class="bg-white border border-[#e2e8f0] rounded-xl p-6 shadow-sm mb-6 space-y-4">
+    <div class="bg-white border border-[#e2e8f0] rounded-2xl p-6 shadow-sm mb-6 space-y-4">
       <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-[#e2e8f0] pb-4">
         <div>
           <div class="flex items-center space-x-2.5">
             <h1 class="text-2xl font-black text-[#0f172a] font-mono tracking-tight">Order #${order.orderId}</h1>
-            <span class="px-3 py-1 rounded-full text-xs font-extrabold uppercase tracking-wide ${getStatusStyle(status)}">
-              ${isCancelled ? '✕ Cancelled' : (isDelivered ? '✓ Delivered' : `● ${status}`)}
+            <span class="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-extrabold uppercase tracking-wide whitespace-nowrap shadow-2xs ${getStatusStyle(status)}">
+              ${isCancelled ? `${iconClose('w-3.5 h-3.5')}<span>Cancelled</span>` : (isDelivered ? `${iconCheck('w-3.5 h-3.5')}<span>Delivered</span>` : `<span>●</span><span>${status}</span>`)}
             </span>
           </div>
           <p class="text-xs text-[#64748b] mt-1">Placed on <strong class="text-[#0f172a]">${order.date}</strong> &bull; Payment: <strong class="text-[#0f172a]">${order.paymentMethod}</strong></p>
         </div>
 
         <div class="flex flex-wrap items-center gap-2.5">
-          <button onclick="openOrderSupportEmail('${order.orderId}')" class="px-4 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold text-xs rounded-md border border-blue-200 transition-all flex items-center space-x-1.5 shadow-xs">
+          <button onclick="openOrderSupportEmail('${order.orderId}')" class="px-4 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold text-xs rounded-xl border border-blue-200 transition-all flex items-center space-x-1.5 shadow-xs cursor-pointer whitespace-nowrap">
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
             <span>Email Support</span>
           </button>
           
           ${(!isCancelled && !isDelivered && !isShipped) ? `
-            <button onclick="handleCustomerCancelOrder('${order.orderId}')" class="px-4 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs rounded-md border border-rose-200 transition-all flex items-center space-x-1.5 shadow-xs">
+            <button onclick="handleCustomerCancelOrder('${order.orderId}')" class="px-4 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs rounded-xl border border-rose-200 transition-all flex items-center space-x-1.5 shadow-xs cursor-pointer whitespace-nowrap">
               <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
               <span>Cancel Order</span>
             </button>
@@ -392,7 +415,7 @@ export function renderCustomerOrderDetailPage(orderId) {
 
       <!-- Cancellation Alert Banner (If cancelled) -->
       ${isCancelled ? `
-        <div class="bg-rose-50 border border-rose-200 rounded-lg p-4 text-xs text-rose-800 space-y-1">
+        <div class="bg-rose-50 border border-rose-200 rounded-xl p-4 text-xs text-rose-800 space-y-1">
           <div class="flex items-center space-x-2 font-bold text-rose-900">
             <svg class="w-4 h-4 text-rose-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
             <span>This order was cancelled</span>
@@ -412,46 +435,43 @@ export function renderCustomerOrderDetailPage(orderId) {
 
           <div class="grid grid-cols-1 sm:grid-cols-4 gap-3 pt-2">
             <!-- Step 1: Placed -->
-            <div class="relative p-3.5 rounded-lg border ${currentStep >= 0 ? 'bg-blue-50/70 border-blue-200' : 'bg-[#f8fafc] border-[#e2e8f0]'}">
+            <div class="relative p-3.5 rounded-xl border ${currentStep >= 0 ? 'bg-blue-50/70 border-blue-200' : 'bg-[#f8fafc] border-[#e2e8f0]'}">
               <div class="flex items-center space-x-2.5 mb-1.5">
                 <div class="w-7 h-7 rounded-full flex items-center justify-center font-bold text-xs ${currentStep >= 0 ? 'bg-blue-600 text-white shadow-sm' : 'bg-[#e2e8f0] text-[#64748b]'}">
-                  ✓
+                  ${iconCheck('w-3.5 h-3.5')}
                 </div>
                 <span class="text-xs font-bold text-[#0f172a]">1. Order Placed</span>
               </div>
               <p class="text-[11px] text-[#64748b]">Confirmed & Verified</p>
-              <p class="text-[10px] text-blue-600 font-mono mt-1">${order.date}</p>
             </div>
 
-            <!-- Step 2: Processing & Hub -->
-            <div class="relative p-3.5 rounded-lg border ${currentStep >= 1 ? 'bg-blue-50/70 border-blue-200' : (currentStep === 0 ? 'bg-amber-50/40 border-amber-200' : 'bg-[#f8fafc] border-[#e2e8f0]')}">
+            <!-- Step 2: Processing -->
+            <div class="relative p-3.5 rounded-xl border ${currentStep >= 1 ? 'bg-blue-50/70 border-blue-200' : 'bg-[#f8fafc] border-[#e2e8f0]'}">
               <div class="flex items-center space-x-2.5 mb-1.5">
-                <div class="w-7 h-7 rounded-full flex items-center justify-center font-bold text-xs ${currentStep >= 1 ? 'bg-blue-600 text-white shadow-sm' : (currentStep === 0 ? 'bg-amber-500 text-white animate-pulse' : 'bg-[#e2e8f0] text-[#64748b]')}">
-                  ${currentStep >= 1 ? '✓' : '2'}
+                <div class="w-7 h-7 rounded-full flex items-center justify-center font-bold text-xs ${currentStep >= 1 ? 'bg-blue-600 text-white shadow-sm' : 'bg-[#e2e8f0] text-[#64748b]'}">
+                  ${currentStep >= 1 ? iconCheck('w-3.5 h-3.5') : '2'}
                 </div>
-                <span class="text-xs font-bold text-[#0f172a]">2. Processing</span>
+                <span class="text-xs font-bold text-[#0f172a]">2. Warehouse Picking</span>
               </div>
-              <p class="text-[11px] text-[#64748b]">Allocated at Hub</p>
-              <p class="text-[10px] text-[#0f172a] font-semibold mt-1 truncate">${order.fulfillmentBranch || 'Colombo Hub'}</p>
+              <p class="text-[11px] text-[#64748b]">Inventory staged & tested</p>
             </div>
 
-            <!-- Step 3: Out for Delivery -->
-            <div class="relative p-3.5 rounded-lg border ${currentStep >= 2 ? 'bg-blue-50/70 border-blue-200' : (currentStep === 1 ? 'bg-blue-50/30 border-blue-200' : 'bg-[#f8fafc] border-[#e2e8f0]')}">
+            <!-- Step 3: Shipped -->
+            <div class="relative p-3.5 rounded-xl border ${currentStep >= 2 ? 'bg-blue-50/70 border-blue-200' : 'bg-[#f8fafc] border-[#e2e8f0]'}">
               <div class="flex items-center space-x-2.5 mb-1.5">
                 <div class="w-7 h-7 rounded-full flex items-center justify-center font-bold text-xs ${currentStep >= 2 ? 'bg-blue-600 text-white shadow-sm' : 'bg-[#e2e8f0] text-[#64748b]'}">
-                  ${currentStep >= 2 ? '✓' : '3'}
+                  ${currentStep >= 2 ? iconCheck('w-3.5 h-3.5') : '3'}
                 </div>
-                <span class="text-xs font-bold text-[#0f172a]">3. In Transit</span>
+                <span class="text-xs font-bold text-[#0f172a]">3. Out for Delivery</span>
               </div>
-              <p class="text-[11px] text-[#64748b]">Courier Dispatch</p>
-              <p class="text-[10px] text-[#64748b] mt-1">${order.city || 'Colombo'} (${order.distanceKm || 5} km)</p>
+              <p class="text-[11px] text-[#64748b]">${order.trackingNumber ? `Waybill: ${order.trackingNumber}` : 'With dispatch courier'}</p>
             </div>
 
             <!-- Step 4: Delivered -->
-            <div class="relative p-3.5 rounded-lg border ${currentStep >= 3 ? 'bg-emerald-50 border-emerald-200' : 'bg-[#f8fafc] border-[#e2e8f0]'}">
+            <div class="relative p-3.5 rounded-xl border ${currentStep >= 3 ? 'bg-emerald-50 border-emerald-200' : 'bg-[#f8fafc] border-[#e2e8f0]'}">
               <div class="flex items-center space-x-2.5 mb-1.5">
                 <div class="w-7 h-7 rounded-full flex items-center justify-center font-bold text-xs ${currentStep >= 3 ? 'bg-emerald-600 text-white shadow-sm' : 'bg-[#e2e8f0] text-[#64748b]'}">
-                  ${currentStep >= 3 ? '✓' : '4'}
+                  ${currentStep >= 3 ? iconCheck('w-3.5 h-3.5') : '4'}
                 </div>
                 <span class="text-xs font-bold text-[#0f172a]">4. Delivered</span>
               </div>
@@ -576,7 +596,7 @@ export function renderCustomerOrderDetailPage(orderId) {
             </div>
             <div class="flex justify-between">
               <span class="text-[#64748b]">Status:</span>
-              <span class="font-semibold text-emerald-600">✓ Verified</span>
+              <span class="font-semibold text-emerald-600 inline-flex items-center space-x-1">${iconCheck('w-3.5 h-3.5 text-emerald-600')}<span>Verified</span></span>
             </div>
           </div>
         </div>
@@ -682,14 +702,24 @@ export function renderOrdersTab() {
   }).join('') || '<tr><td colspan="6" class="py-8 text-center text-xs text-[#64748b]">No orders found for your branch.</td></tr>';
 }
 
-export function changeOrderStatus(orderId, newStatus) {
+export async function changeOrderStatus(orderId, newStatus) {
   const activeUser = getCurrentUser();
   const order = getOrderById(orderId);
 
   if (activeUser && !activeUser.hasGlobalAccess() && order && !activeUser.canManageBranch(order.fulfillmentBranchId)) {
-    alert(`Permission Denied: You are only authorized to modify orders assigned to your branch (${activeUser.assignedBranch}).`);
+    etechAlert.error('Permission Denied', `You are only authorized to modify orders assigned to your branch (${activeUser.assignedBranch}).`);
     return;
   }
+
+  const confirmed = await etechAlert.confirm({
+    title: `Update Order Status?`,
+    message: `Change Order #${orderId} fulfillment status to "${newStatus}"?`,
+    type: 'update',
+    confirmText: 'Update Status',
+    cancelText: 'Cancel'
+  });
+
+  if (!confirmed) return;
 
   const res = updateOrderStatus(orderId, newStatus);
   if (res.success) {

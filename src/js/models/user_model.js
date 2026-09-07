@@ -170,24 +170,15 @@ export function buildRoleOptionsHtml(selectedRole = '') {
     }).join('');
 }
 
+import { renderUserRoleBadge, renderUserStatusBadge } from '../util/ui_helpers.js';
+
 /**
  * Role badge formatter using USER_ROLE
  * @param {string} role
  * @returns {string} HTML markup for badge
  */
 export function getRoleBadge(role) {
-    const rawRole = (role || DEFAULT_ROLE).toUpperCase();
-
-    switch (rawRole) {
-        case USER_ROLE.SUPERADMIN:
-            return `<span class="px-2 py-0.5 rounded text-[9px] font-mono font-extrabold uppercase bg-purple-50 text-purple-700 border border-purple-200 shadow-xs">${rawRole}</span>`;
-        case USER_ROLE.ADMIN:
-            return `<span class="px-2 py-0.5 rounded text-[9px] font-mono font-bold uppercase bg-blue-50 text-blue-700 border border-blue-200 shadow-xs">${rawRole}</span>`;
-        case USER_ROLE.STAFF:
-            return `<span class="px-2 py-0.5 rounded text-[9px] font-mono font-bold uppercase bg-sky-50 text-sky-700 border border-sky-200 shadow-xs">${rawRole}</span>`;
-        default:
-            return `<span class="px-2 py-0.5 rounded text-[9px] font-mono font-medium uppercase bg-[#f8fafc] text-[#475569] border border-[#e2e8f0]">${rawRole}</span>`;
-    }
+    return renderUserRoleBadge(role);
 }
 
 /**
@@ -209,10 +200,7 @@ export function buildStatusOptionsHtml(selectedStatus = 'ACTIVE') {
  * @returns {string} HTML markup for status badge
  */
 export function getStatusBadge(status) {
-    const rawStatus = (status || 'ACTIVE').toUpperCase();
-    if (rawStatus === 'ACTIVE') {
-        return `<span class="px-2 py-0.5 rounded text-[9px] font-mono font-bold uppercase bg-emerald-50 text-emerald-700 border border-emerald-200">ACTIVE</span>`;
-    }
-    return `<span class="px-2 py-0.5 rounded text-[9px] font-mono font-bold uppercase bg-rose-50 text-rose-700 border border-rose-200">INACTIVE</span>`;
+    return renderUserStatusBadge(status);
 }
+
 

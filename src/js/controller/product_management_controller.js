@@ -8,8 +8,23 @@ import {
 import { getCurrentUser } from './login_controller.js';
 import { getCategories, getBadges } from '../models/taxonomy_data.js';
 import { getBrands } from '../models/brand_data.js';
-import { showToast } from './cart_controller.js';
 import { updateTrashSidebarBadge } from './admin_dashboard_controller.js';
+import {
+  iconPackage,
+  iconFolder,
+  iconBuilding,
+  iconTag,
+  iconEdit,
+  iconTrash,
+  iconPlus,
+  iconClose,
+  renderStockStatusBadge,
+  renderUserStatusBadge,
+  formatLKR,
+  showToast,
+  etechAlert
+} from '../util/index.js';
+
 
 let productSearchQuery = '';
 
@@ -175,12 +190,17 @@ export async function confirmDeleteProduct(productId) {
   const p = getProductById(productId);
   const name = p ? p.name : 'Product';
 
-  if (confirm(`Move "${name}" to the Trash Bin?`)) {
-    await deleteProduct(productId);
-    showToast(`"${name}" was moved to the Trash Bin.`, 'info');
-    renderProductsTab();
-    updateTrashSidebarBadge();
-  }
+  const confirmed = await etechAlert.confirmDelete(
+    `Product "${name}"`,
+    p ? `SKU: ${p.sku || 'N/A'} | Price: Rs. ${(p.price || 0).toLocaleString()} | Branch Inventory will be soft-deleted.` : ''
+  );
+
+  if (!confirmed) return;
+
+  await deleteProduct(productId);
+  showToast(`"${name}" was moved to the Trash Bin.`, 'info');
+  renderProductsTab();
+  updateTrashSidebarBadge();
 }
 
 // ── Dedicated Product Add/Edit Workspace Page ──
@@ -271,7 +291,7 @@ export function openProductFormPage(productId = null) {
   if (categorySelect) {
     const allCategories = getCategories({ activeOnly: false });
     categorySelect.innerHTML = allCategories.map(c => `
-      <option value="${c.slug}">${c.icon || '📦'} ${c.name}</option>
+      <option value="${c.slug}">${c.name}</option>
     `).join('');
     categorySelect.value = product ? product.category : (allCategories[0]?.slug || 'laptops');
   }
@@ -639,6 +659,13 @@ export async function handleSaveProductSubmit(e) {
     productStatus: statusVal,
     status: statusVal
   };
+
+  const isEdit = Boolean(productId);
+  const confirmed = isEdit
+    ? await etechAlert.confirmUpdate(`Product "${productData.name}"`, `Category: ${categoryVal} | Brand: ${brandVal} | Price: Rs. ${(priceVal || 0).toLocaleString()} | Status: ${statusVal}`)
+    : await etechAlert.confirmCreate(`Product "${productData.name}"`, `Category: ${categoryVal} | Brand: ${brandVal} | Price: Rs. ${(priceVal || 0).toLocaleString()} | Status: ${statusVal}`);
+
+  if (!confirmed) return;
 
   await saveProduct(productData);
   showToast(`Product "${productData.name}" saved successfully.`, 'success');

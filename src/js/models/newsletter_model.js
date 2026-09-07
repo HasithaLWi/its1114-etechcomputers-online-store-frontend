@@ -1,6 +1,7 @@
 // ============================================================
-//  src/js/models/newsletter_model.js — Newsletter & Marketing Models
+//  src/js/models/newsletter_model.js — Newsletter & Marketing In-Memory Models
 // ============================================================
+import { NewsletterApi } from '../api/newsletterApi.js';
 
 export const NEWSLETTER_STATUS = Object.freeze({
   SUBSCRIBED: 'SUBSCRIBED',
@@ -14,9 +15,6 @@ export const NEWSLETTER_SOURCE = Object.freeze({
   MANUAL: 'MANUAL',
   ACCOUNT: 'ACCOUNT'
 });
-
-export const LOCAL_STORAGE_NEWSLETTER_SUBSCRIBERS = 'etech_newsletter_subscribers';
-export const LOCAL_STORAGE_NEWSLETTER_CAMPAIGNS = 'etech_newsletter_campaigns';
 
 /**
  * Subscriber Data Entity Class
@@ -50,7 +48,7 @@ export class Subscriber {
 }
 
 /**
- * Email validation regex helper
+ * Email validation helper
  */
 export function isValidEmail(email) {
   if (!email || typeof email !== 'string') return false;
@@ -63,7 +61,7 @@ export function isValidEmail(email) {
  */
 const DEFAULT_SUBSCRIBERS = [
   {
-    id: 1001,
+    id: 1,
     email: 'kasun.perera@gmail.com',
     name: 'Kasun Perera',
     status: NEWSLETTER_STATUS.SUBSCRIBED,
@@ -73,7 +71,7 @@ const DEFAULT_SUBSCRIBERS = [
     lastCampaignSentAt: '2026-08-25T14:30:00.000Z'
   },
   {
-    id: 1002,
+    id: 2,
     email: 'dinuka.fernando@techlk.com',
     name: 'Dinuka Fernando',
     status: NEWSLETTER_STATUS.SUBSCRIBED,
@@ -83,7 +81,7 @@ const DEFAULT_SUBSCRIBERS = [
     lastCampaignSentAt: '2026-08-25T14:30:00.000Z'
   },
   {
-    id: 1003,
+    id: 3,
     email: 'sachith.gamage@yahoo.com',
     name: 'Sachith Gamage',
     status: NEWSLETTER_STATUS.SUBSCRIBED,
@@ -93,7 +91,7 @@ const DEFAULT_SUBSCRIBERS = [
     lastCampaignSentAt: '2026-08-25T14:30:00.000Z'
   },
   {
-    id: 1004,
+    id: 4,
     email: 'nadeesha.jayawardena@outlook.com',
     name: 'Nadeesha Jayawardena',
     status: NEWSLETTER_STATUS.SUBSCRIBED,
@@ -103,7 +101,7 @@ const DEFAULT_SUBSCRIBERS = [
     lastCampaignSentAt: '2026-08-25T14:30:00.000Z'
   },
   {
-    id: 1005,
+    id: 5,
     email: 'roshan.wickramasinghe@etech.lk',
     name: 'Roshan Wickramasinghe',
     status: NEWSLETTER_STATUS.SUBSCRIBED,
@@ -113,7 +111,7 @@ const DEFAULT_SUBSCRIBERS = [
     lastCampaignSentAt: '2026-08-25T14:30:00.000Z'
   },
   {
-    id: 1006,
+    id: 6,
     email: 'tharindu.alwis@gmail.com',
     name: 'Tharindu Alwis',
     status: NEWSLETTER_STATUS.UNSUBSCRIBED,
@@ -124,7 +122,7 @@ const DEFAULT_SUBSCRIBERS = [
     lastCampaignSentAt: '2026-08-15T14:30:00.000Z'
   },
   {
-    id: 1007,
+    id: 7,
     email: 'chamari.athapaththu@live.com',
     name: 'Chamari Athapaththu',
     status: NEWSLETTER_STATUS.SUBSCRIBED,
@@ -134,7 +132,7 @@ const DEFAULT_SUBSCRIBERS = [
     lastCampaignSentAt: '2026-08-25T14:30:00.000Z'
   },
   {
-    id: 1008,
+    id: 8,
     email: 'kavinda.silva@coder.lk',
     name: 'Kavinda Silva',
     status: NEWSLETTER_STATUS.SUBSCRIBED,
@@ -144,7 +142,7 @@ const DEFAULT_SUBSCRIBERS = [
     lastCampaignSentAt: '2026-08-25T14:30:00.000Z'
   },
   {
-    id: 1009,
+    id: 9,
     email: 'anuradha.jayasinghe@gmail.com',
     name: 'Anuradha Jayasinghe',
     status: NEWSLETTER_STATUS.SUBSCRIBED,
@@ -154,7 +152,7 @@ const DEFAULT_SUBSCRIBERS = [
     lastCampaignSentAt: null
   },
   {
-    id: 1010,
+    id: 10,
     email: 'malsha.senanayake@hotmail.com',
     name: 'Malsha Senanayake',
     status: NEWSLETTER_STATUS.SUBSCRIBED,
@@ -170,7 +168,7 @@ const DEFAULT_SUBSCRIBERS = [
  */
 const DEFAULT_CAMPAIGNS = [
   {
-    id: 'camp_20260825_01',
+    id: 1,
     subject: '🔥 Weekend Flash Deals: Up to 45% OFF RTX 40-Series & Gaming Rigs',
     preheader: 'Exclusive VIP member discounts on cutting-edge hardware valid this weekend only.',
     category: 'FLASH_DEALS',
@@ -183,7 +181,7 @@ const DEFAULT_CAMPAIGNS = [
     authorName: 'Admin Team'
   },
   {
-    id: 'camp_20260815_01',
+    id: 2,
     subject: '🚀 Intel Core Ultra & DDR5 Titanium Memory Now Available at ETech',
     preheader: 'Upgrade your workstation with next-generation high performance components.',
     category: 'NEW_ARRIVALS',
@@ -197,65 +195,56 @@ const DEFAULT_CAMPAIGNS = [
   }
 ];
 
+// Reactive In-Memory State (No LocalStorage Pollution)
+let memorySubscribers = DEFAULT_SUBSCRIBERS.map(s => new Subscriber(s));
+let memoryCampaigns = [...DEFAULT_CAMPAIGNS];
+
 /**
- * Retrieve all subscribers from localStorage with fallback to default seed
+ * Retrieve all subscribers from in-memory state
  */
 export function getNewsletterSubscribers() {
-  try {
-    const raw = localStorage.getItem(LOCAL_STORAGE_NEWSLETTER_SUBSCRIBERS);
-    if (!raw) {
-      localStorage.setItem(LOCAL_STORAGE_NEWSLETTER_SUBSCRIBERS, JSON.stringify(DEFAULT_SUBSCRIBERS));
-      return DEFAULT_SUBSCRIBERS.map(s => new Subscriber(s));
-    }
-    const parsed = JSON.parse(raw);
-    return parsed.map(s => new Subscriber(s));
-  } catch (err) {
-    console.error('[NewsletterModel] Error reading subscribers:', err);
-    return DEFAULT_SUBSCRIBERS.map(s => new Subscriber(s));
+  return memorySubscribers;
+}
+
+/**
+ * Explicitly update the in-memory subscribers state
+ */
+export function setMemorySubscribers(subscribers) {
+  if (Array.isArray(subscribers)) {
+    memorySubscribers = subscribers.map(s => (s instanceof Subscriber ? s : new Subscriber(s)));
   }
 }
 
 /**
- * Save subscribers to localStorage
+ * Save subscribers to in-memory state
  */
 export function saveNewsletterSubscribers(subscribers) {
-  try {
-    localStorage.setItem(LOCAL_STORAGE_NEWSLETTER_SUBSCRIBERS, JSON.stringify(subscribers));
-    return true;
-  } catch (err) {
-    console.error('[NewsletterModel] Error saving subscribers:', err);
-    return false;
-  }
+  setMemorySubscribers(subscribers);
+  return true;
 }
 
 /**
- * Retrieve all campaign broadcasts
+ * Retrieve all campaign broadcasts from in-memory state
  */
 export function getNewsletterCampaigns() {
-  try {
-    const raw = localStorage.getItem(LOCAL_STORAGE_NEWSLETTER_CAMPAIGNS);
-    if (!raw) {
-      localStorage.setItem(LOCAL_STORAGE_NEWSLETTER_CAMPAIGNS, JSON.stringify(DEFAULT_CAMPAIGNS));
-      return DEFAULT_CAMPAIGNS;
-    }
-    return JSON.parse(raw);
-  } catch (err) {
-    console.error('[NewsletterModel] Error reading campaigns:', err);
-    return DEFAULT_CAMPAIGNS;
+  return memoryCampaigns;
+}
+
+/**
+ * Explicitly update the in-memory campaigns state
+ */
+export function setMemoryCampaigns(campaigns) {
+  if (Array.isArray(campaigns)) {
+    memoryCampaigns = [...campaigns];
   }
 }
 
 /**
- * Save campaigns to localStorage
+ * Save campaigns to in-memory state
  */
 export function saveNewsletterCampaigns(campaigns) {
-  try {
-    localStorage.setItem(LOCAL_STORAGE_NEWSLETTER_CAMPAIGNS, JSON.stringify(campaigns));
-    return true;
-  } catch (err) {
-    console.error('[NewsletterModel] Error saving campaigns:', err);
-    return false;
-  }
+  setMemoryCampaigns(campaigns);
+  return true;
 }
 
 /**
@@ -272,7 +261,7 @@ export function getNewsletterAnalytics() {
   const totalCampaigns = campaigns.length;
   const totalEmailsDelivered = campaigns.reduce((sum, c) => sum + (c.recipientsCount || 0), 0);
   const avgOpenRate = campaigns.length > 0 
-    ? (campaigns.reduce((sum, c) => sum + (c.openRate || 0), 0) / campaigns.length).toFixed(1)
+    ? (campaigns.reduce((sum, c) => sum + (parseFloat(c.openRate) || 0), 0) / campaigns.length).toFixed(1)
     : '0.0';
 
   const sourceCounts = {
@@ -300,3 +289,34 @@ export function getNewsletterAnalytics() {
     sourceCounts
   };
 }
+
+/**
+ * Sync subscribers and campaigns from backend API
+ */
+export async function syncNewsletterFromApi() {
+  try {
+    const [subscribersRes, campaignsRes] = await Promise.allSettled([
+      NewsletterApi.getAllSubscribers(),
+      NewsletterApi.getCampaigns()
+    ]);
+
+    if (subscribersRes.status === 'fulfilled' && subscribersRes.value) {
+      const data = subscribersRes.value;
+      const list = Array.isArray(data) ? data : (data.content || []);
+      if (list.length > 0) {
+        setMemorySubscribers(list);
+      }
+    }
+
+    if (campaignsRes.status === 'fulfilled' && campaignsRes.value) {
+      const data = campaignsRes.value;
+      const list = Array.isArray(data) ? data : (data.content || []);
+      if (list.length > 0) {
+        setMemoryCampaigns(list);
+      }
+    }
+  } catch (err) {
+    console.warn('[NewsletterModel] Live API sync fallback to in-memory store:', err.message || err);
+  }
+}
+

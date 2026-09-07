@@ -12,8 +12,20 @@ import {
 import { 
   getDeletedBrands, restoreBrand, permanentlyDeleteBrand, syncBrandsFromApi 
 } from '../models/brand_data.js';
-import { showToast } from './cart_controller.js';
+import { showToast } from '../util/toast.js';
+import { etechAlert } from '../util/etech_alert.js';
 import { updateTrashSidebarBadge } from './admin_dashboard_controller.js';
+import {
+  iconTrash,
+  iconPackage,
+  iconFolder,
+  iconBuilding,
+  iconTag,
+  iconAlert,
+  iconShield,
+  iconClose,
+  iconCheck
+} from '../util/icons.js';
 
 let currentTrashFilter = 'all'; // 'all', 'products', 'categories', 'brands', 'badges'
 let trashSearchQuery = '';
@@ -55,15 +67,15 @@ export function renderTrashBinTab(shouldSync = true) {
   if (!activeUser || !activeUser.isSuperAdmin()) {
     container.innerHTML = `
       <div class="p-8 max-w-2xl mx-auto text-center space-y-4 bg-white border border-rose-200 rounded-2xl shadow-sm">
-        <div class="w-14 h-14 mx-auto rounded-2xl bg-rose-50 border border-rose-200 flex items-center justify-center text-2xl">
-          🔒
+        <div class="w-14 h-14 mx-auto rounded-2xl bg-rose-50 border border-rose-200 flex items-center justify-center text-rose-600 shadow-2xs">
+          ${iconShield('w-7 h-7 text-rose-600')}
         </div>
         <h2 class="text-xl font-extrabold text-[#0f172a]">SuperADMIN Access Restricted</h2>
         <p class="text-xs text-[#64748b] leading-relaxed">
           The Trash Bin & Permanent Data Purging Console is strictly restricted to <strong>SUPERADMIN</strong> accounts.
           Staff and regular Store Administrators are not authorized to view or restore deleted records.
         </p>
-        <button onclick="switchAdminTab('overview')" class="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold shadow-sm transition-all">
+        <button onclick="switchAdminTab('overview')" class="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold shadow-sm transition-all cursor-pointer">
           Return to Overview
         </button>
       </div>
@@ -88,7 +100,7 @@ export function renderTrashBinTab(shouldSync = true) {
       type: 'product',
       typeLabel: 'Product',
       typeBadgeClass: 'bg-blue-50 text-blue-700 border-blue-200',
-      typeIcon: '📦',
+      typeIconSvg: iconPackage('w-4 h-4 text-blue-600 flex-shrink-0'),
       code: p.sku || `ID: ${p.id}`,
       image: p.image || 'https://images.unsplash.com/photo-1588872657578-7efd1f1555ed?auto=format&fit=crop&w=200&q=80',
       extraInfo: `Category: ${p.category} | Rs. ${(p.price || 0).toLocaleString()}`,
@@ -103,7 +115,7 @@ export function renderTrashBinTab(shouldSync = true) {
       type: 'category',
       typeLabel: 'Category',
       typeBadgeClass: 'bg-purple-50 text-purple-700 border-purple-200',
-      typeIcon: c.icon || '📁',
+      typeIconSvg: iconFolder('w-4 h-4 text-purple-600 flex-shrink-0'),
       code: `Slug: ${c.slug}`,
       image: null,
       extraInfo: c.description || 'Storefront category group',
@@ -118,7 +130,7 @@ export function renderTrashBinTab(shouldSync = true) {
       type: 'brand',
       typeLabel: 'Brand',
       typeBadgeClass: 'bg-amber-50 text-amber-700 border-amber-200',
-      typeIcon: '🏢',
+      typeIconSvg: iconBuilding('w-4 h-4 text-amber-600 flex-shrink-0'),
       code: `Slug: ${b.slug}`,
       image: b.logo || b.logoUrl || null,
       extraInfo: `Origin: ${b.country || 'Global'} | Founded: ${b.founded || b.foundedYear || 'N/A'}`,
@@ -133,7 +145,7 @@ export function renderTrashBinTab(shouldSync = true) {
       type: 'badge',
       typeLabel: 'Badge Tag',
       typeBadgeClass: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-      typeIcon: '🏷️',
+      typeIconSvg: iconTag('w-4 h-4 text-emerald-600 flex-shrink-0'),
       code: `Rule: ${bg.ruleType || 'manual'}`,
       image: null,
       extraInfo: bg.standardDescription || bg.purpose || 'Dynamic reach badge',
@@ -158,13 +170,13 @@ export function renderTrashBinTab(shouldSync = true) {
       <!-- Top Action Bar -->
       <div class="bg-white border border-[#e2e8f0] rounded-2xl p-5 sm:p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div class="flex items-center space-x-3.5">
-          <div class="w-12 h-12 rounded-2xl bg-rose-50 text-rose-600 border border-rose-200 flex items-center justify-center font-bold text-2xl shadow-sm flex-shrink-0">
-            🗑️
+          <div class="w-12 h-12 rounded-2xl bg-rose-50 text-rose-600 border border-rose-200 flex items-center justify-center font-bold shadow-sm flex-shrink-0">
+            ${iconTrash('w-6 h-6 text-rose-600')}
           </div>
           <div>
             <div class="flex items-center space-x-2">
               <h2 class="text-xl font-extrabold text-[#0f172a] tracking-tight">Trash Bin & Data Recovery Vault</h2>
-              <span class="px-2 py-0.5 rounded-full text-[9px] font-mono font-extrabold uppercase bg-purple-50 text-purple-700 border border-purple-200">
+              <span class="px-2 py-0.5 rounded-full text-[9px] font-mono font-extrabold uppercase bg-purple-50 text-purple-700 border border-purple-200 whitespace-nowrap">
                 SUPERADMIN ONLY
               </span>
             </div>
@@ -177,8 +189,8 @@ export function renderTrashBinTab(shouldSync = true) {
         <div class="flex flex-wrap items-center gap-2.5">
           ${totalCount > 0 ? `
             <button type="button" onclick="confirmEmptyAllTrash()"
-              class="px-4 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition-all flex items-center space-x-2 shadow-sm hover:shadow-rose-600/20 active:scale-95 cursor-pointer">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+              class="px-4 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition-all flex items-center space-x-2 shadow-sm hover:shadow-rose-600/20 active:scale-95 cursor-pointer whitespace-nowrap">
+              ${iconTrash('w-4 h-4 text-white')}
               <span>Empty Trash Vault</span>
             </button>
           ` : ''}
@@ -192,7 +204,7 @@ export function renderTrashBinTab(shouldSync = true) {
           class="bg-white border ${currentTrashFilter === 'all' ? 'border-blue-600 ring-2 ring-blue-600/10' : 'border-[#e2e8f0]'} rounded-xl p-3.5 shadow-sm cursor-pointer hover:border-blue-400 transition-all">
           <div class="flex items-center justify-between text-[#64748b]">
             <span class="text-[10px] font-mono font-bold uppercase tracking-wider">Total in Vault</span>
-            <span class="text-xs">🗑️</span>
+            <span class="w-6 h-6 rounded-lg bg-rose-50 text-rose-600 border border-rose-200 flex items-center justify-center">${iconTrash('w-3.5 h-3.5')}</span>
           </div>
           <h3 class="text-xl font-black text-[#0f172a] font-mono mt-1">${totalCount}</h3>
           <p class="text-[9px] text-[#64748b] font-medium">All Deleted Records</p>
@@ -202,7 +214,7 @@ export function renderTrashBinTab(shouldSync = true) {
           class="bg-white border ${currentTrashFilter === 'products' ? 'border-blue-600 ring-2 ring-blue-600/10' : 'border-[#e2e8f0]'} rounded-xl p-3.5 shadow-sm cursor-pointer hover:border-blue-400 transition-all">
           <div class="flex items-center justify-between text-[#64748b]">
             <span class="text-[10px] font-mono font-bold uppercase tracking-wider">Products</span>
-            <span class="text-xs">📦</span>
+            <span class="w-6 h-6 rounded-lg bg-blue-50 text-blue-600 border border-blue-200 flex items-center justify-center">${iconPackage('w-3.5 h-3.5')}</span>
           </div>
           <h3 class="text-xl font-black text-blue-600 font-mono mt-1">${deletedProducts.length}</h3>
           <p class="text-[9px] text-blue-600 font-medium">Catalog Hardware</p>
@@ -212,7 +224,7 @@ export function renderTrashBinTab(shouldSync = true) {
           class="bg-white border ${currentTrashFilter === 'categories' ? 'border-purple-600 ring-2 ring-purple-600/10' : 'border-[#e2e8f0]'} rounded-xl p-3.5 shadow-sm cursor-pointer hover:border-purple-400 transition-all">
           <div class="flex items-center justify-between text-[#64748b]">
             <span class="text-[10px] font-mono font-bold uppercase tracking-wider">Categories</span>
-            <span class="text-xs">📁</span>
+            <span class="w-6 h-6 rounded-lg bg-purple-50 text-purple-600 border border-purple-200 flex items-center justify-center">${iconFolder('w-3.5 h-3.5')}</span>
           </div>
           <h3 class="text-xl font-black text-purple-600 font-mono mt-1">${deletedCategories.length}</h3>
           <p class="text-[9px] text-purple-600 font-medium">Store Groupings</p>
@@ -222,7 +234,7 @@ export function renderTrashBinTab(shouldSync = true) {
           class="bg-white border ${currentTrashFilter === 'brands' ? 'border-amber-600 ring-2 ring-amber-600/10' : 'border-[#e2e8f0]'} rounded-xl p-3.5 shadow-sm cursor-pointer hover:border-amber-400 transition-all">
           <div class="flex items-center justify-between text-[#64748b]">
             <span class="text-[10px] font-mono font-bold uppercase tracking-wider">Brands</span>
-            <span class="text-xs">🏢</span>
+            <span class="w-6 h-6 rounded-lg bg-amber-50 text-amber-600 border border-amber-200 flex items-center justify-center">${iconBuilding('w-3.5 h-3.5')}</span>
           </div>
           <h3 class="text-xl font-black text-amber-600 font-mono mt-1">${deletedBrands.length}</h3>
           <p class="text-[9px] text-amber-600 font-medium">Partners & Makers</p>
@@ -232,7 +244,7 @@ export function renderTrashBinTab(shouldSync = true) {
           class="bg-white border ${currentTrashFilter === 'badges' ? 'border-emerald-600 ring-2 ring-emerald-600/10' : 'border-[#e2e8f0]'} rounded-xl p-3.5 shadow-sm cursor-pointer hover:border-emerald-400 transition-all">
           <div class="flex items-center justify-between text-[#64748b]">
             <span class="text-[10px] font-mono font-bold uppercase tracking-wider">Badges</span>
-            <span class="text-xs">🏷️</span>
+            <span class="w-6 h-6 rounded-lg bg-emerald-50 text-emerald-600 border border-emerald-200 flex items-center justify-center">${iconTag('w-3.5 h-3.5')}</span>
           </div>
           <h3 class="text-xl font-black text-emerald-600 font-mono mt-1">${deletedBadges.length}</h3>
           <p class="text-[9px] text-emerald-600 font-medium">Dynamic Tags</p>
@@ -246,24 +258,37 @@ export function renderTrashBinTab(shouldSync = true) {
         <!-- Filter Tabs -->
         <div class="flex items-center space-x-1.5 overflow-x-auto w-full md:w-auto pb-1 md:pb-0">
           <button type="button" onclick="switchTrashSubTab('all')"
-            class="px-3 py-1.5 rounded-lg font-bold text-xs transition-all cursor-pointer whitespace-nowrap ${currentTrashFilter === 'all' ? 'bg-blue-600 text-white shadow-sm' : 'bg-[#f8fafc] text-[#475569] hover:bg-[#f1f5f9] border border-[#e2e8f0]'}">
-            All Items (${totalCount})
+            class="px-3 py-1.5 rounded-lg font-bold text-xs transition-all cursor-pointer whitespace-nowrap inline-flex items-center space-x-1.5 ${currentTrashFilter === 'all' ? 'bg-blue-600 text-white shadow-sm' : 'bg-[#f8fafc] text-[#475569] hover:bg-[#f1f5f9] border border-[#e2e8f0]'}">
+            <span>All Items</span>
+            <span class="px-1.5 py-0.2 text-[10px] font-mono rounded-full ${currentTrashFilter === 'all' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'}">${totalCount}</span>
           </button>
+          
           <button type="button" onclick="switchTrashSubTab('products')"
-            class="px-3 py-1.5 rounded-lg font-bold text-xs transition-all cursor-pointer whitespace-nowrap ${currentTrashFilter === 'products' ? 'bg-blue-600 text-white shadow-sm' : 'bg-[#f8fafc] text-[#475569] hover:bg-[#f1f5f9] border border-[#e2e8f0]'}">
-            📦 Products (${deletedProducts.length})
+            class="px-3 py-1.5 rounded-lg font-bold text-xs transition-all cursor-pointer whitespace-nowrap inline-flex items-center space-x-1.5 ${currentTrashFilter === 'products' ? 'bg-blue-600 text-white shadow-sm' : 'bg-[#f8fafc] text-[#475569] hover:bg-[#f1f5f9] border border-[#e2e8f0]'}">
+            ${iconPackage('w-3.5 h-3.5')}
+            <span>Products</span>
+            <span class="px-1.5 py-0.2 text-[10px] font-mono rounded-full ${currentTrashFilter === 'products' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'}">${deletedProducts.length}</span>
           </button>
+
           <button type="button" onclick="switchTrashSubTab('categories')"
-            class="px-3 py-1.5 rounded-lg font-bold text-xs transition-all cursor-pointer whitespace-nowrap ${currentTrashFilter === 'categories' ? 'bg-purple-600 text-white shadow-sm' : 'bg-[#f8fafc] text-[#475569] hover:bg-[#f1f5f9] border border-[#e2e8f0]'}">
-            📁 Categories (${deletedCategories.length})
+            class="px-3 py-1.5 rounded-lg font-bold text-xs transition-all cursor-pointer whitespace-nowrap inline-flex items-center space-x-1.5 ${currentTrashFilter === 'categories' ? 'bg-purple-600 text-white shadow-sm' : 'bg-[#f8fafc] text-[#475569] hover:bg-[#f1f5f9] border border-[#e2e8f0]'}">
+            ${iconFolder('w-3.5 h-3.5')}
+            <span>Categories</span>
+            <span class="px-1.5 py-0.2 text-[10px] font-mono rounded-full ${currentTrashFilter === 'categories' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'}">${deletedCategories.length}</span>
           </button>
+
           <button type="button" onclick="switchTrashSubTab('brands')"
-            class="px-3 py-1.5 rounded-lg font-bold text-xs transition-all cursor-pointer whitespace-nowrap ${currentTrashFilter === 'brands' ? 'bg-amber-600 text-white shadow-sm' : 'bg-[#f8fafc] text-[#475569] hover:bg-[#f1f5f9] border border-[#e2e8f0]'}">
-            🏢 Brands (${deletedBrands.length})
+            class="px-3 py-1.5 rounded-lg font-bold text-xs transition-all cursor-pointer whitespace-nowrap inline-flex items-center space-x-1.5 ${currentTrashFilter === 'brands' ? 'bg-amber-600 text-white shadow-sm' : 'bg-[#f8fafc] text-[#475569] hover:bg-[#f1f5f9] border border-[#e2e8f0]'}">
+            ${iconBuilding('w-3.5 h-3.5')}
+            <span>Brands</span>
+            <span class="px-1.5 py-0.2 text-[10px] font-mono rounded-full ${currentTrashFilter === 'brands' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'}">${deletedBrands.length}</span>
           </button>
+
           <button type="button" onclick="switchTrashSubTab('badges')"
-            class="px-3 py-1.5 rounded-lg font-bold text-xs transition-all cursor-pointer whitespace-nowrap ${currentTrashFilter === 'badges' ? 'bg-emerald-600 text-white shadow-sm' : 'bg-[#f8fafc] text-[#475569] hover:bg-[#f1f5f9] border border-[#e2e8f0]'}">
-            🏷️ Badges (${deletedBadges.length})
+            class="px-3 py-1.5 rounded-lg font-bold text-xs transition-all cursor-pointer whitespace-nowrap inline-flex items-center space-x-1.5 ${currentTrashFilter === 'badges' ? 'bg-emerald-600 text-white shadow-sm' : 'bg-[#f8fafc] text-[#475569] hover:bg-[#f1f5f9] border border-[#e2e8f0]'}">
+            ${iconTag('w-3.5 h-3.5')}
+            <span>Badges</span>
+            <span class="px-1.5 py-0.2 text-[10px] font-mono rounded-full ${currentTrashFilter === 'badges' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'}">${deletedBadges.length}</span>
           </button>
         </div>
 
@@ -276,8 +301,8 @@ export function renderTrashBinTab(shouldSync = true) {
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
           </svg>
           ${trashSearchQuery ? `
-            <button onclick="handleTrashSearch(''); document.getElementById('trash-search-input').value='';" class="absolute right-3 top-2.5 text-[#94a3b8] hover:text-[#0f172a]">
-              ✕
+            <button onclick="handleTrashSearch(''); document.getElementById('trash-search-input').value='';" class="absolute right-3 top-2.5 text-[#94a3b8] hover:text-[#0f172a] cursor-pointer">
+              ${iconClose('w-3.5 h-3.5')}
             </button>
           ` : ''}
         </div>
@@ -288,15 +313,15 @@ export function renderTrashBinTab(shouldSync = true) {
       <div class="bg-white border border-[#e2e8f0] rounded-2xl shadow-sm overflow-hidden">
         ${items.length === 0 ? `
           <div class="p-12 text-center space-y-3">
-            <div class="w-14 h-14 mx-auto rounded-2xl bg-emerald-50 text-emerald-600 border border-emerald-200 flex items-center justify-center text-2xl">
-              ✨
+            <div class="w-14 h-14 mx-auto rounded-2xl bg-emerald-50 text-emerald-600 border border-emerald-200 flex items-center justify-center shadow-2xs">
+              ${iconCheck('w-7 h-7 text-emerald-600')}
             </div>
             <h3 class="text-base font-extrabold text-[#0f172a]">Trash Bin is Clean</h3>
             <p class="text-xs text-[#64748b] max-w-md mx-auto">
               ${trashSearchQuery ? 'No deleted records matched your search query.' : 'There are currently no deleted products, categories, brands, or badges in the vault.'}
             </p>
             ${trashSearchQuery ? `
-              <button onclick="handleTrashSearch(''); document.getElementById('trash-search-input').value='';" class="px-3.5 py-1.5 rounded-lg bg-blue-50 text-blue-700 font-bold text-xs border border-blue-200">
+              <button onclick="handleTrashSearch(''); document.getElementById('trash-search-input').value='';" class="px-3.5 py-1.5 rounded-lg bg-blue-50 text-blue-700 font-bold text-xs border border-blue-200 cursor-pointer">
                 Clear Search Filter
               </button>
             ` : ''}
@@ -306,11 +331,11 @@ export function renderTrashBinTab(shouldSync = true) {
             <table class="w-full text-left text-xs text-[#475569]">
               <thead class="bg-[#f8fafc] uppercase font-bold text-[10px] tracking-wider text-[#64748b] border-b border-[#e2e8f0]">
                 <tr>
-                  <th class="py-3.5 px-4">Item Details</th>
-                  <th class="py-3.5 px-4">Module Type</th>
-                  <th class="py-3.5 px-4">Identifier / SKU</th>
-                  <th class="py-3.5 px-4">Current Status</th>
-                  <th class="py-3.5 px-4 text-right">Recovery & Purge Actions</th>
+                  <th class="py-3.5 px-4 min-w-[200px]">Item Details</th>
+                  <th class="py-3.5 px-4 min-w-[120px]">Module Type</th>
+                  <th class="py-3.5 px-4 min-w-[130px]">Identifier / SKU</th>
+                  <th class="py-3.5 px-4 min-w-[100px]">Current Status</th>
+                  <th class="py-3.5 px-4 text-right min-w-[180px]">Recovery & Purge Actions</th>
                 </tr>
               </thead>
               <tbody class="divide-y divide-[#e2e8f0]">
@@ -323,8 +348,8 @@ export function renderTrashBinTab(shouldSync = true) {
                         ${item.image ? `
                           <img src="${item.image}" class="w-10 h-10 object-cover rounded-lg bg-white border border-[#e2e8f0] flex-shrink-0">
                         ` : `
-                          <div class="w-10 h-10 rounded-lg bg-[#f8fafc] border border-[#e2e8f0] flex items-center justify-center text-lg flex-shrink-0">
-                            ${item.typeIcon}
+                          <div class="w-10 h-10 rounded-lg bg-[#f8fafc] border border-[#e2e8f0] flex items-center justify-center flex-shrink-0">
+                            ${item.typeIconSvg || iconPackage('w-4 h-4 text-slate-500')}
                           </div>
                         `}
                         <div class="min-w-0">
@@ -336,21 +361,22 @@ export function renderTrashBinTab(shouldSync = true) {
 
                     <!-- Module Type -->
                     <td class="py-3.5 px-4">
-                      <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${item.typeBadgeClass}">
-                        ${item.typeIcon} ${item.typeLabel}
+                      <span class="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold border whitespace-nowrap shadow-2xs ${item.typeBadgeClass}">
+                        ${item.typeIconSvg || ''}
+                        <span>${item.typeLabel}</span>
                       </span>
                     </td>
 
                     <!-- Identifier / Code -->
                     <td class="py-3.5 px-4">
-                      <span class="font-mono text-[10px] text-[#0f172a] font-semibold bg-[#f8fafc] border border-[#e2e8f0] px-2 py-0.5 rounded">
+                      <span class="inline-flex items-center font-mono text-[10px] text-[#0f172a] font-semibold bg-[#f8fafc] border border-[#e2e8f0] px-2 py-0.5 rounded whitespace-nowrap">
                         ${item.code}
                       </span>
                     </td>
 
                     <!-- Status -->
                     <td class="py-3.5 px-4">
-                      <span class="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-extrabold uppercase bg-rose-50 text-rose-700 border border-rose-200">
+                      <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-mono font-extrabold uppercase bg-rose-50 text-rose-700 border border-rose-200 whitespace-nowrap shadow-2xs">
                         DELETED
                       </span>
                     </td>
@@ -362,16 +388,16 @@ export function renderTrashBinTab(shouldSync = true) {
                         <!-- Restore Button -->
                         <button type="button" onclick="handleRestoreTrashItem('${item.type}', '${item.id}')"
                           title="Restore back to ACTIVE status"
-                          class="px-3 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 text-xs font-bold transition-all flex items-center space-x-1 shadow-xs active:scale-95 cursor-pointer">
-                          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                          class="px-3 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 text-xs font-bold transition-all flex items-center space-x-1 shadow-xs active:scale-95 cursor-pointer whitespace-nowrap">
+                          ${iconCheck('w-3.5 h-3.5 text-emerald-600')}
                           <span>Restore</span>
                         </button>
 
                         <!-- Permanent Delete Button -->
                         <button type="button" onclick="confirmPermanentDeleteTrashItem('${item.type}', '${item.id}', '${escapeHtml(item.name)}')"
                           title="Permanently Delete (Irreversible)"
-                          class="px-3 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold transition-all flex items-center space-x-1 shadow-xs active:scale-95 cursor-pointer">
-                          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                          class="px-3 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold transition-all flex items-center space-x-1 shadow-xs active:scale-95 cursor-pointer whitespace-nowrap">
+                          ${iconTrash('w-3.5 h-3.5 text-rose-600')}
                           <span>Permanent Delete</span>
                         </button>
 
@@ -418,6 +444,26 @@ export async function handleRestoreTrashItem(type, id) {
     let name = 'Item';
 
     if (type === 'product') {
+      name = 'Product';
+    } else if (type === 'category') {
+      name = 'Category';
+    } else if (type === 'brand') {
+      name = 'Brand';
+    } else if (type === 'badge') {
+      name = 'Badge';
+    }
+
+    const confirmed = await etechAlert.confirm({
+      title: `Restore ${name}?`,
+      message: `Do you want to restore this ${name.toLowerCase()} back to active storefront status?`,
+      type: 'success',
+      confirmText: 'Yes, Restore',
+      cancelText: 'Cancel'
+    });
+
+    if (!confirmed) return;
+
+    if (type === 'product') {
       res = await restoreProduct(id);
       name = res?.product?.name || 'Product';
     } else if (type === 'category') {
@@ -434,56 +480,28 @@ export async function handleRestoreTrashItem(type, id) {
     showToast(`"${name}" restored successfully and returned to ACTIVE catalog.`, 'success');
     renderTrashBinTab();
   } catch (err) {
-    showToast(`Failed to restore item: ${err.message}`, 'error');
+    etechAlert.error('Restore Error', err.message);
   }
 }
 
 /**
  * Confirm and Permanently Purge a Single Item
  */
-export function confirmPermanentDeleteTrashItem(type, id, itemName) {
-  const modalContainer = document.getElementById('admin-modal-container');
-  if (!modalContainer) return;
+export async function confirmPermanentDeleteTrashItem(type, id, itemName) {
+  const confirmed = await etechAlert.confirmDelete(
+    `"${itemName}" permanently`,
+    'Warning: Irreversible action. This will permanently purge this record from the database and unlink any associated catalog products. This action cannot be undone.'
+  );
 
-  modalContainer.innerHTML = `
-    <div class="fixed inset-0 bg-[#0f172a]/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-      <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-[#e2e8f0] space-y-4 animate-in fade-in zoom-in duration-200">
-        <div class="w-12 h-12 rounded-2xl bg-rose-50 text-rose-600 border border-rose-200 flex items-center justify-center text-xl font-bold mx-auto">
-          ⚠️
-        </div>
-        <div class="text-center space-y-1.5">
-          <h3 class="text-lg font-extrabold text-[#0f172a]">Permanent Data Purge</h3>
-          <p class="text-xs text-[#64748b]">
-            Are you sure you want to permanently delete <strong>"${itemName}"</strong>?
-          </p>
-          <div class="p-3 bg-rose-50 border border-rose-200 rounded-xl text-[11px] text-rose-800 text-left space-y-1">
-            <p class="font-bold">⚠️ Warning: Irreversible Action</p>
-            <p>This will permanently purge this record and unlink any associated catalog products. This action cannot be undone.</p>
-          </div>
-        </div>
+  if (!confirmed) return;
 
-        <div class="flex items-center justify-end space-x-2.5 pt-2">
-          <button type="button" onclick="closeAdminModal()"
-            class="px-4 py-2 rounded-xl bg-[#f8fafc] hover:bg-[#f1f5f9] text-[#475569] font-bold text-xs border border-[#e2e8f0]">
-            Cancel
-          </button>
-          <button type="button" onclick="executePermanentDelete('${type}', '${id}')"
-            class="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs shadow-sm">
-            Yes, Permanently Delete
-          </button>
-        </div>
-      </div>
-    </div>
-  `;
+  await executePermanentDelete(type, id);
 }
 
 /**
  * Execute Permanent Deletion
  */
 export async function executePermanentDelete(type, id) {
-  const modalContainer = document.getElementById('admin-modal-container');
-  if (modalContainer) modalContainer.innerHTML = '';
-
   try {
     if (type === 'product') {
       await permanentlyDeleteProduct(id);
@@ -495,53 +513,31 @@ export async function executePermanentDelete(type, id) {
       await permanentlyDeleteBadge(id);
     }
 
-    showToast(`Record was permanently purged from database.`, 'info');
+    showToast('Record purged permanently from system vault.', 'info');
     renderTrashBinTab();
   } catch (err) {
-    showToast(`Permanent deletion error: ${err.message}`, 'error');
+    etechAlert.error('Purge Failed', err.message);
   }
 }
 
 /**
- * Confirm and Empty All Trash
+ * Confirm Empty All Trash
  */
-export function confirmEmptyAllTrash() {
-  const totalCount = getTrashTotalCount();
-  if (totalCount === 0) return;
+export async function confirmEmptyAllTrash() {
+  const totalCount = getTotalDeletedCount();
+  if (totalCount === 0) {
+    showToast('Trash vault is already empty.', 'info');
+    return;
+  }
 
-  const modalContainer = document.getElementById('admin-modal-container');
-  if (!modalContainer) return;
+  const confirmed = await etechAlert.confirmDelete(
+    `ALL ${totalCount} Trash Records`,
+    'Warning: Irreversible Bulk Purge. All soft-deleted products, categories, brands, and badges will be permanently purged from the MySQL database.'
+  );
 
-  modalContainer.innerHTML = `
-    <div class="fixed inset-0 bg-[#0f172a]/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-      <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-[#e2e8f0] space-y-4 animate-in fade-in zoom-in duration-200">
-        <div class="w-12 h-12 rounded-2xl bg-rose-50 text-rose-600 border border-rose-200 flex items-center justify-center text-xl font-bold mx-auto">
-          🚨
-        </div>
-        <div class="text-center space-y-1.5">
-          <h3 class="text-lg font-extrabold text-[#0f172a]">Empty Entire Trash Vault</h3>
-          <p class="text-xs text-[#64748b]">
-            You are about to permanently purge all <strong>${totalCount}</strong> soft-deleted records from the system.
-          </p>
-          <div class="p-3 bg-rose-50 border border-rose-200 rounded-xl text-[11px] text-rose-800 text-left space-y-1">
-            <p class="font-bold">⚠️ Irreversible Bulk Purge</p>
-            <p>All deleted products, categories, brands, and badges will be purged permanently from MySQL database.</p>
-          </div>
-        </div>
+  if (!confirmed) return;
 
-        <div class="flex items-center justify-end space-x-2.5 pt-2">
-          <button type="button" onclick="closeAdminModal()"
-            class="px-4 py-2 rounded-xl bg-[#f8fafc] hover:bg-[#f1f5f9] text-[#475569] font-bold text-xs border border-[#e2e8f0]">
-            Cancel
-          </button>
-          <button type="button" onclick="executeEmptyAllTrash()"
-            class="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs shadow-sm">
-            Empty All Trash
-          </button>
-        </div>
-      </div>
-    </div>
-  `;
+  await executeEmptyAllTrash();
 }
 
 /**

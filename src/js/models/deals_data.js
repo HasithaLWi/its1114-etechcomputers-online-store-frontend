@@ -1,5 +1,5 @@
 // ============================================================
-//  deals_data.js — Model & Storage layer for Promotions & Composite Deal Bundles
+//  deals_data.js — Model for Promotions & Composite Deal Bundles
 // ============================================================
 import { getStoredProducts, saveStoredProducts } from './data.js';
 import { getBranches } from '../controller/branch_controller.js';
@@ -8,12 +8,54 @@ import {
   DEFAULT_DEAL_BUNDLES,
   DEFAULT_HOT_DEALS
 } from '../../data/deals.js';
+import { PromotionsApi } from '../api/promotionsApi.js';
 
 export { DEFAULT_HOME_DEAL_BANNER, DEFAULT_DEAL_BUNDLES, DEFAULT_HOT_DEALS };
 
 export const HOME_DEAL_STORAGE_KEY = 'etech_home_deal_banner';
 export const DEAL_BUNDLES_STORAGE_KEY = 'etech_deal_bundles';
 export const HOT_DEALS_STORAGE_KEY = 'etech_hot_deals_list';
+
+// Reactive In-Memory Stores
+let memoryHomeDealBanner = { ...DEFAULT_HOME_DEAL_BANNER };
+let memoryDealBundles = Array.isArray(DEFAULT_DEAL_BUNDLES) ? DEFAULT_DEAL_BUNDLES.map(b => ({ ...b })) : [];
+let memoryHotDeals = Array.isArray(DEFAULT_HOT_DEALS) ? DEFAULT_HOT_DEALS.map(d => ({ ...d })) : [];
+
+/**
+ * Sync Promotions & Deals from Backend API
+ */
+export async function syncPromotionsFromApi() {
+  try {
+    const [bannerRes, bundlesRes, hotDealsRes] = await Promise.allSettled([
+      PromotionsApi.getHomeBanner(),
+      PromotionsApi.getBundles(),
+      PromotionsApi.getHotDeals()
+    ]);
+
+    if (bannerRes.status === 'fulfilled' && bannerRes.value) {
+      const bannerData = bannerRes.value.body || bannerRes.value;
+      if (bannerData && typeof bannerData === 'object') {
+        memoryHomeDealBanner = { ...memoryHomeDealBanner, ...bannerData };
+      }
+    }
+
+    if (bundlesRes.status === 'fulfilled' && bundlesRes.value) {
+      const bundlesData = bundlesRes.value.body || bundlesRes.value;
+      if (Array.isArray(bundlesData) && bundlesData.length > 0) {
+        memoryDealBundles = bundlesData.map(b => ({ ...b }));
+      }
+    }
+
+    if (hotDealsRes.status === 'fulfilled' && hotDealsRes.value) {
+      const hotDealsData = hotDealsRes.value.body || hotDealsRes.value;
+      if (Array.isArray(hotDealsData) && hotDealsData.length > 0) {
+        memoryHotDeals = hotDealsData.map(d => ({ ...d }));
+      }
+    }
+  } catch (err) {
+    console.warn('[PromotionsModel] Live promotions sync notice:', err.message);
+  }
+}
 
 /**
  * Check if the Home Deal Banner & Hot Deals Campaign is currently active/visible
@@ -123,7 +165,6 @@ export function normalizeBundleItems(items, productsList) {
         name: p ? p.name : (item.name || `Product #${item.productId}`)
       };
     } else if (typeof item === 'string') {
-      // Find matching product by name
       const p = products.find(prod => prod.name.toLowerCase().includes(item.toLowerCase()) || item.toLowerCase().includes(prod.name.toLowerCase()));
       return {
         productId: p ? p.id : 1,
@@ -197,10 +238,8 @@ export function calculateBundleInventory(bundle, customProducts = null, customBr
     };
   });
 
-  // Overall bottleneck across entire network
   const maxAvailableBundles = componentBottlenecks.length > 0 ? Math.max(0, Math.min(...componentBottlenecks)) : 0;
 
-  // Branch assembly readiness (How many complete kits each single branch can fulfill right now)
   const branchAssembly = {};
   let totalReadyToShip = 0;
 
@@ -216,13 +255,12 @@ export function calculateBundleInventory(bundle, customProducts = null, customBr
     totalReadyToShip += readyKits;
   });
 
-  // Dynamic Claimed Percentage based on soldCount and available stock
   const soldCount = Math.max(0, parseInt(bundle.soldCount) || 0);
   let claimedPercent = 0;
   if (soldCount + maxAvailableBundles > 0) {
     claimedPercent = Math.min(99, Math.max(5, Math.round((soldCount / (soldCount + maxAvailableBundles)) * 100)));
   } else {
-    claimedPercent = 95; // sold out
+    claimedPercent = 95;
   }
 
   return {
@@ -241,25 +279,14 @@ export function calculateBundleInventory(bundle, customProducts = null, customBr
  * Retrieve Home Deal Banner Configuration
  */
 export function getHomeDealBanner() {
-  const raw = localStorage.getItem(HOME_DEAL_STORAGE_KEY);
-  if (!raw) {
-    localStorage.setItem(HOME_DEAL_STORAGE_KEY, JSON.stringify(DEFAULT_HOME_DEAL_BANNER));
-    return { ...DEFAULT_HOME_DEAL_BANNER };
-  }
-  try {
-    const parsed = JSON.parse(raw);
-    return { ...DEFAULT_HOME_DEAL_BANNER, ...parsed };
-  } catch (e) {
-    return { ...DEFAULT_HOME_DEAL_BANNER };
-  }
+  return { ...memoryHomeDealBanner };
 }
 
 /**
  * Save Home Deal Banner Configuration with full Hot Deals Campaign state cascade
  */
-export function saveHomeDealBanner(bannerData) {
-  const currentBanner = getHomeDealBanner();
-  const wasActive = currentBanner.active !== false;
+export async function saveHomeDealBanner(bannerData) {
+  const wasActive = memoryHomeDealBanner.active !== false;
   const isNowActive = bannerData.active !== undefined ? Boolean(bannerData.active) : true;
 
   const durationDays = Number(bannerData.durationDays) || 0;
@@ -268,13 +295,9 @@ export function saveHomeDealBanner(bannerData) {
   const durationSecs = Number(bannerData.durationSecs) || 0;
   const durationSeconds = (durationDays * 86400) + (durationHours * 3600) + (durationMins * 60) + durationSecs;
 
-  // Hot deals pause / resume transition handling
+  // Hot deals pause / resume transition handling in memory
   if (wasActive && !isNowActive) {
-    // Pausing campaign: freeze remaining countdown on all hot deals
-    const rawDeals = localStorage.getItem(HOT_DEALS_STORAGE_KEY);
-    let deals = [];
-    try { deals = JSON.parse(rawDeals) || []; } catch(e) { deals = []; }
-    const updatedDeals = deals.map(d => {
+    memoryHotDeals = memoryHotDeals.map(d => {
       const rem = getRemainingTimeFromDuration(d);
       return {
         ...d,
@@ -282,13 +305,8 @@ export function saveHomeDealBanner(bannerData) {
         isPaused: true
       };
     });
-    localStorage.setItem(HOT_DEALS_STORAGE_KEY, JSON.stringify(updatedDeals));
   } else if (!wasActive && isNowActive) {
-    // Resuming campaign: unfreeze hot deals from pausedRemainingSeconds
-    const rawDeals = localStorage.getItem(HOT_DEALS_STORAGE_KEY);
-    let deals = [];
-    try { deals = JSON.parse(rawDeals) || []; } catch(e) { deals = []; }
-    const updatedDeals = deals.map(d => {
+    memoryHotDeals = memoryHotDeals.map(d => {
       const remainingSecs = d.pausedRemainingSeconds !== undefined ? d.pausedRemainingSeconds : d.durationSeconds;
       return {
         ...d,
@@ -297,10 +315,10 @@ export function saveHomeDealBanner(bannerData) {
         isPaused: false
       };
     });
-    localStorage.setItem(HOT_DEALS_STORAGE_KEY, JSON.stringify(updatedDeals));
   }
 
   const updated = {
+    ...memoryHomeDealBanner,
     ...bannerData,
     active: isNowActive,
     durationDays,
@@ -311,7 +329,15 @@ export function saveHomeDealBanner(bannerData) {
     timerUpdatedAt: new Date().toISOString(),
     lastUpdated: new Date().toISOString()
   };
-  localStorage.setItem(HOME_DEAL_STORAGE_KEY, JSON.stringify(updated));
+
+  memoryHomeDealBanner = updated;
+
+  try {
+    await PromotionsApi.updateHomeBanner(updated);
+  } catch (e) {
+    console.warn('[DealsModel] Update banner API notice:', e.message);
+  }
+
   return updated;
 }
 
@@ -319,24 +345,10 @@ export function saveHomeDealBanner(bannerData) {
  * Retrieve Deal Bundles with Live Dynamic Inventory Calculations
  */
 export function getDealBundles() {
-  const raw = localStorage.getItem(DEAL_BUNDLES_STORAGE_KEY);
-  let list = [];
-  if (!raw) {
-    localStorage.setItem(DEAL_BUNDLES_STORAGE_KEY, JSON.stringify(DEFAULT_DEAL_BUNDLES));
-    list = [...DEFAULT_DEAL_BUNDLES];
-  } else {
-    try {
-      const parsed = JSON.parse(raw);
-      list = Array.isArray(parsed) && parsed.length > 0 ? parsed : [...DEFAULT_DEAL_BUNDLES];
-    } catch (e) {
-      list = [...DEFAULT_DEAL_BUNDLES];
-    }
-  }
-
+  const list = memoryDealBundles;
   const products = getStoredProducts();
   const branches = getBranches();
 
-  // Attach live computed inventory and dynamic specs to each bundle
   return list.map(b => {
     const inv = calculateBundleInventory(b, products, branches);
     const price = Number(b.price) || 199999;
@@ -344,7 +356,6 @@ export function getDealBundles() {
     const savingAmount = Math.max(0, originalPrice - price);
     const savingPercent = originalPrice > 0 ? Math.round((savingAmount / originalPrice) * 100) : 0;
 
-    // Derive specs dynamically from included products
     const dynamicSpecs = [];
     (inv.componentsBreakdown || []).forEach(comp => {
       if (comp.specs && Object.keys(comp.specs).length > 0) {
@@ -380,14 +391,16 @@ export function getDealBundles() {
  * Save All Deal Bundles
  */
 export function saveDealBundles(bundlesList) {
-  localStorage.setItem(DEAL_BUNDLES_STORAGE_KEY, JSON.stringify(bundlesList));
+  if (Array.isArray(bundlesList)) {
+    memoryDealBundles = [...bundlesList];
+  }
 }
 
 /**
  * Add or Create a Deal Bundle
  */
-export function addDealBundle(bundleData) {
-  const list = getDealBundles();
+export async function addDealBundle(bundleData) {
+  const list = memoryDealBundles;
   const products = getStoredProducts();
   const newId = list.length > 0 ? Math.max(...list.map(b => b.id || 0)) + 1 : 1;
 
@@ -433,15 +446,21 @@ export function addDealBundle(bundleData) {
   };
 
   list.push(newBundle);
-  saveDealBundles(list);
+
+  try {
+    await PromotionsApi.createBundle(newBundle);
+  } catch (e) {
+    console.warn('[DealsModel] Create bundle API notice:', e.message);
+  }
+
   return newBundle;
 }
 
 /**
  * Update an existing Deal Bundle
  */
-export function updateDealBundle(id, bundleData) {
-  const list = getDealBundles();
+export async function updateDealBundle(id, bundleData) {
+  const list = memoryDealBundles;
   const index = list.findIndex(b => b.id === Number(id));
   if (index === -1) return null;
 
@@ -452,7 +471,7 @@ export function updateDealBundle(id, bundleData) {
   const price = Number(bundleData.price) || list[index].price;
   const originalPrice = inv.calculatedMSRP > 0 ? inv.calculatedMSRP : (Number(bundleData.originalPrice) || list[index].originalPrice);
   const savingAmount = Math.max(0, originalPrice - price);
-  const savingPercent = originalPrice > 0 ? Math.round(((originalPrice - price) / originalPrice) * 100) : 0;
+  const savingPercent = originalPrice > 0 ? Math.round((savingAmount / originalPrice) * 100) : 0;
 
   const durationDays = bundleData.durationDays !== undefined ? Number(bundleData.durationDays) : (list[index].durationDays || 2);
   const durationHours = bundleData.durationHours !== undefined ? Number(bundleData.durationHours) : (list[index].durationHours || 14);
@@ -479,7 +498,13 @@ export function updateDealBundle(id, bundleData) {
     timerUpdatedAt: new Date().toISOString(),
     lastUpdated: new Date().toISOString()
   };
-  saveDealBundles(list);
+
+  try {
+    await PromotionsApi.updateBundle(id, list[index]);
+  } catch (e) {
+    console.warn('[DealsModel] Update bundle API notice:', e.message);
+  }
+
   return list[index];
 }
 
@@ -487,21 +512,22 @@ export function updateDealBundle(id, bundleData) {
  * Records a purchase of a Deal Bundle and increments its sold count
  */
 export function recordBundleSale(bundleId, qty = 1) {
-  const list = getDealBundles();
-  const index = list.findIndex(b => b.id === Number(bundleId));
+  const index = memoryDealBundles.findIndex(b => b.id === Number(bundleId));
   if (index !== -1) {
-    list[index].soldCount = (list[index].soldCount || 0) + (parseInt(qty) || 1);
-    saveDealBundles(list);
+    memoryDealBundles[index].soldCount = (memoryDealBundles[index].soldCount || 0) + (parseInt(qty) || 1);
   }
 }
 
 /**
  * Delete a Deal Bundle
  */
-export function deleteDealBundle(id) {
-  const list = getDealBundles();
-  const filtered = list.filter(b => b.id !== Number(id));
-  saveDealBundles(filtered);
+export async function deleteDealBundle(id) {
+  memoryDealBundles = memoryDealBundles.filter(b => b.id !== Number(id));
+  try {
+    await PromotionsApi.deleteBundle(id);
+  } catch (e) {
+    console.warn('[DealsModel] Delete bundle API notice:', e.message);
+  }
   return true;
 }
 
@@ -569,28 +595,11 @@ export function updateProductDiscount(productId, { price, originalPrice, badge }
   return true;
 }
 
-/* ========================================================================== */
-/* 4. RELATIONAL HOT DEALS & FLASH SALES MANAGEMENT LAYER                     */
-/* ========================================================================== */
-
 /**
  * Retrieve All Hot Deals with live Product relation join and dynamic calculations
  */
 export function getHotDeals() {
-  const raw = localStorage.getItem(HOT_DEALS_STORAGE_KEY);
-  let list = [];
-  if (!raw) {
-    localStorage.setItem(HOT_DEALS_STORAGE_KEY, JSON.stringify(DEFAULT_HOT_DEALS));
-    list = [...DEFAULT_HOT_DEALS];
-  } else {
-    try {
-      const parsed = JSON.parse(raw);
-      list = Array.isArray(parsed) && parsed.length > 0 ? parsed : [...DEFAULT_HOT_DEALS];
-    } catch (e) {
-      list = [...DEFAULT_HOT_DEALS];
-    }
-  }
-
+  const list = memoryHotDeals;
   const products = getStoredProducts();
 
   return list.map(deal => {
@@ -613,11 +622,9 @@ export function getHotDeals() {
     const remainingTime = getRemainingTimeFromDuration(deal);
     const isExpired = remainingTime.isExpired;
 
-    // Dynamic savings vs original list price
     const savingsAmount = Math.max(0, originalListPrice - dealPrice);
     const discountPercent = originalListPrice > 0 ? Math.round((savingsAmount / originalListPrice) * 100) : 0;
 
-    // Target quota & sold count
     const targetQuota = Number(deal.targetQuota) || 30;
     const soldCount = Number(deal.soldCount) || 0;
     const stockLeft = product.totalStock !== undefined ? product.totalStock : 15;
@@ -657,7 +664,7 @@ export function getHotDeals() {
 }
 
 /**
- * Get only Active and Unexpired Hot Deals (returns empty if master campaign is paused/hidden)
+ * Get only Active and Unexpired Hot Deals
  */
 export function getActiveHotDeals() {
   if (!isHomeDealBannerActive()) {
@@ -675,17 +682,19 @@ export function getHotDealByProductId(productId) {
 }
 
 /**
- * Save Hot Deals list to localStorage
+ * Save Hot Deals list
  */
 export function saveHotDeals(dealsList) {
-  localStorage.setItem(HOT_DEALS_STORAGE_KEY, JSON.stringify(dealsList));
+  if (Array.isArray(dealsList)) {
+    memoryHotDeals = [...dealsList];
+  }
 }
 
 /**
  * Add a new Hot Deal
  */
-export function addHotDeal(dealData) {
-  const list = getHotDeals();
+export async function addHotDeal(dealData) {
+  const list = memoryHotDeals;
   const newId = list.length > 0 ? Math.max(...list.map(d => d.id || 0)) + 1 : 101;
 
   const durationDays = Number(dealData.durationDays) || 0;
@@ -711,65 +720,79 @@ export function addHotDeal(dealData) {
     lastUpdated: new Date().toISOString()
   };
 
-  const rawList = JSON.parse(localStorage.getItem(HOT_DEALS_STORAGE_KEY) || '[]');
-  rawList.push(newDeal);
-  saveHotDeals(rawList);
+  list.push(newDeal);
+
+  try {
+    await PromotionsApi.createHotDeal(newDeal);
+  } catch (e) {
+    console.warn('[DealsModel] Create hot deal API notice:', e.message);
+  }
+
   return newDeal;
 }
 
 /**
  * Update an existing Hot Deal
  */
-export function updateHotDeal(id, dealData) {
-  const rawList = JSON.parse(localStorage.getItem(HOT_DEALS_STORAGE_KEY) || '[]');
-  const index = rawList.findIndex(d => d.id === Number(id));
+export async function updateHotDeal(id, dealData) {
+  const list = memoryHotDeals;
+  const index = list.findIndex(d => d.id === Number(id));
   if (index === -1) return null;
 
-  const durationDays = dealData.durationDays !== undefined ? Number(dealData.durationDays) : (rawList[index].durationDays || 0);
-  const durationHours = dealData.durationHours !== undefined ? Number(dealData.durationHours) : (rawList[index].durationHours || 8);
-  const durationMins = dealData.durationMins !== undefined ? Number(dealData.durationMins) : (rawList[index].durationMins || 0);
-  const durationSecs = dealData.durationSecs !== undefined ? Number(dealData.durationSecs) : (rawList[index].durationSecs || 0);
+  const durationDays = dealData.durationDays !== undefined ? Number(dealData.durationDays) : (list[index].durationDays || 0);
+  const durationHours = dealData.durationHours !== undefined ? Number(dealData.durationHours) : (list[index].durationHours || 8);
+  const durationMins = dealData.durationMins !== undefined ? Number(dealData.durationMins) : (list[index].durationMins || 0);
+  const durationSecs = dealData.durationSecs !== undefined ? Number(dealData.durationSecs) : (list[index].durationSecs || 0);
   const durationSeconds = (durationDays * 86400) + (durationHours * 3600) + (durationMins * 60) + durationSecs;
 
-  rawList[index] = {
-    ...rawList[index],
+  list[index] = {
+    ...list[index],
     ...dealData,
     id: Number(id),
-    productId: Number(dealData.productId !== undefined ? dealData.productId : rawList[index].productId),
-    dealPrice: Number(dealData.dealPrice !== undefined ? dealData.dealPrice : rawList[index].dealPrice),
+    productId: Number(dealData.productId !== undefined ? dealData.productId : list[index].productId),
+    dealPrice: Number(dealData.dealPrice !== undefined ? dealData.dealPrice : list[index].dealPrice),
     durationDays,
     durationHours,
     durationMins,
     durationSecs,
     durationSeconds,
-    timerUpdatedAt: dealData.resetTimer ? new Date().toISOString() : (rawList[index].timerUpdatedAt || new Date().toISOString()),
+    timerUpdatedAt: dealData.resetTimer ? new Date().toISOString() : (list[index].timerUpdatedAt || new Date().toISOString()),
     lastUpdated: new Date().toISOString()
   };
 
-  saveHotDeals(rawList);
-  return rawList[index];
+  try {
+    await PromotionsApi.updateHotDeal(id, list[index]);
+  } catch (e) {
+    console.warn('[DealsModel] Update hot deal API notice:', e.message);
+  }
+
+  return list[index];
 }
 
 /**
  * Delete a Hot Deal
  */
-export function deleteHotDeal(id) {
-  const rawList = JSON.parse(localStorage.getItem(HOT_DEALS_STORAGE_KEY) || '[]');
-  const filtered = rawList.filter(d => d.id !== Number(id));
-  saveHotDeals(filtered);
+export async function deleteHotDeal(id) {
+  memoryHotDeals = memoryHotDeals.filter(d => d.id !== Number(id));
+  try {
+    await PromotionsApi.deleteHotDeal(id);
+  } catch (e) {
+    console.warn('[DealsModel] Delete hot deal API notice:', e.message);
+  }
   return true;
 }
 
 /**
  * Toggle Active / Inactive status of a Hot Deal
  */
-export function toggleHotDealStatus(id) {
-  const rawList = JSON.parse(localStorage.getItem(HOT_DEALS_STORAGE_KEY) || '[]');
-  const deal = rawList.find(d => d.id === Number(id));
+export async function toggleHotDealStatus(id) {
+  const deal = memoryHotDeals.find(d => d.id === Number(id));
   if (deal) {
     deal.active = !deal.active;
     deal.lastUpdated = new Date().toISOString();
-    saveHotDeals(rawList);
+    try {
+      await PromotionsApi.updateHotDeal(id, deal);
+    } catch (e) {}
     return deal.active;
   }
   return false;

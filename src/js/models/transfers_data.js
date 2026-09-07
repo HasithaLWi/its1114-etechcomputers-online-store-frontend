@@ -1,43 +1,62 @@
 // ============================================================
-//  transfers_data.js — Inter-Branch Stock Transfers & Logistics Data Model
+//  transfers_data.js — Inter-Branch Stock Transfers In-Memory Model Layer
 // ============================================================
 import { getStoredProducts, saveStoredProducts } from './data.js';
 import { getBranches } from '../controller/branch_controller.js';
 import { DEFAULT_TRANSFERS } from '../../data/transfers.js';
+import { TransfersApi } from '../api/transfersApi.js';
 
 export { DEFAULT_TRANSFERS };
 
 export const TRANSFERS_STORAGE_KEY = 'etech_stock_transfers';
 
+// Reactive In-Memory Transfers Store
+let memoryTransfers = Array.isArray(DEFAULT_TRANSFERS) ? DEFAULT_TRANSFERS.map(t => ({ ...t })) : [];
+
+/**
+ * Sync transfers from backend API
+ */
+export async function syncTransfersFromApi() {
+  try {
+    const res = await TransfersApi.getAll();
+    let apiList = [];
+    if (Array.isArray(res)) {
+      apiList = res;
+    } else if (res && Array.isArray(res.body)) {
+      apiList = res.body;
+    } else if (res && Array.isArray(res.data)) {
+      apiList = res.data;
+    }
+
+    if (apiList.length > 0) {
+      memoryTransfers = apiList.map(t => ({ ...t }));
+    }
+  } catch (err) {
+    console.warn('[TransfersModel] Transfers sync notice:', err.message);
+  }
+}
+
 /**
  * Retrieve all stock transfer records
  */
 export function getStockTransfers() {
-  const raw = localStorage.getItem(TRANSFERS_STORAGE_KEY);
-  if (!raw) {
-    localStorage.setItem(TRANSFERS_STORAGE_KEY, JSON.stringify(DEFAULT_TRANSFERS));
-    return [...DEFAULT_TRANSFERS];
-  }
-  try {
-    const list = JSON.parse(raw);
-    return Array.isArray(list) && list.length > 0 ? list : [...DEFAULT_TRANSFERS];
-  } catch (e) {
-    return [...DEFAULT_TRANSFERS];
-  }
+  return memoryTransfers;
 }
 
 /**
  * Save stock transfers array
  */
 export function saveStockTransfers(transfersList) {
-  localStorage.setItem(TRANSFERS_STORAGE_KEY, JSON.stringify(transfersList));
+  if (Array.isArray(transfersList)) {
+    memoryTransfers = [...transfersList];
+  }
 }
 
 /**
  * Create a new stock transfer request
  */
-export function createStockTransfer(transferData) {
-  const list = getStockTransfers();
+export async function createStockTransfer(transferData) {
+  const list = memoryTransfers;
   const products = getStoredProducts();
   const branches = getBranches();
 
@@ -63,20 +82,16 @@ export function createStockTransfer(transferData) {
 
   const initialStatus = transferData.instantDelivery ? "Received" : (transferData.status || "Requested");
 
-  // If initial status is In Transit, deduct from source branch immediately
   if (initialStatus === "In Transit") {
     product.branchStock[fromBranch.id] = Math.max(0, availableAtSource - qty);
     product.totalStock = Object.values(product.branchStock).reduce((a, b) => a + b, 0);
-    saveStoredProducts(products);
   }
 
-  // If instant delivery, deduct from source & credit destination branch immediately
   if (transferData.instantDelivery) {
     product.branchStock[fromBranch.id] = Math.max(0, availableAtSource - qty);
     if (!product.branchStock[toBranch.id]) product.branchStock[toBranch.id] = 0;
     product.branchStock[toBranch.id] += qty;
     product.totalStock = Object.values(product.branchStock).reduce((a, b) => a + b, 0);
-    saveStoredProducts(products);
   }
 
   const nextSeq = list.length > 0 ? Math.max(...list.map(t => parseInt(String(t.id).replace('TRF-', '')) || 8000)) + 1 : 8001;
@@ -108,17 +123,22 @@ export function createStockTransfer(transferData) {
   };
 
   list.unshift(newTransfer);
-  saveStockTransfers(list);
-  window.dispatchEvent(new Event('productsUpdated'));
 
+  try {
+    await TransfersApi.initiate(newTransfer);
+  } catch (e) {
+    console.warn('[TransfersModel] Initiate transfer API notice:', e.message);
+  }
+
+  window.dispatchEvent(new Event('productsUpdated'));
   return { success: true, transfer: newTransfer };
 }
 
 /**
- * Approve & Dispatch an incoming transfer request (called by Source branch staff or Admin)
+ * Approve & Dispatch an incoming transfer request
  */
-export function dispatchStockTransfer(transferId, dispatchedBy = 'Branch Dispatch Staff') {
-  const list = getStockTransfers();
+export async function dispatchStockTransfer(transferId, dispatchedBy = 'Branch Dispatch Staff') {
+  const list = memoryTransfers;
   const transfer = list.find(t => t.id === transferId);
   if (!transfer) return { success: false, message: 'Transfer record not found.' };
 
@@ -138,26 +158,28 @@ export function dispatchStockTransfer(transferId, dispatchedBy = 'Branch Dispatc
     };
   }
 
-  // Deduct from source branch stock now
   product.branchStock[transfer.fromBranchId] = Math.max(0, availableAtSource - transfer.quantity);
   product.totalStock = Object.values(product.branchStock).reduce((a, b) => a + b, 0);
-  saveStoredProducts(products);
 
   transfer.status = 'In Transit';
   transfer.dispatchedAt = new Date().toISOString();
   transfer.dispatchedBy = dispatchedBy;
 
-  saveStockTransfers(list);
-  window.dispatchEvent(new Event('productsUpdated'));
+  try {
+    await TransfersApi.updateStatus(transfer.id, 'IN_TRANSIT');
+  } catch (e) {
+    console.warn('[TransfersModel] Dispatch transfer API notice:', e.message);
+  }
 
+  window.dispatchEvent(new Event('productsUpdated'));
   return { success: true, transfer };
 }
 
 /**
- * Mark a transfer as Received & Verified at destination branch (called by Destination branch staff or Admin)
+ * Mark a transfer as Received & Verified at destination branch
  */
-export function receiveStockTransfer(transferId, receivedBy = 'Staff Verification') {
-  const list = getStockTransfers();
+export async function receiveStockTransfer(transferId, receivedBy = 'Staff Verification') {
+  const list = memoryTransfers;
   const transfer = list.find(t => t.id === transferId);
   if (!transfer) return { success: false, message: 'Transfer record not found.' };
 
@@ -174,27 +196,30 @@ export function receiveStockTransfer(transferId, receivedBy = 'Staff Verificatio
   const products = getStoredProducts();
   const product = products.find(p => p.id === Number(transfer.productId));
   if (product) {
-    if (!product.branchStock) product.branchStock = { "BR-COL": 0, "BR-GAL": 0, "BR-MAT": 0, "BR-KND": 0 };
+    if (!product.branchStock) product.branchStock = { "BR-COL": 0, "BR-GAL": 0, "BR-MAT": 0, "BR-KAN": 0 };
     product.branchStock[transfer.toBranchId] = (product.branchStock[transfer.toBranchId] || 0) + transfer.quantity;
     product.totalStock = Object.values(product.branchStock).reduce((a, b) => a + b, 0);
-    saveStoredProducts(products);
   }
 
   transfer.status = 'Received';
   transfer.receivedAt = new Date().toISOString();
   transfer.receivedBy = receivedBy;
 
-  saveStockTransfers(list);
-  window.dispatchEvent(new Event('productsUpdated'));
+  try {
+    await TransfersApi.updateStatus(transfer.id, 'RECEIVED');
+  } catch (e) {
+    console.warn('[TransfersModel] Receive transfer API notice:', e.message);
+  }
 
+  window.dispatchEvent(new Event('productsUpdated'));
   return { success: true, transfer };
 }
 
 /**
  * Cancel or Reject a transfer
  */
-export function cancelStockTransfer(transferId, reason = 'Cancelled', cancelledBy = 'Staff / Administrator') {
-  const list = getStockTransfers();
+export async function cancelStockTransfer(transferId, reason = 'Cancelled', cancelledBy = 'Staff / Administrator') {
+  const list = memoryTransfers;
   const transfer = list.find(t => t.id === transferId);
   if (!transfer) return { success: false, message: 'Transfer record not found.' };
 
@@ -205,14 +230,12 @@ export function cancelStockTransfer(transferId, reason = 'Cancelled', cancelledB
     return { success: false, message: 'Transfer is already cancelled.' };
   }
 
-  // If it was already dispatched (In Transit), refund stock back to source branch
   if (transfer.status === 'In Transit') {
     const products = getStoredProducts();
     const product = products.find(p => p.id === Number(transfer.productId));
     if (product && product.branchStock) {
       product.branchStock[transfer.fromBranchId] = (product.branchStock[transfer.fromBranchId] || 0) + transfer.quantity;
       product.totalStock = Object.values(product.branchStock).reduce((a, b) => a + b, 0);
-      saveStoredProducts(products);
     }
   }
 
@@ -221,9 +244,13 @@ export function cancelStockTransfer(transferId, reason = 'Cancelled', cancelledB
   transfer.cancelledAt = new Date().toISOString();
   transfer.cancelledBy = cancelledBy;
 
-  saveStockTransfers(list);
-  window.dispatchEvent(new Event('productsUpdated'));
+  try {
+    await TransfersApi.updateStatus(transfer.id, 'CANCELLED');
+  } catch (e) {
+    console.warn('[TransfersModel] Cancel transfer API notice:', e.message);
+  }
 
+  window.dispatchEvent(new Event('productsUpdated'));
   return { success: true, transfer };
 }
 
@@ -231,7 +258,7 @@ export function cancelStockTransfer(transferId, reason = 'Cancelled', cancelledB
  * Get transfer metrics summary
  */
 export function getTransfersMetrics() {
-  const list = getStockTransfers();
+  const list = memoryTransfers;
   const inTransit = list.filter(t => t.status === 'In Transit').length;
   const received = list.filter(t => t.status === 'Received').length;
   const requested = list.filter(t => t.status === 'Requested').length;

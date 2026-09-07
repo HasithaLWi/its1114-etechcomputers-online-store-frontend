@@ -3,16 +3,18 @@
 // ============================================================
 import { getCurrentUser, isLoggedIn, logoutUser } from './login_controller.js';
 import { UserApi } from '../api/userApi.js';
-import { getBranches } from './branch_controller.js';
-import { getAllOrders } from './order_management_controller.js';
-import { getStoredProducts } from '../models/data.js';
+import { getBranches, syncBranchesFromApi } from './branch_controller.js';
+import { getAllOrders, syncOrdersFromApi } from './order_management_controller.js';
+import { getStoredProducts, syncProductsFromApi } from '../models/data.js';
 import { 
   getStockTransfers, 
   dispatchStockTransfer, 
   receiveStockTransfer, 
-  cancelStockTransfer 
+  cancelStockTransfer,
+  syncTransfersFromApi
 } from '../models/transfers_data.js';
 import { showToast } from './cart_controller.js';
+import { etechAlert } from '../util/index.js';
 
 // Controller Imports for Tabs
 import { renderProductsTab } from './product_management_controller.js';
@@ -60,7 +62,7 @@ export function initAdminDashboard() {
 
   // Security Role Guard: Only STAFF, ADMIN, and SUPERADMIN allowed
   if (!activeUser || (!activeUser.isAdmin() && !activeUser.isStaff())) {
-    alert('Access Denied: You do not have administrative privileges.');
+    etechAlert.error('Access Denied', 'You do not have administrative privileges to access the Staff & Admin Control Center.');
     window.location.hash = '#home';
     return;
   }
@@ -317,6 +319,22 @@ export function renderOverviewTab() {
   } else {
     renderAdminOverview(dynamicRoot);
   }
+
+  // Background live refresh
+  Promise.allSettled([
+    syncProductsFromApi(),
+    syncBranchesFromApi(),
+    syncOrdersFromApi(),
+    syncTransfersFromApi()
+  ]).then(() => {
+    if (activeTab === 'overview') {
+      const root = document.getElementById('overview-dynamic-root');
+      if (root) {
+        if (activeUser && activeUser.isStaff()) renderStaffOverview(root);
+        else renderAdminOverview(root);
+      }
+    }
+  }).catch(() => {});
 }
 
 /**

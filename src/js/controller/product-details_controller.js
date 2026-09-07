@@ -3,7 +3,7 @@ import { getProductById, products } from '../models/data.js';
 import { addToCart, showToast } from './cart_controller.js';
 import { getCurrentUser } from './login_controller.js';
 import { 
-  submitProductReview, getUserReviewForProduct, getProductReviews 
+  submitProductReview, getUserReviewForProduct, getProductReviews, syncProductReviewsFromApi 
 } from '../models/rating_data.js';
 import renderProductDetails from '../components/product_detail_cart.js';
 
@@ -26,6 +26,11 @@ export function renderProductDetailsPage(productId) {
   const existingReview = currentUser ? getUserReviewForProduct(productId, currentUser.id) : null;
   currentRatingSelection = existingReview ? existingReview.rating : 5;
   renderProductDetails(productId);
+
+  // Background sync live reviews
+  syncProductReviewsFromApi(productId).then(() => {
+    renderProductDetails(productId);
+  }).catch(() => {});
 }
 
 /**
@@ -71,7 +76,7 @@ export function selectRatingStar(productId, starValue) {
 /**
  * Submit or update product review & rating
  */
-export function handleSubmitProductReview(productId) {
+export async function handleSubmitProductReview(productId) {
   const currentUser = getCurrentUser();
   if (!currentUser) {
     if (typeof showToast === 'function') {
@@ -84,7 +89,7 @@ export function handleSubmitProductReview(productId) {
   const commentEl = document.getElementById('product-review-comment');
   const commentText = commentEl ? commentEl.value.trim() : '';
 
-  const result = submitProductReview({
+  const result = await submitProductReview({
     productId: productId,
     userId: currentUser.id,
     userName: currentUser.name,

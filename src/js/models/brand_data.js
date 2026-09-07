@@ -1,5 +1,5 @@
 // ============================================================
-//  src/js/models/brand_data.js — Hardware Brands Model & Operations
+//  src/js/models/brand_data.js — Hardware Brands In-Memory Model Layer
 // ============================================================
 import { DEFAULT_BRANDS } from '../../data/brands.js';
 import { getStoredProducts } from './data.js';
@@ -7,8 +7,11 @@ import { BrandsApi } from '../api/brandsApi.js';
 
 export const BRANDS_STORAGE_KEY = 'etech_brands_data';
 
+// Reactive In-Memory Store
+let memoryBrands = Array.isArray(DEFAULT_BRANDS) ? DEFAULT_BRANDS.map(b => ({ ...b })) : [];
+
 /**
- * Retrieve all brands from storage (hydrates from DEFAULT_BRANDS if empty)
+ * Retrieve all brands from in-memory state
  * @param {object} options
  * @param {boolean} [options.includeDeleted=false]
  * @param {boolean} [options.activeOnly=false]
@@ -16,17 +19,7 @@ export const BRANDS_STORAGE_KEY = 'etech_brands_data';
  */
 export function getBrands(options = {}) {
   const { includeDeleted = false, activeOnly = false } = options;
-  const raw = typeof localStorage !== 'undefined' ? localStorage.getItem(BRANDS_STORAGE_KEY) : null;
-  let list = [];
-
-  if (raw) {
-    try {
-      list = JSON.parse(raw);
-      if (!Array.isArray(list)) list = [];
-    } catch (e) {
-      list = [];
-    }
-  }
+  let list = memoryBrands;
 
   if (includeDeleted) return list;
   if (activeOnly) return list.filter(b => (b.status || (b.active !== false ? 'ACTIVE' : 'INACTIVE')).toUpperCase() === 'ACTIVE');
@@ -43,23 +36,27 @@ export async function syncBrandsFromApi(options = {}) {
     let apiList = [];
     if (Array.isArray(res)) {
       apiList = res;
+    } else if (res && Array.isArray(res.body)) {
+      apiList = res.body;
     } else if (res && Array.isArray(res.data)) {
       apiList = res.data;
     }
-    const normalized = apiList.map(b => ({
-      id: b.id,
-      name: b.name || '',
-      slug: b.slug || '',
-      logo: b.logo || b.logoUrl || '',
-      logoUrl: b.logoUrl || b.logo || '',
-      country: b.country || '',
-      website: b.website || '',
-      description: b.description || '',
-      featured: Boolean(b.featured),
-      status: (b.status || (b.active !== false ? 'ACTIVE' : 'INACTIVE')).toUpperCase(),
-      active: (b.status || '').toUpperCase() === 'ACTIVE' || b.active === true
-    }));
-    saveBrands(normalized);
+
+    if (apiList.length > 0) {
+      memoryBrands = apiList.map(b => ({
+        id: b.id,
+        name: b.name || '',
+        slug: b.slug || '',
+        logo: b.logo || b.logoUrl || '',
+        logoUrl: b.logoUrl || b.logo || '',
+        country: b.country || '',
+        website: b.website || '',
+        description: b.description || '',
+        featured: Boolean(b.featured),
+        status: (b.status || (b.active !== false ? 'ACTIVE' : 'INACTIVE')).toUpperCase(),
+        active: (b.status || '').toUpperCase() === 'ACTIVE' || b.active === true
+      }));
+    }
     return getBrands(options);
   } catch (err) {
     console.warn('[BrandModel] Brands API sync notice:', err.message);
@@ -71,23 +68,15 @@ export async function syncBrandsFromApi(options = {}) {
  * Retrieve only deleted brands for SuperADMIN Trash Bin
  */
 export function getDeletedBrands() {
-  const raw = typeof localStorage !== 'undefined' ? localStorage.getItem(BRANDS_STORAGE_KEY) : null;
-  if (!raw) return [];
-  try {
-    const list = JSON.parse(raw);
-    if (!Array.isArray(list)) return [];
-    return list.filter(b => (b.status || '').toUpperCase() === 'DELETED');
-  } catch (e) {
-    return [];
-  }
+  return memoryBrands.filter(b => (b.status || '').toUpperCase() === 'DELETED');
 }
 
 /**
- * Save the entire brands array to storage
+ * Save the entire brands array to in-memory state
  */
 export function saveBrands(brandsList) {
-  if (typeof localStorage !== 'undefined') {
-    localStorage.setItem(BRANDS_STORAGE_KEY, JSON.stringify(brandsList));
+  if (Array.isArray(brandsList)) {
+    memoryBrands = [...brandsList];
   }
 }
 
@@ -101,72 +90,61 @@ export function getBrandById(id) {
 }
 
 /**
- * Retrieve a brand by its unique URL slug
+ * Retrieve a brand by its URL slug
  */
 export function getBrandBySlug(slug) {
   if (!slug) return null;
-  const normalized = slug.toLowerCase().trim();
   const brands = getBrands({ includeDeleted: true });
-  return brands.find(b => b.slug.toLowerCase() === normalized || b.name.toLowerCase() === normalized || b.id.toLowerCase() === normalized) || null;
+  return brands.find(b => b.slug.toLowerCase() === slug.toLowerCase()) || null;
 }
 
 /**
- * Retrieve all active brands featured on the homepage showcase
+ * Retrieve only featured brands for the homepage showcase
  */
 export function getFeaturedBrands() {
   const brands = getBrands({ activeOnly: true });
-  return brands.filter(b => b.featured).sort((a, b) => (a.displayOrder || 99) - (b.displayOrder || 99));
+  return brands.filter(b => b.featured === true);
 }
 
 /**
- * Count active store catalog products associated with a brand
+ * Get product count for a specific brand
  */
-export function getBrandProductCount(brandNameOrSlug) {
-  if (!brandNameOrSlug) return 0;
-  const target = brandNameOrSlug.toLowerCase().trim();
-  const products = getStoredProducts();
+export function getBrandProductCount(brandIdOrSlug) {
+  const brand = getBrandById(brandIdOrSlug) || getBrandBySlug(brandIdOrSlug);
+  if (!brand) return 0;
+
+  const products = getStoredProducts({ includeDeleted: false });
   return products.filter(p => {
-    const pBrand = (p.brand || '').toLowerCase().trim();
-    return pBrand === target || pBrand.includes(target) || target.includes(pBrand);
+    const pBrand = (p.brand || '').toLowerCase();
+    const pBrandId = (p.brandId || '').toLowerCase();
+    const pBrandSlug = (p.brandSlug || '').toLowerCase();
+
+    return (
+      pBrand === brand.name.toLowerCase() ||
+      pBrandId === brand.id.toLowerCase() ||
+      pBrandSlug === brand.slug.toLowerCase()
+    );
   }).length;
 }
 
 /**
- * Create or Update a Brand record
+ * Save (create or update) a brand profile
  */
-export async function saveBrand(brandData) {
-  if (!brandData || !brandData.name || !brandData.name.trim()) {
-    return { success: false, message: "Brand name is required." };
-  }
-
-  const brands = getBrands({ includeDeleted: true });
-  const rawName = brandData.name.trim();
-  const slug = brandData.slug ? brandData.slug.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-') : rawName.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-  const now = new Date().toISOString();
+export async function saveBrand(brandData, isEdit = false) {
+  const brands = memoryBrands;
+  const slug = (brandData.slug || brandData.name || '').toLowerCase().trim().replace(/[^a-z0-9]+/g, '-');
   const status = (brandData.status || (brandData.active !== false ? 'ACTIVE' : 'INACTIVE')).toUpperCase();
 
-  // Check if updating existing brand
-  if (brandData.id) {
-    const index = brands.findIndex(b => b.id.toLowerCase() === brandData.id.toLowerCase());
+  if (isEdit) {
+    const index = brands.findIndex(b => b.id === brandData.id || b.slug === brandData.slug);
     if (index !== -1) {
-      const duplicateSlug = brands.find((b, idx) => idx !== index && b.slug.toLowerCase() === slug);
-      if (duplicateSlug) {
-        return { success: false, message: `A brand with the slug "${slug}" already exists.` };
-      }
-
       brands[index] = {
         ...brands[index],
         ...brandData,
-        name: rawName,
-        slug: slug,
-        logo: brandData.logo || brandData.logoUrl || brands[index].logo,
-        logoUrl: brandData.logo || brandData.logoUrl || brands[index].logo,
         status: status,
         active: status === 'ACTIVE',
-        updatedAt: now
+        slug: slug || brands[index].slug
       };
-
-      saveBrands(brands);
 
       try {
         await BrandsApi.update(brands[index].id, brands[index]);
@@ -174,40 +152,26 @@ export async function saveBrand(brandData) {
         console.warn('[BrandModel] Backend brand update notice:', err.message);
       }
 
-      return { success: true, brand: brands[index], isNew: false, message: `Brand "${rawName}" updated successfully.` };
+      return brands[index];
     }
   }
 
   // Create New Brand
-  const duplicateSlug = brands.find(b => b.slug.toLowerCase() === slug);
-  if (duplicateSlug) {
-    return { success: false, message: `A brand with the slug "${slug}" already exists.` };
-  }
-
-  const generatedId = `brd-${slug}`;
   const newBrand = {
-    id: generatedId,
-    name: rawName,
-    slug: slug,
-    logo: brandData.logo || brandData.logoUrl || '',
-    logoUrl: brandData.logo || brandData.logoUrl || '',
+    id: brandData.id || `brd-${slug || Date.now()}`,
+    name: brandData.name || 'New Brand',
+    slug: slug || `brand-${Math.floor(1000 + Math.random() * 9000)}`,
+    logo: brandData.logo || brandData.logoUrl || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=400&q=80',
+    logoUrl: brandData.logoUrl || brandData.logo || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=400&q=80',
     country: brandData.country || 'Global',
-    founded: brandData.founded || brandData.foundedYear || '',
-    foundedYear: brandData.founded || brandData.foundedYear || '',
-    website: brandData.website || brandData.websiteUrl || '',
-    websiteUrl: brandData.website || brandData.websiteUrl || '',
-    tagline: brandData.tagline || '',
+    website: brandData.website || '',
     description: brandData.description || '',
     featured: Boolean(brandData.featured),
-    displayOrder: brandData.displayOrder !== undefined ? Number(brandData.displayOrder) : brands.length + 1,
     status: status,
-    active: status === 'ACTIVE',
-    createdAt: now,
-    updatedAt: now
+    active: status === 'ACTIVE'
   };
 
   brands.push(newBrand);
-  saveBrands(brands);
 
   try {
     await BrandsApi.create(newBrand);
@@ -215,91 +179,80 @@ export async function saveBrand(brandData) {
     console.warn('[BrandModel] Backend brand create notice:', err.message);
   }
 
-  return { success: true, brand: newBrand, isNew: true, message: `Brand "${rawName}" registered successfully.` };
+  return newBrand;
 }
 
 /**
  * Update brand lifecycle status (ACTIVE, INACTIVE, DELETED)
  */
-export async function updateBrandStatus(id, newStatus) {
+export async function updateBrandStatus(idOrSlug, newStatus) {
   const upperStatus = (newStatus || 'ACTIVE').toUpperCase();
-  const brands = getBrands({ includeDeleted: true });
-  const index = brands.findIndex(b => b.id.toLowerCase() === id.toLowerCase());
+  const index = memoryBrands.findIndex(b => b.id === idOrSlug || b.slug === idOrSlug);
 
   if (index !== -1) {
-    brands[index].status = upperStatus;
-    brands[index].active = upperStatus === 'ACTIVE';
-    brands[index].updatedAt = new Date().toISOString();
-    saveBrands(brands);
+    memoryBrands[index].status = upperStatus;
+    memoryBrands[index].active = upperStatus === 'ACTIVE';
 
     try {
-      await BrandsApi.updateStatus(brands[index].id, upperStatus);
+      await BrandsApi.updateStatus(memoryBrands[index].id, upperStatus);
     } catch (err) {
-      console.warn(`[BrandModel] Backend brand status update notice for ${id}:`, err.message);
+      console.warn(`[BrandModel] Backend brand status update notice for ${idOrSlug}:`, err.message);
     }
 
-    return { success: true, brand: brands[index] };
+    return { success: true, brand: memoryBrands[index] };
   }
   return { success: false, message: 'Brand not found.' };
 }
 
 /**
- * Soft delete a brand (sets status to DELETED)
+ * Soft delete a brand (transitions status to DELETED)
  */
-export async function deleteBrand(id) {
-  if (!id) return { success: false, message: "Brand ID is required." };
-  const brands = getBrands({ includeDeleted: true });
-  const targetBrand = brands.find(b => b.id.toLowerCase() === id.toLowerCase());
-  if (!targetBrand) {
-    return { success: false, message: "Brand not found." };
-  }
-
-  const res = await updateBrandStatus(id, 'DELETED');
+export async function deleteBrand(idOrSlug) {
+  const brand = getBrandById(idOrSlug) || getBrandBySlug(idOrSlug);
+  const res = await updateBrandStatus(idOrSlug, 'DELETED');
   try {
-    await BrandsApi.delete(id);
+    if (brand) await BrandsApi.delete(brand.id);
   } catch (err) {
-    console.warn(`[BrandModel] Backend brand soft-delete notice for ${id}:`, err.message);
+    console.warn(`[BrandModel] Backend brand soft-delete notice for ${idOrSlug}:`, err.message);
   }
-
-  return { success: true, message: `Brand "${targetBrand.name}" moved to Trash Bin.` };
+  return res.success;
 }
 
 /**
- * Restore soft-deleted brand back to ACTIVE status
+ * Restore soft-deleted brand back to ACTIVE
  */
-export async function restoreBrand(id) {
-  return await updateBrandStatus(id, 'ACTIVE');
+export async function restoreBrand(idOrSlug) {
+  return await updateBrandStatus(idOrSlug, 'ACTIVE');
 }
 
 /**
- * Permanently delete brand from storage and database (SuperADMIN only)
+ * Permanently purge a brand record from memory and database (SuperADMIN only)
  */
-export async function permanentlyDeleteBrand(id) {
-  let brands = getBrands({ includeDeleted: true });
-  const targetBrand = brands.find(b => b.id.toLowerCase() === id.toLowerCase());
-  brands = brands.filter(b => b.id.toLowerCase() !== id.toLowerCase());
-  saveBrands(brands);
+export async function permanentlyDeleteBrand(idOrSlug) {
+  const target = memoryBrands.find(b => b.id === idOrSlug || b.slug === idOrSlug);
+  memoryBrands = memoryBrands.filter(b => b.id !== idOrSlug && b.slug !== idOrSlug);
 
   try {
-    await BrandsApi.permaDelete(id);
+    if (target) await BrandsApi.permaDelete(target.id);
   } catch (err) {
-    console.warn(`[BrandModel] Backend brand perma-delete notice for ${id}:`, err.message);
+    console.warn(`[BrandModel] Backend brand perma-delete notice for ${idOrSlug}:`, err.message);
   }
 
-  return { success: true, brand: targetBrand };
+  return { success: true, brand: target };
 }
 
 /**
- * Toggle brand featured status for the homepage showcase
+ * Toggle featured flag for a brand
  */
-export function toggleBrandFeatured(id) {
-  if (!id) return { success: false };
-  const brands = getBrands({ includeDeleted: true });
-  const brand = brands.find(b => b.id.toLowerCase() === id.toLowerCase());
-  if (!brand) return { success: false, message: "Brand not found." };
-
+export async function toggleBrandFeatured(idOrSlug) {
+  const brand = memoryBrands.find(b => b.id === idOrSlug || b.slug === idOrSlug);
+  if (!brand) return { success: false, message: 'Brand not found' };
   brand.featured = !brand.featured;
-  brand.updatedAt = new Date().toISOString();
-  saveBrands(brands);
-  return { success: true, featured: brand.featured, message: `Brand "${brand.name}" ${brand.featured ? 'is now featured on homepage' : 'removed from homepage showcase'}.` };
+  try {
+    await BrandsApi.update(brand.id, brand);
+  } catch (err) {
+    console.warn('[BrandModel] Backend brand featured toggle notice:', err.message || err);
+  }
+  return { success: true, brand };
 }
+

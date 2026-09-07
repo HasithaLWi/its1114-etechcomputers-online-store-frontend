@@ -1,7 +1,9 @@
 
+import { etechAlert } from '../util/index.js';
+
 export function renderUserProfileModal(user) {
     if (!user) {
-        alert('Please log in first to manage your profile.');
+        etechAlert.info('Login Required', 'Please log in first to view or manage your user profile.');
         window.location.hash = '#login?redirect=account';
         return;
     }

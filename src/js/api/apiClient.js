@@ -72,9 +72,51 @@ export function sanitizeForLogging(payload) {
   }
 }
 
+let lastSessionExpiredNoticeTime = 0;
+
+/**
+ * Automatically terminates user session, purges auth credentials,
+ * notifies user via toast/alert, and redirects to login if on protected page.
+ */
+export function handleSessionExpired(reason = 'Your session has expired. Please sign in again.') {
+  const hadToken = Boolean(getToken());
+  removeToken();
+  if (typeof localStorage !== 'undefined') {
+    localStorage.removeItem(CURRENT_USER_STORAGE_KEY);
+  }
+
+  const now = Date.now();
+  if (now - lastSessionExpiredNoticeTime > 3000) {
+    lastSessionExpiredNoticeTime = now;
+
+    console.warn(`%c🔒 [SessionGuard] Session Expired / Invalid Token: "${reason}". Logged out immediately.`, 'color: #ef4444; font-weight: bold; font-size: 13px;');
+
+    if (typeof window !== 'undefined') {
+      if (typeof window.showToast === 'function') {
+        window.showToast('🔒 Session expired. Please sign in again to continue.', 'error');
+      }
+
+      if (typeof window.updateHeaderAuthUI === 'function') {
+        window.updateHeaderAuthUI();
+      }
+
+      window.dispatchEvent(new CustomEvent('sessionExpired', { detail: { message: reason } }));
+
+      // If currently viewing a protected page, immediately redirect to login
+      const currentHash = window.location.hash || '';
+      const protectedPages = ['#admin', '#administrator', '#account', '#checkout'];
+      const isProtected = protectedPages.some(p => currentHash.toLowerCase().startsWith(p));
+      if (isProtected) {
+        const pageClean = currentHash.replace(/^#/, '').split('?')[0];
+        window.location.hash = `#login?redirect=${encodeURIComponent(pageClean)}&expired=true`;
+      }
+    }
+  }
+}
+
 /**
  * Centralized jQuery AJAX Request Handler
- * Standardizes authentication headers, payload serialization, error parsing, and debug logging.
+ * Standardizes authentication headers, payload serialization, error parsing, session guards, and debug logging.
  */
 export function ajaxRequest({ endpoint, method = 'GET', data = null, headers = {} }) {
   return new Promise((resolve, reject) => {
@@ -111,6 +153,29 @@ export function ajaxRequest({ endpoint, method = 'GET', data = null, headers = {
         const duration = (endTime - startTime).toFixed(1);
         const statusCode = xhr ? xhr.status : 200;
 
+        // Check if response body envelops a 401/403 or "Token expired" status
+        const isAuthError = response && (
+          response.status === 401 || 
+          response.status === 403 || 
+          (typeof response.message === 'string' && (
+            response.message.toLowerCase().includes('token expired') ||
+            response.message.toLowerCase().includes('token invalid') ||
+            response.message.toLowerCase().includes('jwt expired') ||
+            response.message.toLowerCase().includes('full authentication is required') ||
+            response.message.toLowerCase().includes('unauthorized')
+          ))
+        );
+
+        if (isAuthError) {
+          const authMsg = response.message || 'Session expired or token invalid.';
+          console.warn(`%c[API Auth Failure ${response.status || statusCode}] ${httpMethod} ${endpoint} (${duration}ms)`, 'color: #ef4444; font-weight: bold;', response);
+          handleSessionExpired(authMsg);
+          const err = new Error(authMsg);
+          err.status = response.status || 401;
+          err.responseJSON = response;
+          return reject(err);
+        }
+
         console.log(`%c[API Response ${statusCode}] ${httpMethod} ${endpoint} (${duration}ms)`, 'color: #16a34a; font-weight: bold;', sanitizeForLogging(response));
         resolve(response);
       },
@@ -119,13 +184,15 @@ export function ajaxRequest({ endpoint, method = 'GET', data = null, headers = {
         const duration = (endTime - startTime).toFixed(1);
         let errorMessage = 'Network error or server unavailable. Please try again.';
 
-        if (xhr.status === 401) {
-          removeToken();
-          localStorage.removeItem(CURRENT_USER_STORAGE_KEY);
-          errorMessage = xhr.responseJSON?.message || 'Session expired. Please sign in again.';
+        if (xhr.status === 401 || xhr.status === 403) {
+          errorMessage = xhr.responseJSON?.message || (xhr.status === 401 ? 'Session expired. Please sign in again.' : 'Access denied.');
+          handleSessionExpired(errorMessage);
         } else if (xhr.responseJSON) {
           if (xhr.responseJSON.message) {
             errorMessage = xhr.responseJSON.message;
+            if (errorMessage.toLowerCase().includes('token expired') || errorMessage.toLowerCase().includes('token invalid') || errorMessage.toLowerCase().includes('jwt expired')) {
+              handleSessionExpired(errorMessage);
+            }
           } else if (xhr.responseJSON.body && typeof xhr.responseJSON.body === 'object') {
             errorMessage = Object.values(xhr.responseJSON.body).join(', ');
           }
@@ -133,6 +200,9 @@ export function ajaxRequest({ endpoint, method = 'GET', data = null, headers = {
           try {
             const parsed = JSON.parse(xhr.responseText);
             errorMessage = parsed.message || errorMessage;
+            if (errorMessage.toLowerCase().includes('token expired') || errorMessage.toLowerCase().includes('token invalid') || errorMessage.toLowerCase().includes('jwt expired')) {
+              handleSessionExpired(errorMessage);
+            }
           } catch (e) {
             errorMessage = xhr.statusText || errorMessage;
           }

@@ -1,14 +1,26 @@
 // ============================================================
 //  policy_management_controller.js — Admin Store Profile & Policies
 // ============================================================
-import { getBusinessInfo, saveBusinessInfo, getStoredPolicies, saveStoredPolicies, updatePolicyDocument, DEFAULT_BUSINESS_INFO, DEFAULT_LEGAL_POLICIES } from '../models/policy-data.js';
+import { 
+  getBusinessInfo, saveBusinessInfo, getStoredPolicies, saveStoredPolicies, 
+  updatePolicyDocument, DEFAULT_BUSINESS_INFO, DEFAULT_LEGAL_POLICIES,
+  syncPoliciesFromApi
+} from '../models/policy-data.js';
+import {
+  iconBuilding,
+  iconScale,
+  iconClipboard
+} from '../util/icons.js';
+import { showToast, etechAlert } from '../util/index.js';
 
 /**
  * Renders the Store Profile & Policies Management Tab inside the Admin Dashboard
  */
-export function renderPoliciesTab() {
+export async function renderPoliciesTab() {
   const panel = document.getElementById('tab-panel-policies');
   if (!panel) return;
+
+  await syncPoliciesFromApi();
 
   const business = getBusinessInfo();
   const policies = getStoredPolicies();
@@ -17,33 +29,27 @@ export function renderPoliciesTab() {
     <div class="space-y-6 max-w-7xl mx-auto pb-10">
 
       <!-- Header Banner -->
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white border border-[#e2e8f0] rounded-lg p-5 shadow-sm">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white border border-[#e2e8f0] rounded-2xl p-5 shadow-sm">
         <div>
           <div class="flex items-center space-x-2 mb-1">
             <span class="text-xs font-mono font-bold uppercase tracking-wider text-blue-600">Administration & Legal Governance</span>
           </div>
-          <h2 class="text-xl font-extrabold text-[#0f172a]">Store Profile & Legal Policies Management</h2>
-          <p class="text-xs text-[#64748b] mt-0.5">Manage public company profile details, customer hotlines, ISO credentials, and legal compliance policies.</p>
-        </div>
-
-        <div class="flex items-center space-x-2.5">
-          <a href="#about" target="_blank" class="px-4 py-2 bg-[#f8fafc] hover:bg-[#f1f5f9] text-[#475569] hover:text-[#0f172a] rounded-md font-bold text-xs border border-[#e2e8f0] transition-all flex items-center space-x-1.5 shadow-sm">
-            <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
-            <span>View Live About Us Page</span>
-          </a>
+          <h2 class="text-xl font-extrabold text-[#0f172a] tracking-tight">Store Profile & Legal Policies Manager</h2>
+          <p class="text-xs text-[#64748b]">Configure your verified corporate information, consumer protections, and terms of service.</p>
         </div>
       </div>
 
       <!-- ── SECTION 1: Business Profile Information Table ──────────── -->
-      <div class="bg-white border border-[#e2e8f0] rounded-lg shadow-sm overflow-hidden">
+      <div class="bg-white border border-[#e2e8f0] rounded-2xl shadow-sm overflow-hidden">
         <div class="p-4 sm:p-5 border-b border-[#e2e8f0] flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-[#f8fafc]">
           <div>
             <h3 class="text-base font-extrabold text-[#0f172a] flex items-center space-x-2">
-              <span>🏢 Corporate Business Profile & Operations Matrix</span>
+              <span class="w-7 h-7 rounded-lg bg-blue-50 text-blue-600 border border-blue-200 flex items-center justify-center">${iconBuilding('w-4 h-4')}</span>
+              <span>Corporate Business Profile & Operations Matrix</span>
             </h3>
             <p class="text-xs text-[#64748b] mt-0.5">These values are displayed on the live About Us page, customer invoices, and support footers.</p>
           </div>
-          <button onclick="openBusinessInfoModal()" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-md font-bold text-xs shadow-sm flex items-center space-x-1.5 flex-shrink-0">
+          <button onclick="openBusinessInfoModal()" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold text-xs shadow-sm flex items-center space-x-1.5 flex-shrink-0 cursor-pointer whitespace-nowrap">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
             <span>Edit Business Profile</span>
           </button>
@@ -90,15 +96,16 @@ export function renderPoliciesTab() {
       </div>
 
       <!-- ── SECTION 2: Legal Policies Management Table ────────────── -->
-      <div class="bg-white border border-[#e2e8f0] rounded-lg shadow-sm overflow-hidden space-y-4">
+      <div class="bg-white border border-[#e2e8f0] rounded-2xl shadow-sm overflow-hidden space-y-4">
         <div class="p-4 sm:p-5 border-b border-[#e2e8f0] flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-[#f8fafc]">
           <div>
             <h3 class="text-base font-extrabold text-[#0f172a] flex items-center space-x-2">
-              <span>⚖️ Legal Policies & Customer Protection Documents</span>
+              <span class="w-7 h-7 rounded-lg bg-purple-50 text-purple-600 border border-purple-200 flex items-center justify-center">${iconScale('w-4 h-4')}</span>
+              <span>Legal Policies & Customer Protection Documents</span>
             </h3>
             <p class="text-xs text-[#64748b] mt-0.5">Manage policy document titles, revision dates, and individual legal clause sections.</p>
           </div>
-          <button onclick="confirmResetPolicies()" class="px-3.5 py-1.5 bg-[#f8fafc] hover:bg-[#f1f5f9] text-[#64748b] hover:text-[#0f172a] rounded-md text-xs font-semibold border border-[#e2e8f0] transition-all">
+          <button onclick="confirmResetPolicies()" class="px-3.5 py-1.5 bg-[#f8fafc] hover:bg-[#f1f5f9] text-[#64748b] hover:text-[#0f172a] rounded-xl text-xs font-semibold border border-[#e2e8f0] transition-all cursor-pointer whitespace-nowrap">
             Restore Defaults
           </button>
         </div>
@@ -120,10 +127,10 @@ export function renderPoliciesTab() {
                 const p = policies[key];
                 return `
                   <tr class="hover:bg-[#f8fafc] transition-colors">
-                    <td class="py-3.5 px-4">
+                    <td class="py-3.5 px-4 min-w-[200px]">
                       <div class="flex items-center space-x-3">
-                        <div class="w-8 h-8 rounded bg-[#f8fafc] border border-[#e2e8f0] flex items-center justify-center">
-                          ${p.icon || '📄'}
+                        <div class="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 border border-blue-200 flex items-center justify-center flex-shrink-0">
+                          ${iconClipboard('w-4 h-4')}
                         </div>
                         <div>
                           <p class="font-bold text-[#0f172a] text-xs">${p.title}</p>
@@ -131,9 +138,9 @@ export function renderPoliciesTab() {
                         </div>
                       </div>
                     </td>
-                    <td class="py-3.5 px-4 font-mono text-blue-600 font-bold text-xs">#${key}</td>
-                    <td class="py-3.5 px-4 text-center">
-                      <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-[#f8fafc] text-[#475569] border border-[#e2e8f0]">
+                    <td class="py-3.5 px-4 font-mono text-blue-600 font-bold text-xs whitespace-nowrap">#${key}</td>
+                    <td class="py-3.5 px-4 text-center whitespace-nowrap">
+                      <span class="inline-flex items-center px-2.5 py-1 rounded-md text-[10px] font-mono font-bold bg-[#f8fafc] text-[#475569] border border-[#e2e8f0] shadow-2xs">
                         ${(p.sections || []).length} Clauses
                       </span>
                     </td>
@@ -259,7 +266,7 @@ export function openBusinessInfoModal() {
 /**
  * Handle Business Profile Form Submit
  */
-export function handleSaveBusinessInfoSubmit(e) {
+export async function handleSaveBusinessInfoSubmit(e) {
   e.preventDefault();
   const current = getBusinessInfo();
 
@@ -278,10 +285,13 @@ export function handleSaveBusinessInfoSubmit(e) {
     story: document.getElementById('biz-story').value.trim()
   };
 
+  const confirmed = await etechAlert.confirmUpdate('Corporate Business Profile', 'Updates will be visible across customer invoices, storefront footer, and legal pages.');
+  if (!confirmed) return;
+
   saveBusinessInfo(updated);
   if (window.closeAdminModal) window.closeAdminModal();
   renderPoliciesTab();
-  alert('Corporate Business Profile updated successfully!');
+  showToast('Corporate Business Profile updated successfully!', 'success');
 }
 
 /**
@@ -400,7 +410,7 @@ function syncCurrentModalClauses() {
   });
 }
 
-export function handleSavePolicySubmit(e, policyKey) {
+export async function handleSavePolicySubmit(e, policyKey) {
   e.preventDefault();
   syncCurrentModalClauses();
 
@@ -415,17 +425,28 @@ export function handleSavePolicySubmit(e, policyKey) {
     sections: editingPolicySections
   };
 
+  const confirmed = await etechAlert.confirmUpdate(`Policy Document "${title}"`, `${editingPolicySections.length} clauses/sections will be published to #${policyKey}.`);
+  if (!confirmed) return;
+
   updatePolicyDocument(policyKey, updatedPolicy);
   if (window.closeAdminModal) window.closeAdminModal();
   renderPoliciesTab();
-  alert(`${title} document saved successfully!`);
+  showToast(`${title} document saved successfully!`, 'success');
 }
 
-export function confirmResetPolicies() {
-  if (confirm('Are you sure you want to restore all legal policies to factory default?')) {
-    saveStoredPolicies(DEFAULT_LEGAL_POLICIES);
-    saveBusinessInfo(DEFAULT_BUSINESS_INFO);
-    renderPoliciesTab();
-    alert('Policies and Business Profile restored to default.');
-  }
+export async function confirmResetPolicies() {
+  const confirmed = await etechAlert.confirm({
+    title: 'Restore Policies to Factory Default?',
+    message: 'Are you sure you want to reset all legal policies, terms of service, and corporate business info to factory defaults?',
+    type: 'warning',
+    confirmText: 'Yes, Restore Defaults',
+    cancelText: 'Cancel'
+  });
+
+  if (!confirmed) return;
+
+  saveStoredPolicies(DEFAULT_LEGAL_POLICIES);
+  saveBusinessInfo(DEFAULT_BUSINESS_INFO);
+  renderPoliciesTab();
+  showToast('Policies and Business Profile restored to default.', 'info');
 }

@@ -7,13 +7,29 @@ import {
   dispatchStockTransfer,
   receiveStockTransfer,
   cancelStockTransfer,
-  getTransfersMetrics
+  getTransfersMetrics,
+  syncTransfersFromApi
 } from '../models/transfers_data.js';
 import { getStoredProducts } from '../models/data.js';
 import { getBranches } from './branch_controller.js';
-import { showToast } from './cart_controller.js';
+import { showToast } from '../util/toast.js';
+import { etechAlert } from '../util/etech_alert.js';
 import { closeAdminModal, renderOverviewTab } from './admin_dashboard_controller.js';
 import { getCurrentUser } from './login_controller.js';
+import {
+  iconTruck,
+  iconCheck,
+  iconClipboard,
+  iconPackage,
+  iconClose,
+  iconLayers,
+  iconScale,
+  iconBolt,
+  iconUser
+} from '../util/icons.js';
+import {
+  renderTransferStatusBadge
+} from '../util/ui_helpers.js';
 
 let transferSearchQuery = '';
 let activeStatusFilter = 'all';
@@ -22,9 +38,11 @@ let activeReasonFilter = 'all';
 /**
  * Main Entry: Renders the Inter-Branch Stock Transfers & Logistics tab
  */
-export function renderTransfersTab() {
+export async function renderTransfersTab() {
   const container = document.getElementById('tab-panel-transfers');
   if (!container) return;
+
+  await syncTransfersFromApi();
 
   const activeUser = getCurrentUser();
   const transfers = getStockTransfers();
@@ -58,10 +76,10 @@ export function renderTransfersTab() {
       <div class="bg-white border border-[#e2e8f0] rounded-2xl p-5 sm:p-6 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
           <div class="flex items-center space-x-2">
-            <span class="px-2.5 py-1 rounded bg-blue-50 text-blue-700 border border-blue-200 text-[10px] font-mono font-black uppercase">
+            <span class="px-2.5 py-1 rounded bg-blue-50 text-blue-700 border border-blue-200 text-[10px] font-mono font-black uppercase whitespace-nowrap">
               INTER-BRANCH LOGISTICS & WAREHOUSE TRANSFERS
             </span>
-            <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+            <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 whitespace-nowrap">
               LEDGER VERIFIED
             </span>
           </div>
@@ -74,7 +92,7 @@ export function renderTransfersTab() {
         </div>
 
         <button onclick="openInitiateTransferModal()" 
-          class="px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-extrabold text-xs rounded-xl shadow-md transition-all flex items-center space-x-2">
+          class="px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-extrabold text-xs rounded-xl shadow-md transition-all flex items-center space-x-2 cursor-pointer whitespace-nowrap">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
           </svg>
@@ -89,7 +107,7 @@ export function renderTransfersTab() {
         <div class="bg-white border border-[#e2e8f0] rounded-2xl p-4 sm:p-5 shadow-sm relative overflow-hidden">
           <div class="flex items-center justify-between">
             <span class="text-xs font-bold text-[#64748b] uppercase tracking-wider">In-Transit Shipments</span>
-            <span class="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold text-sm border border-amber-200">🚚</span>
+            <span class="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold text-sm border border-amber-200">${iconTruck('w-4 h-4')}</span>
           </div>
           <div class="flex items-baseline space-x-2 mt-2">
             <span class="text-2xl sm:text-3xl font-extrabold font-mono text-[#0f172a]">${metrics.inTransit}</span>
@@ -102,7 +120,7 @@ export function renderTransfersTab() {
         <div class="bg-white border border-[#e2e8f0] rounded-2xl p-4 sm:p-5 shadow-sm relative overflow-hidden">
           <div class="flex items-center justify-between">
             <span class="text-xs font-bold text-[#64748b] uppercase tracking-wider">Completed Transfers</span>
-            <span class="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold text-sm border border-emerald-200">✓</span>
+            <span class="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold text-sm border border-emerald-200">${iconCheck('w-4 h-4')}</span>
           </div>
           <div class="flex items-baseline space-x-2 mt-2">
             <span class="text-2xl sm:text-3xl font-extrabold font-mono text-emerald-600">${metrics.received}</span>
@@ -115,11 +133,11 @@ export function renderTransfersTab() {
         <div class="bg-white border border-[#e2e8f0] rounded-2xl p-4 sm:p-5 shadow-sm relative overflow-hidden">
           <div class="flex items-center justify-between">
             <span class="text-xs font-bold text-[#64748b] uppercase tracking-wider">Pending Approval</span>
-            <span class="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-sm border border-blue-200">📋</span>
+            <span class="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-sm border border-blue-200">${iconClipboard('w-4 h-4')}</span>
           </div>
           <div class="flex items-baseline space-x-2 mt-2">
             <span class="text-2xl sm:text-3xl font-extrabold font-mono text-blue-600">${metrics.requested}</span>
-            <span class="text-xs font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full">Awaiting Dispatch</span>
+            <span class="text-xs font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full whitespace-nowrap">Awaiting Dispatch</span>
           </div>
           <p class="text-[11px] text-[#64748b] mt-1">Requests waiting for source hub verification.</p>
         </div>
@@ -128,7 +146,7 @@ export function renderTransfersTab() {
         <div class="bg-white border border-[#e2e8f0] rounded-2xl p-4 sm:p-5 shadow-sm relative overflow-hidden">
           <div class="flex items-center justify-between">
             <span class="text-xs font-bold text-[#64748b] uppercase tracking-wider">Total Hardware Moved</span>
-            <span class="w-8 h-8 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center font-bold text-sm border border-purple-200">📦</span>
+            <span class="w-8 h-8 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center font-bold text-sm border border-purple-200">${iconPackage('w-4 h-4')}</span>
           </div>
           <div class="flex items-baseline space-x-2 mt-2">
             <span class="text-2xl sm:text-3xl font-extrabold font-mono text-purple-700">${metrics.totalUnits}</span>
@@ -146,18 +164,19 @@ export function renderTransfersTab() {
           <!-- Status Filter Tabs -->
           <div class="flex items-center space-x-1.5 overflow-x-auto pb-1 w-full md:w-auto">
             ${[
-              { id: 'all', label: 'All Transfers', count: transfers.length },
-              { id: 'requested', label: 'Requested 📋', count: metrics.requested, color: 'blue' },
-              { id: 'in transit', label: 'In Transit 🚚', count: metrics.inTransit, color: 'amber' },
-              { id: 'received', label: 'Received ✓', count: metrics.received, color: 'emerald' },
-              { id: 'cancelled', label: 'Cancelled ✕', count: metrics.cancelled, color: 'rose' }
+              { id: 'all', label: 'All Transfers', count: transfers.length, icon: null },
+              { id: 'requested', label: 'Requested', count: metrics.requested, icon: iconClipboard('w-3.5 h-3.5') },
+              { id: 'in transit', label: 'In Transit', count: metrics.inTransit, icon: iconTruck('w-3.5 h-3.5') },
+              { id: 'received', label: 'Received', count: metrics.received, icon: iconCheck('w-3.5 h-3.5') },
+              { id: 'cancelled', label: 'Cancelled', count: metrics.cancelled, icon: iconClose('w-3.5 h-3.5') }
             ].map(tab => `
               <button onclick="filterTransfersByStatus('${tab.id}')"
-                class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center space-x-1.5 whitespace-nowrap ${
+                class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center space-x-1.5 whitespace-nowrap cursor-pointer ${
                   activeStatusFilter === tab.id
                     ? 'bg-blue-600 text-white shadow-sm'
                     : 'bg-[#f8fafc] text-[#475569] border border-[#e2e8f0] hover:bg-slate-100 hover:text-[#0f172a]'
                 }">
+                ${tab.icon ? `<span>${tab.icon}</span>` : ''}
                 <span>${tab.label}</span>
                 <span class="px-1.5 py-0.2 rounded-full text-[10px] font-mono ${
                   activeStatusFilter === tab.id ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
@@ -185,20 +204,22 @@ export function renderTransfersTab() {
           <table class="w-full text-left text-xs text-[#475569]">
             <thead class="bg-[#f8fafc] border-b border-[#e2e8f0] text-[10px] font-mono uppercase text-[#64748b] tracking-wider">
               <tr>
-                <th class="p-4">Transfer Ref / ID</th>
-                <th class="p-4">Product Details</th>
-                <th class="p-4">Source Hub ➔ Destination Hub</th>
-                <th class="p-4 text-center">Qty</th>
-                <th class="p-4">Reason / Allocation</th>
-                <th class="p-4 text-center">Status</th>
-                <th class="p-4 text-right">Logistics Actions</th>
+                <th class="p-4 min-w-[150px]">Transfer Ref / ID</th>
+                <th class="p-4 min-w-[200px]">Product Details</th>
+                <th class="p-4 min-w-[220px]">Source Hub ➔ Destination Hub</th>
+                <th class="p-4 text-center min-w-[70px] whitespace-nowrap">Qty</th>
+                <th class="p-4 min-w-[170px]">Reason / Allocation</th>
+                <th class="p-4 text-center min-w-[130px] whitespace-nowrap">Status</th>
+                <th class="p-4 text-right min-w-[180px] whitespace-nowrap">Logistics Actions</th>
               </tr>
             </thead>
             <tbody class="divide-y divide-[#e2e8f0]">
               ${filtered.length === 0 ? `
                 <tr>
                   <td colspan="7" class="p-12 text-center text-[#64748b]">
-                    <div class="text-3xl mb-2">🚚</div>
+                    <div class="w-12 h-12 mx-auto rounded-2xl bg-amber-50 text-amber-600 border border-amber-200 flex items-center justify-center mb-3 shadow-2xs">
+                      ${iconTruck('w-6 h-6 text-amber-600')}
+                    </div>
                     <p class="text-sm font-bold text-[#0f172a]">No Stock Transfers Found</p>
                     <p class="text-xs text-slate-400 mt-1">No transfer records match your active search or filter criteria.</p>
                   </td>
@@ -217,9 +238,9 @@ export function renderTransfersTab() {
                     
                     <!-- ID & Tracking Code -->
                     <td class="p-4">
-                      <div class="font-mono font-bold text-[#0f172a] text-xs">${t.id}</div>
-                      <div class="text-[10px] text-blue-600 font-mono font-semibold">${t.trackingCode}</div>
-                      <div class="text-[9px] text-[#94a3b8] font-mono">${new Date(t.createdAt).toLocaleDateString()}</div>
+                      <div class="font-mono font-bold text-[#0f172a] text-xs whitespace-nowrap">${t.id}</div>
+                      <div class="text-[10px] text-blue-600 font-mono font-semibold whitespace-nowrap">${t.trackingCode}</div>
+                      <div class="text-[9px] text-[#94a3b8] font-mono whitespace-nowrap">${new Date(t.createdAt).toLocaleDateString()}</div>
                     </td>
 
                     <!-- Product Details -->
@@ -227,7 +248,7 @@ export function renderTransfersTab() {
                       <div class="flex items-center space-x-2.5">
                         <img src="${t.productImage || 'https://images.unsplash.com/photo-1591488320449-011701bb6704?auto=format&fit=crop&w=100&q=80'}" 
                           class="w-10 h-10 object-cover rounded-lg bg-[#f8fafc] border border-[#e2e8f0] flex-shrink-0">
-                        <div>
+                        <div class="min-w-0">
                           <p class="font-bold text-[#0f172a] line-clamp-1">${t.productName}</p>
                           <p class="text-[10px] text-blue-600 font-mono font-semibold">${t.productSku}</p>
                         </div>
@@ -236,25 +257,25 @@ export function renderTransfersTab() {
 
                     <!-- Route -->
                     <td class="p-4">
-                      <div class="flex items-center space-x-2 text-xs font-semibold">
+                      <div class="flex items-center space-x-2 text-xs font-semibold whitespace-nowrap">
                         <span class="text-[#0f172a] font-bold ${activeUser && activeUser.assignedBranch === t.fromBranchId ? 'text-blue-700' : ''}">${t.fromBranchName}</span>
                         <span class="text-blue-600 font-bold">➔</span>
                         <span class="text-[#0f172a] font-bold ${activeUser && activeUser.assignedBranch === t.toBranchId ? 'text-emerald-700' : ''}">${t.toBranchName}</span>
                       </div>
-                      <div class="text-[10px] text-[#64748b] font-mono mt-0.5">${t.driverOrCourier || 'Internal Logistics'}</div>
+                      <div class="text-[10px] text-[#64748b] font-mono mt-0.5 whitespace-nowrap">${t.driverOrCourier || 'Internal Logistics'}</div>
                     </td>
 
                     <!-- Qty -->
-                    <td class="p-4 text-center font-mono font-bold text-sm text-[#0f172a]">
-                      <span class="px-2.5 py-1 bg-slate-100 rounded-lg border border-slate-200">${t.quantity}</span>
+                    <td class="p-4 text-center font-mono font-bold text-sm text-[#0f172a] whitespace-nowrap">
+                      <span class="px-2.5 py-1 bg-slate-100 rounded-lg border border-slate-200 inline-block">${t.quantity}</span>
                     </td>
 
                     <!-- Reason -->
                     <td class="p-4">
                       <div class="text-xs font-bold text-[#0f172a]">${t.reason}</div>
                       ${t.bundleTitle ? `
-                        <span class="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-blue-50 text-blue-700 border border-blue-200 mt-1">
-                          <span>🎠</span>
+                        <span class="inline-flex items-center space-x-1.5 px-2 py-0.5 rounded-full text-[9px] font-bold bg-blue-50 text-blue-700 border border-blue-200 mt-1 whitespace-nowrap shadow-2xs">
+                          ${iconLayers('w-3 h-3 text-blue-600 flex-shrink-0')}
                           <span>${t.bundleTitle}</span>
                         </span>
                       ` : ''}
@@ -262,30 +283,20 @@ export function renderTransfersTab() {
                     </td>
 
                     <!-- Status Badge -->
-                    <td class="p-4 text-center">
-                      <span class="px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-tight font-mono ${
-                        isTransit
-                          ? 'bg-amber-50 text-amber-700 border border-amber-200 animate-pulse'
-                          : isReceived
-                          ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                          : isCancelled
-                          ? 'bg-rose-50 text-rose-700 border border-rose-200'
-                          : 'bg-blue-50 text-blue-700 border border-blue-200'
-                      }">
-                        ${isTransit ? '🚚 In Transit' : isReceived ? '✓ Received' : isCancelled ? '✕ Cancelled' : '📋 Requested'}
-                      </span>
+                    <td class="p-4 text-center whitespace-nowrap">
+                      ${renderTransferStatusBadge(t.status)}
                     </td>
 
                     <!-- Actions -->
-                    <td class="p-4 text-right">
+                    <td class="p-4 text-right whitespace-nowrap">
                       <div class="flex items-center justify-end space-x-1.5">
                         
                         <!-- Step 1: Requested -> Source Branch Approves & Dispatches -->
                         ${isRequested && canDispatchFromSource ? `
                           <button onclick="handleApproveDispatchTransfer('${t.id}')"
-                            class="px-2.5 py-1 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-lg text-[11px] shadow-sm transition-all flex items-center space-x-1"
+                            class="px-2.5 py-1 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl text-[11px] shadow-sm transition-all inline-flex items-center space-x-1.5 cursor-pointer whitespace-nowrap"
                             title="Approve request and dispatch stock from ${t.fromBranchName}">
-                            <span>🚚</span>
+                            ${iconTruck('w-3.5 h-3.5 text-white')}
                             <span>Approve & Dispatch</span>
                           </button>
                         ` : ''}
@@ -293,24 +304,24 @@ export function renderTransfersTab() {
                         <!-- Step 2: In Transit -> Destination Branch Confirms Receipt -->
                         ${isTransit && canReceiveAtDestination ? `
                           <button onclick="handleReceiveTransfer('${t.id}')"
-                            class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg text-[11px] shadow-sm transition-all flex items-center space-x-1"
+                            class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-[11px] shadow-sm transition-all inline-flex items-center space-x-1.5 cursor-pointer whitespace-nowrap"
                             title="Verify and credit inventory at ${t.toBranchName}">
-                            <span>✓</span>
+                            ${iconCheck('w-3.5 h-3.5 text-white')}
                             <span>Confirm Receipt</span>
                           </button>
                         ` : ''}
 
                         <button onclick="viewTransferManifestModal('${t.id}')"
-                          class="px-2.5 py-1 bg-[#f8fafc] hover:bg-blue-50 text-[#0f172a] hover:text-blue-600 border border-[#e2e8f0] font-bold rounded-lg text-[11px] transition-all"
+                          class="px-2.5 py-1 bg-[#f8fafc] hover:bg-blue-50 text-[#0f172a] hover:text-blue-600 border border-[#e2e8f0] font-bold rounded-xl text-[11px] transition-all cursor-pointer whitespace-nowrap"
                           title="View complete transfer bill of lading manifest">
                           Manifest
                         </button>
 
                         ${(isRequested || isTransit) && (canDispatchFromSource || canReceiveAtDestination) ? `
                           <button onclick="handleCancelTransfer('${t.id}')"
-                            class="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors border border-transparent hover:border-rose-200"
+                            class="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors border border-transparent hover:border-rose-200 cursor-pointer"
                             title="Reject / Cancel transfer">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                            ${iconClose('w-4 h-4')}
                           </button>
                         ` : ''}
                       </div>
@@ -341,53 +352,82 @@ export function handleTransferSearch(query) {
 /**
  * Approve & Dispatch transfer from Source Branch
  */
-export function handleApproveDispatchTransfer(transferId) {
+export async function handleApproveDispatchTransfer(transferId) {
   const activeUser = getCurrentUser();
   const userName = activeUser ? `${activeUser.name} (${activeUser.assignedBranch || 'Admin'})` : 'Branch Dispatch';
 
+  const confirmed = await etechAlert.confirm({
+    title: `Approve & Dispatch Transfer ${transferId}?`,
+    message: 'Inventory will be immediately deducted from the source branch and marked as In Transit.',
+    type: 'create',
+    confirmText: 'Dispatch Cargo',
+    cancelText: 'Cancel'
+  });
+
+  if (!confirmed) return;
+
   const res = dispatchStockTransfer(transferId, userName);
   if (res.success) {
-    showToast(`🚚 Transfer ${transferId} approved and dispatched! Stock deducted from ${res.transfer.fromBranchName}.`, 'success');
+    showToast(`Transfer ${transferId} approved and dispatched! Stock deducted from ${res.transfer.fromBranchName}.`, 'success');
     renderTransfersTab();
     if (typeof renderOverviewTab === 'function') renderOverviewTab();
   } else {
-    showToast(res.message, 'error');
+    etechAlert.error('Dispatch Failed', res.message);
   }
 }
 
 /**
  * Receive transfer at Destination Branch
  */
-export function handleReceiveTransfer(transferId) {
+export async function handleReceiveTransfer(transferId) {
   const activeUser = getCurrentUser();
   const userName = activeUser ? `${activeUser.name} (${activeUser.assignedBranch || 'Admin'})` : 'Destination Verification';
 
+  const confirmed = await etechAlert.confirm({
+    title: `Receive & Ingest Transfer ${transferId}?`,
+    message: 'Cargo will be verified and added to the destination branch inventory balance.',
+    type: 'success',
+    confirmText: 'Acknowledge Receipt',
+    cancelText: 'Cancel'
+  });
+
+  if (!confirmed) return;
+
   const res = receiveStockTransfer(transferId, userName);
   if (res.success) {
-    showToast(`✅ Transfer ${transferId} successfully received & credited to ${res.transfer.toBranchName}!`, 'success');
+    showToast(`Transfer ${transferId} successfully received & credited to ${res.transfer.toBranchName}!`, 'success');
     renderTransfersTab();
     if (typeof renderOverviewTab === 'function') renderOverviewTab();
   } else {
-    showToast(res.message, 'error');
+    etechAlert.error('Receipt Failed', res.message);
   }
 }
 
 /**
  * Cancel or Reject transfer
  */
-export function handleCancelTransfer(transferId) {
+export async function handleCancelTransfer(transferId) {
   const activeUser = getCurrentUser();
   const userName = activeUser ? activeUser.name : 'Administrator';
 
-  const reason = prompt(`Enter reason for cancelling / rejecting Transfer ${transferId}:`, 'Requested by branch supervisor');
-  if (reason !== null) {
+  const reason = await etechAlert.prompt(
+    `Cancel / Reject Transfer #${transferId}`,
+    'Please enter the operational reason for cancelling or rejecting this stock transfer:',
+    {
+      placeholder: 'e.g. Stock no longer required or discrepancy found',
+      defaultValue: 'Requested by branch supervisor',
+      type: 'warning'
+    }
+  );
+
+  if (reason !== null && reason.trim() !== '') {
     const res = cancelStockTransfer(transferId, reason || 'Cancelled by staff/admin', userName);
     if (res.success) {
       showToast(`Transfer ${transferId} cancelled.`, 'info');
       renderTransfersTab();
       if (typeof renderOverviewTab === 'function') renderOverviewTab();
     } else {
-      showToast(res.message, 'error');
+      etechAlert.error('Cancellation Error', res.message);
     }
   }
 }
@@ -419,8 +459,10 @@ export function openInitiateTransferModal(prefill = null) {
       <div class="bg-white rounded-2xl max-w-xl w-full p-6 shadow-2xl border border-[#e2e8f0] my-8 space-y-4">
         
         <div class="flex items-center justify-between border-b border-[#e2e8f0] pb-3">
-          <div class="flex items-center space-x-2">
-            <span class="p-2 rounded-xl bg-blue-50 text-blue-600 font-bold">🚚</span>
+          <div class="flex items-center space-x-3">
+            <span class="p-2.5 rounded-xl bg-blue-50 text-blue-600 border border-blue-200 flex items-center justify-center font-bold shadow-2xs">
+              ${iconTruck('w-5 h-5 text-blue-600')}
+            </span>
             <div>
               <h3 class="text-base font-extrabold text-[#0f172a]">
                 ${isStaffUser ? 'Request Stock Transfer (Inbound to Your Branch)' : 'Initiate Inter-Branch Stock Transfer'}
@@ -432,7 +474,9 @@ export function openInitiateTransferModal(prefill = null) {
               </p>
             </div>
           </div>
-          <button onclick="closeAdminModal()" class="text-slate-400 hover:text-slate-700 text-xl font-bold">&times;</button>
+          <button onclick="closeAdminModal()" class="text-slate-400 hover:text-slate-700 p-1.5 rounded-lg hover:bg-slate-100 cursor-pointer">
+            ${iconClose('w-4 h-4')}
+          </button>
         </div>
 
         <form id="transfer-initiate-form" onsubmit="handleSaveTransferSubmit(event)" class="space-y-4 text-xs">
@@ -504,10 +548,10 @@ export function openInitiateTransferModal(prefill = null) {
             <div>
               <label class="block font-bold text-[#0f172a] mb-1">Transfer Purpose / Reason</label>
               <select id="tf-reason" class="w-full px-3.5 py-2 bg-[#f8fafc] border border-[#e2e8f0] rounded-xl text-[#0f172a] font-semibold focus:border-blue-600 focus:outline-none">
-                <option value="Low Stock Rebalance">Low Stock Rebalance ⚖️</option>
-                <option value="Deal Bundle Kit Assembly" ${prefill && prefill.reason === 'Deal Bundle Kit Assembly' ? 'selected' : ''}>Deal Bundle Kit Assembly 🎠</option>
-                <option value="Customer Order Reservation">Customer Order Reservation 👤</option>
-                <option value="Emergency Restock">Emergency Restock ⚡</option>
+                <option value="Low Stock Rebalance">Low Stock Rebalance</option>
+                <option value="Deal Bundle Kit Assembly" ${prefill && prefill.reason === 'Deal Bundle Kit Assembly' ? 'selected' : ''}>Deal Bundle Kit Assembly</option>
+                <option value="Customer Order Reservation">Customer Order Reservation</option>
+                <option value="Emergency Restock">Emergency Restock</option>
               </select>
             </div>
           </div>
@@ -611,7 +655,7 @@ export function validateTransferSourceStock() {
   }
 }
 
-export function handleSaveTransferSubmit(event) {
+export async function handleSaveTransferSubmit(event) {
   if (event) event.preventDefault();
 
   const activeUser = getCurrentUser();
@@ -627,9 +671,19 @@ export function handleSaveTransferSubmit(event) {
   const instantDelivery = instantCheckbox ? instantCheckbox.checked : false;
 
   if (fromBranchId === toBranchId) {
-    alert("Source and Destination branches must be different.");
+    etechAlert.warning('Invalid Branches', 'Source and Destination branches must be different.');
     return;
   }
+
+  const confirmed = await etechAlert.confirm({
+    title: 'Initiate Stock Transfer?',
+    message: `Transfer ${quantity} units from source branch (${fromBranchId}) to destination branch (${toBranchId})?`,
+    type: 'create',
+    confirmText: 'Initiate Transfer',
+    cancelText: 'Cancel'
+  });
+
+  if (!confirmed) return;
 
   const isStaff = activeUser && activeUser.isStaff();
   const requestedStatus = isStaff ? "Requested" : (instantDelivery ? "Received" : "In Transit");
@@ -650,15 +704,15 @@ export function handleSaveTransferSubmit(event) {
 
   if (res.success) {
     if (isStaff) {
-      showToast(`📋 Transfer request #${res.transfer.id} submitted! Waiting for ${res.transfer.fromBranchName} approval.`, 'success');
+      showToast(`Transfer request #${res.transfer.id} submitted! Waiting for ${res.transfer.fromBranchName} approval.`, 'success');
     } else {
-      showToast(`🚀 Stock transfer ${res.transfer.id} initiated successfully!`, 'success');
+      showToast(`Stock transfer ${res.transfer.id} initiated successfully!`, 'success');
     }
     closeAdminModal();
     renderTransfersTab();
     if (typeof renderOverviewTab === 'function') renderOverviewTab();
   } else {
-    alert(res.message);
+    etechAlert.error('Transfer Failed', res.message);
   }
 }
 

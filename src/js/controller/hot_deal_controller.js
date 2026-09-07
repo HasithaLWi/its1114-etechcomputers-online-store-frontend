@@ -3,11 +3,24 @@ import { products, getStoredProducts } from '../models/data.js';
 import { 
   getDealBundles, getHomeDealBanner, 
   getHomeBannerRemainingTime, getBundleRemainingTime, getRemainingTimeFromDuration,
-  getActiveHotDeals, getHotDeals, getHotDealByProductId
+  getActiveHotDeals, getHotDeals, getHotDealByProductId,
+  syncPromotionsFromApi
 } from '../models/deals_data.js';
-import { addToCart, addBundleToCart, showToast } from './cart_controller.js';
+import { addToCart, addBundleToCart } from './cart_controller.js';
 import { viewProductDetails } from './product-details_controller.js';
 import { isInWishlist, toggleWishlist } from './wishlist_controller.js';
+import {
+  iconStar,
+  iconPackage,
+  iconBolt,
+  iconLayers,
+  iconFlame,
+  iconCart,
+  iconHeart,
+  formatLKR,
+  showToast
+} from '../util/index.js';
+
 
 import { DEFAULT_HOT_DEALS } from '../../data/deals.js';
 import { NewsletterApi } from '../api/newsletterApi.js';
@@ -56,6 +69,18 @@ export function initHotDealsLogic(queryPart = '') {
 
   // Start Realtime Countdown Loop
   startDealCountdowns();
+
+  // Live background sync from backend promotions API
+  syncPromotionsFromApi().then(() => {
+    const refreshedDeals = getActiveHotDeals();
+    refreshedDeals.forEach(deal => {
+      const totalRemaining = deal.remainingTime ? deal.remainingTime.totalSeconds : (deal.durationSeconds || (6 * 3600));
+      flashDealTimers.set(deal.id, totalRemaining);
+    });
+    renderDealCategoryTabs();
+    renderFeaturedDealShowcase();
+    renderFlashDealsGrid();
+  }).catch(() => {});
 }
 
 /**
@@ -303,7 +328,7 @@ export function renderFlashDealsGrid() {
           <!-- Rating -->
           <div class="flex items-center space-x-1.5 mb-2.5">
             <div class="flex text-amber-400 text-xs">
-              ★
+              ${iconStar('w-3.5 h-3.5 text-amber-400')}
             </div>
             <span class="text-xs font-bold text-[#0f172a]">${deal.rating}</span>
             <span class="text-[11px] text-[#94a3b8]">(${deal.reviews})</span>
@@ -467,8 +492,9 @@ export function renderFeaturedDealShowcase() {
 
           <!-- Package Included Products Breakdown (Real Name, Real Specs & Original Price) -->
           <div class="space-y-2 pt-1">
-            <div class="flex items-center justify-between text-[11px] font-mono font-bold text-blue-200 uppercase tracking-wider">
-              <span>📦 Included in This Package (${(bundle.componentsBreakdown || []).length} Components):</span>
+            <div class="flex items-center space-x-1.5 text-[11px] font-mono font-bold text-blue-200 uppercase tracking-wider">
+              ${iconPackage('w-3.5 h-3.5 text-blue-300 flex-shrink-0')}
+              <span>Included in This Package (${(bundle.componentsBreakdown || []).length} Components):</span>
             </div>
 
             <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-2.5">
@@ -481,7 +507,9 @@ export function renderFeaturedDealShowcase() {
                     ${item.image ? `
                       <img src="${item.image}" alt="${item.name}" class="w-10 h-10 object-contain rounded-lg bg-white/10 p-1 flex-shrink-0">
                     ` : `
-                      <div class="w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center text-base flex-shrink-0">⚙️</div>
+                      <div class="w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center text-base flex-shrink-0">
+                        ${iconPackage('w-5 h-5 text-blue-300')}
+                      </div>
                     `}
                     <div class="min-w-0 flex-1">
                       <div class="flex items-start justify-between gap-1">
@@ -489,7 +517,10 @@ export function renderFeaturedDealShowcase() {
                         ${item.qty > 1 ? `<span class="text-[10px] font-mono font-extrabold bg-blue-500/40 text-blue-100 px-1.5 py-0.2 rounded border border-blue-400/30">x${item.qty}</span>` : ''}
                       </div>
                       ${specText ? `
-                        <p class="text-[10px] text-blue-200/90 font-mono line-clamp-1 mt-0.5" title="${specText}">⚡ ${specText}</p>
+                        <p class="text-[10px] text-blue-200/90 font-mono line-clamp-1 mt-0.5 flex items-center space-x-0.5" title="${specText}">
+                          ${iconBolt('w-2.5 h-2.5 text-blue-300 inline-block mr-0.5 flex-shrink-0')}
+                          <span>${specText}</span>
+                        </p>
                       ` : ''}
                       <div class="text-[11px] font-mono font-extrabold text-amber-300 mt-1">
                         Original: Rs. ${Number(item.unitPrice).toLocaleString()}

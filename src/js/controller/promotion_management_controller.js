@@ -17,15 +17,39 @@ import {
   addHotDeal,
   updateHotDeal,
   deleteHotDeal,
-  toggleHotDealStatus
+  toggleHotDealStatus,
+  syncPromotionsFromApi
 } from '../models/deals_data.js';
 import { getStoredProducts } from '../models/data.js';
 import { getBadges } from '../models/taxonomy_data.js';
 import { getBranches } from './branch_controller.js';
 import { createStockTransfer } from '../models/transfers_data.js';
 import { openInitiateTransferModal } from './transfer_management_controller.js';
-import { showToast } from './cart_controller.js';
 import { closeAdminModal } from './admin_dashboard_controller.js';
+import {
+  iconClock,
+  iconLayers,
+  iconPackage,
+  iconEdit,
+  iconBolt,
+  iconTruck,
+  iconClose,
+  iconEye,
+  iconFlame,
+  iconPlus,
+  iconTag,
+  iconAlert,
+  iconCheck,
+  iconBuilding,
+  formatLKR,
+  formatDiscount,
+  renderCountBadge,
+  renderIconBox,
+  showToast,
+  etechAlert,
+  iconTrash
+} from '../util/index.js';
+
 
 let activePromoSubTab = 'home-banner'; // 'home-banner' | 'hot-bundles' | 'discounts' | 'timer-presets'
 let currentEditingBundleId = null;
@@ -33,9 +57,11 @@ let currentEditingBundleId = null;
 /**
  * Main Entry Point: Renders the Promotions & Deals Tab in Admin Dashboard
  */
-export function renderPromotionsTab() {
+export async function renderPromotionsTab() {
   const container = document.getElementById('promotions-tab-container');
   if (!container) return;
+
+  await syncPromotionsFromApi();
 
   const homeBanner = getHomeDealBanner();
   const bundles = getDealBundles();
@@ -220,7 +246,10 @@ function renderHomeBannerEditor(banner) {
 
           <!-- Countdown Timer Setting -->
           <div class="bg-[#f8fafc] border border-[#e2e8f0] rounded-xl p-4 space-y-3">
-            <span class="text-xs font-bold text-[#0f172a] uppercase tracking-wider block">⏱️ Countdown Timer Settings</span>
+            <div class="flex items-center space-x-1.5">
+              ${iconClock('w-4 h-4 text-blue-600 flex-shrink-0')}
+              <span class="text-xs font-bold text-[#0f172a] uppercase tracking-wider block">Countdown Timer Settings</span>
+            </div>
             
             <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
               <div>
@@ -271,8 +300,8 @@ function renderHomeBannerEditor(banner) {
       <!-- Right 5 Cols: Real-Time Preview (Image 1 Style) -->
       <div class="lg:col-span-5 space-y-3">
         <div class="flex items-center justify-between">
-          <span class="text-xs font-extrabold text-[#0f172a] uppercase tracking-wider flex items-center space-x-1">
-            <span>👁️</span>
+          <span class="text-xs font-extrabold text-[#0f172a] uppercase tracking-wider flex items-center space-x-1.5">
+            ${iconEye('w-3.5 h-3.5 text-blue-600')}
             <span>Live Home Banner Preview</span>
           </span>
           <span id="hb-preview-badge" class="px-2 py-0.5 rounded text-[10px] font-bold border">
@@ -423,9 +452,9 @@ window.handleSaveHomeBanner = function (event) {
   saveHomeDealBanner(bannerData);
   window.dispatchEvent(new Event('productsUpdated'));
   if (isActive) {
-    showToast('✅ Home Page Weekend Tech Deal Banner saved & published live!');
+    showToast('Home Page Weekend Tech Deal Banner saved & published live!', 'success');
   } else {
-    showToast('⏸️ Home Page Deal Banner hidden and Hot Deals campaign paused.');
+    showToast('Home Page Deal Banner hidden and Hot Deals campaign paused.', 'info');
   }
   renderPromotionsTab();
 };
@@ -450,16 +479,17 @@ function renderHotBundlesManager(bundles) {
       <div class="bg-blue-50/70 border border-blue-200 rounded-xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <div class="flex items-center space-x-3">
           <div class="w-10 h-10 rounded-lg bg-blue-600 text-white flex items-center justify-center text-lg shadow-sm">
-            🎠
+            ${iconLayers('w-5 h-5 text-white')}
           </div>
           <div>
             <h4 class="text-sm font-bold text-[#0f172a]">DealHot Featured Deal Carousel Slides</h4>
-            <p class="text-xs text-[#64748b]">These bundle packages cycle dynamically on the Hot Deals page showcase banner with interactive carousel controls (< > arrows & dot indicators).</p>
+            <p class="text-xs text-[#64748b]">These bundle packages cycle dynamically on the Hot Deals page showcase banner with interactive carousel controls (&lt; &gt; arrows & dot indicators).</p>
           </div>
         </div>
         <button onclick="openBundleFormPage(null)"
-          class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs rounded-lg shadow-sm transition-all flex items-center space-x-1.5 whitespace-nowrap">
-          <span>+ Add New Slide</span>
+          class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs rounded-lg shadow-sm transition-all flex items-center space-x-1.5 whitespace-nowrap cursor-pointer">
+          ${iconPlus('w-3.5 h-3.5')}
+          <span>Add New Slide</span>
         </button>
       </div>
 
@@ -480,7 +510,7 @@ function renderHotBundlesManager(bundles) {
                 </span>
               </div>
               <button onclick="toggleBundleActiveStatus(${bundle.id})" 
-                class="px-2.5 py-1 rounded text-[10px] font-bold ${bundle.active
+                class="px-2.5 py-1 rounded text-[10px] font-bold cursor-pointer ${bundle.active
       ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100'
       : 'bg-slate-100 text-slate-600 border border-slate-200 hover:bg-slate-200'
     }">
@@ -503,7 +533,10 @@ function renderHotBundlesManager(bundles) {
 
               <!-- Included Products Breakdown -->
               <div class="space-y-1 pt-1 border-t border-slate-100">
-                <span class="text-[10px] font-bold text-[#64748b] uppercase tracking-wider block">📦 Included Products:</span>
+                <div class="flex items-center space-x-1 mb-1">
+                  ${iconPackage('w-3.5 h-3.5 text-slate-500 flex-shrink-0')}
+                  <span class="text-[10px] font-bold text-[#64748b] uppercase tracking-wider block">Included Products:</span>
+                </div>
                 <div class="space-y-1">
                   ${(bundle.componentsBreakdown || []).map(item => `
                     <div class="flex items-center justify-between text-[11px] bg-slate-50 p-1.5 rounded-lg border border-slate-100">
@@ -539,14 +572,14 @@ function renderHotBundlesManager(bundles) {
             <!-- Action Buttons -->
             <div class="pt-3 border-t border-[#f1f5f9] flex items-center justify-between gap-2">
               <button onclick="openBundleFormPage(${bundle.id})"
-                class="flex-1 py-1.5 px-3 bg-[#f8fafc] hover:bg-blue-50 text-[#0f172a] hover:text-blue-600 border border-[#e2e8f0] hover:border-blue-300 font-bold text-xs rounded-lg transition-all flex items-center justify-center space-x-1">
-                <span>✏️</span>
+                class="flex-1 py-1.5 px-3 bg-[#f8fafc] hover:bg-blue-50 text-[#0f172a] hover:text-blue-600 border border-[#e2e8f0] hover:border-blue-300 font-bold text-xs rounded-lg transition-all flex items-center justify-center space-x-1.5 cursor-pointer">
+                ${iconEdit('w-3.5 h-3.5')}
                 <span>Edit Bundle</span>
               </button>
               <button onclick="handleDeleteBundle(${bundle.id})"
-                class="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors border border-transparent hover:border-rose-200"
+                class="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors border border-transparent hover:border-rose-200 cursor-pointer"
                 title="Delete Bundle Slide">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                ${iconTrash('w-4 h-4')}
               </button>
             </div>
 
@@ -568,12 +601,13 @@ window.toggleBundleActiveStatus = function (id) {
   renderPromotionsTab();
 };
 
-window.handleDeleteBundle = function (id) {
-  if (confirm('Are you sure you want to delete this deal bundle slide?')) {
-    deleteDealBundle(id);
-    showToast('Deal bundle deleted.');
-    renderPromotionsTab();
-  }
+window.handleDeleteBundle = async function (id) {
+  const confirmed = await etechAlert.confirmDelete('this Deal Bundle slide', 'It will be removed from the homepage promotions carousel.');
+  if (!confirmed) return;
+
+  deleteDealBundle(id);
+  showToast('Deal bundle deleted.', 'success');
+  renderPromotionsTab();
 };
 
 /* ========================================================================== */
@@ -675,16 +709,17 @@ function renderHotDealsManager(hotDeals) {
                       </div>
                     </td>
 
-                    <!-- Countdown Timer -->
-                    <td class="p-3.5 text-center">
+                                    <!-- Countdown Timer -->
+                    <td class="p-3.5 text-center min-w-[130px] whitespace-nowrap">
                       ${isLive ? `
-                        <div class="inline-flex items-center space-x-1 px-2.5 py-1 rounded-md bg-slate-900 text-amber-300 font-mono text-xs font-bold border border-slate-700 shadow-sm">
-                          <span>⏱️</span>
+                        <div class="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-md bg-slate-900 text-amber-300 font-mono text-xs font-bold border border-slate-700 shadow-sm">
+                          ${iconClock('w-3.5 h-3.5 text-amber-400 flex-shrink-0')}
                           <span>${timeStr}</span>
                         </div>
                       ` : `
-                        <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-300">
-                          ⏱️ Deal Expired
+                        <span class="inline-flex items-center space-x-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-300">
+                          ${iconAlert('w-3 h-3 text-rose-600 flex-shrink-0')}
+                          <span>Deal Expired</span>
                         </span>
                       `}
                     </td>
@@ -717,15 +752,14 @@ function renderHotDealsManager(hotDeals) {
                     <td class="p-3.5 text-right">
                       <div class="flex items-center justify-end space-x-1.5">
                         <button onclick="openHotDealModal(${d.id})"
-                          class="px-2.5 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 font-bold rounded text-xs transition-all flex items-center space-x-1 cursor-pointer"
-                          title="Edit Deal">
-                          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                          class="px-2.5 py-1 rounded bg-slate-100 hover:bg-blue-50 text-slate-700 hover:text-blue-600 text-xs font-bold border border-slate-300 transition-colors flex items-center space-x-1 cursor-pointer">
+                          ${iconEdit('w-3.5 h-3.5')}
                           <span>Edit</span>
                         </button>
                         <button onclick="handleDeleteHotDeal(${d.id})"
-                          class="p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded transition-all cursor-pointer"
-                          title="Delete Hot Deal">
-                          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                          class="p-1.5 rounded text-slate-400 hover:text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-200 transition-colors cursor-pointer"
+                          title="Remove Hot Deal">
+                          ${iconTrash('w-4 h-4')}
                         </button>
                       </div>
                     </td>
@@ -750,21 +784,23 @@ window.filterHotDealsTable = function (query) {
   });
 };
 
+/**
+ * Hot Deal Modal (Image 5 & Step 5)
+ */
 export function openHotDealModal(dealId = null) {
-  const deals = getHotDeals();
-  const products = getStoredProducts();
-  const deal = dealId ? deals.find(d => d.id === Number(dealId)) : null;
-
-  const isEdit = !!deal;
-  const initialProductId = deal ? deal.productId : (products[0] ? products[0].id : 1);
-  const initialProduct = products.find(p => p.id === initialProductId) || products[0];
-
-  let modalEl = document.getElementById('hot-deal-modal-overlay');
+  let modalEl = document.getElementById('admin-hot-deal-modal');
   if (!modalEl) {
     modalEl = document.createElement('div');
-    modalEl.id = 'hot-deal-modal-overlay';
+    modalEl.id = 'admin-hot-deal-modal';
     document.body.appendChild(modalEl);
   }
+
+  const products = getStoredProducts();
+  const isEdit = Boolean(dealId);
+  const deal = isEdit ? getHotDealByProductId(dealId) || getHotDeals().find(d => d.id === Number(dealId)) : null;
+
+  const initialProductId = deal ? deal.productId : (products[0]?.id || 1);
+  const initialProduct = products.find(p => p.id === initialProductId) || products[0];
 
   modalEl.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto';
   modalEl.innerHTML = `
@@ -778,8 +814,8 @@ export function openHotDealModal(dealId = null) {
           </span>
           <h3 class="text-base font-extrabold text-[#0f172a] mt-1">${isEdit ? 'Configure Hot Deal Product' : 'Add Product to Hot Deals'}</h3>
         </div>
-        <button type="button" onclick="closeHotDealModal()" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 hover:text-slate-800 transition-colors cursor-pointer">
-          ✕
+        <button type="button" onclick="closeHotDealModal()" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 hover:text-slate-800 transition-colors cursor-pointer" aria-label="Close">
+          ${iconClose('w-4 h-4')}
         </button>
       </div>
 
@@ -835,7 +871,10 @@ export function openHotDealModal(dealId = null) {
 
         <!-- 3. Countdown Timer Settings -->
         <div class="bg-[#f8fafc] border border-[#e2e8f0] rounded-xl p-3.5 space-y-2">
-          <span class="text-xs font-bold text-[#0f172a] uppercase tracking-wider block">⏱️ Deal Countdown Duration</span>
+          <div class="flex items-center space-x-1.5">
+            ${iconClock('w-3.5 h-3.5 text-rose-600 flex-shrink-0')}
+            <span class="text-xs font-bold text-[#0f172a] uppercase tracking-wider block">Deal Countdown Duration</span>
+          </div>
           <div class="grid grid-cols-4 gap-2">
             <div>
               <label class="block text-[10px] font-bold text-[#64748b] uppercase">Days</label>
@@ -945,7 +984,7 @@ export function setHotDealModalTimer(days, hours, mins, secs) {
   if (document.getElementById('hdm-secs')) document.getElementById('hdm-secs').value = secs;
 }
 
-export function handleSaveHotDealSubmit(event, dealId = null) {
+export async function handleSaveHotDealSubmit(event, dealId = null) {
   if (event) event.preventDefault();
 
   const productId = Number(document.getElementById('hdm-product-id').value);
@@ -971,12 +1010,19 @@ export function handleSaveHotDealSubmit(event, dealId = null) {
     resetTimer: true
   };
 
+  const isEdit = Boolean(dealId);
+  const confirmed = isEdit
+    ? await etechAlert.confirmUpdate(`Hot Deal for "${product ? product.name : 'Product'}"`, `Promo Price: Rs. ${dealPrice.toLocaleString()} | Quota: ${targetQuota} units`)
+    : await etechAlert.confirmCreate(`Hot Deal for "${product ? product.name : 'Product'}"`, `Promo Price: Rs. ${dealPrice.toLocaleString()} | Quota: ${targetQuota} units`);
+
+  if (!confirmed) return;
+
   if (dealId) {
     updateHotDeal(dealId, dealData);
-    showToast('✅ Hot Deal updated successfully!');
+    showToast('Hot Deal updated successfully!', 'success');
   } else {
     addHotDeal(dealData);
-    showToast('🎉 New Hot Deal created and live on store!');
+    showToast('New Hot Deal created and live on store!', 'success');
   }
 
   closeHotDealModal();
@@ -984,13 +1030,18 @@ export function handleSaveHotDealSubmit(event, dealId = null) {
   window.dispatchEvent(new Event('productsUpdated'));
 }
 
-export function handleDeleteHotDeal(id) {
-  if (confirm('Are you sure you want to remove this product from Hot Deals? The product will automatically revert to its standard catalog price.')) {
-    deleteHotDeal(id);
-    showToast('Hot Deal removed. Product reverted to catalog price.');
-    renderPromotionsTab();
-    window.dispatchEvent(new Event('productsUpdated'));
-  }
+export async function handleDeleteHotDeal(id) {
+  const confirmed = await etechAlert.confirmDelete(
+    'Hot Deal campaign',
+    'The product will automatically revert to its standard catalog price and leave the flash deals showcase.'
+  );
+
+  if (!confirmed) return;
+
+  deleteHotDeal(id);
+  showToast('Hot Deal removed. Product reverted to catalog price.', 'info');
+  renderPromotionsTab();
+  window.dispatchEvent(new Event('productsUpdated'));
 }
 
 export function handleToggleHotDealStatus(id) {
@@ -1193,16 +1244,19 @@ export function openBundleFormPage(bundleId = null) {
                   <span class="text-[11px] text-[#64748b] font-semibold block mb-1.5">Quick Graphic Presets:</span>
                   <div class="flex flex-wrap gap-2">
                     <button type="button" onclick="document.getElementById('bf-image').value = 'public/images/home-hero-image-1.png'; updateBundleLivePreview();"
-                      class="px-2.5 py-1 rounded-lg border border-[#e2e8f0] bg-[#f8fafc] hover:bg-blue-50 text-[10px] font-bold text-[#475569]">
-                      🖥️ ETech Master Rig (Default)
+                      class="px-2.5 py-1 rounded-lg border border-[#e2e8f0] bg-[#f8fafc] hover:bg-blue-50 text-[10px] font-bold text-[#475569] flex items-center space-x-1 cursor-pointer">
+                      ${iconPackage('w-3.5 h-3.5 text-blue-600')}
+                      <span>Master Rig (Default)</span>
                     </button>
                     <button type="button" onclick="document.getElementById('bf-image').value = 'https://images.unsplash.com/photo-1587202372775-e229f172b9d7?auto=format&fit=crop&w=600&q=80'; updateBundleLivePreview();"
-                      class="px-2.5 py-1 rounded-lg border border-[#e2e8f0] bg-[#f8fafc] hover:bg-blue-50 text-[10px] font-bold text-[#475569]">
-                      ⚙️ Creator Workstation
+                      class="px-2.5 py-1 rounded-lg border border-[#e2e8f0] bg-[#f8fafc] hover:bg-blue-50 text-[10px] font-bold text-[#475569] flex items-center space-x-1 cursor-pointer">
+                      ${iconLayers('w-3.5 h-3.5 text-purple-600')}
+                      <span>Creator Workstation</span>
                     </button>
                     <button type="button" onclick="document.getElementById('bf-image').value = 'https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?auto=format&fit=crop&w=600&q=80'; updateBundleLivePreview();"
-                      class="px-2.5 py-1 rounded-lg border border-[#e2e8f0] bg-[#f8fafc] hover:bg-blue-50 text-[10px] font-bold text-[#475569]">
-                      🎮 Esports Battlestation
+                      class="px-2.5 py-1 rounded-lg border border-[#e2e8f0] bg-[#f8fafc] hover:bg-blue-50 text-[10px] font-bold text-[#475569] flex items-center space-x-1 cursor-pointer">
+                      ${iconBolt('w-3.5 h-3.5 text-amber-500')}
+                      <span>Esports Battlestation</span>
                     </button>
                   </div>
                 </div>
@@ -1391,7 +1445,7 @@ export function openBundleFormPage(bundleId = null) {
           <div class="bg-white border border-[#e2e8f0] rounded-2xl p-4 sm:p-5 shadow-sm space-y-3">
             <div class="flex items-center justify-between border-b border-[#e2e8f0] pb-2.5">
               <span class="text-xs font-bold text-blue-600 uppercase tracking-wider flex items-center space-x-1.5">
-                <span>👁️</span>
+                ${iconEye('w-3.5 h-3.5')}
                 <span>Live Carousel Slide Preview</span>
               </span>
               <span class="px-2 py-0.5 rounded bg-blue-50 text-blue-700 text-[9px] font-mono font-bold border border-blue-200">REAL-TIME</span>
@@ -1561,8 +1615,9 @@ export function renderBundleItemsInputs() {
           </div>
 
           ${specText ? `
-            <div class="text-[10px] text-blue-600 font-mono font-bold bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
-              ⚡ ${specText}
+            <div class="text-[10px] text-blue-600 font-mono font-bold bg-blue-50 px-2 py-0.5 rounded border border-blue-200 flex items-center space-x-1">
+              ${iconBolt('w-3 h-3 text-amber-500 flex-shrink-0')}
+              <span>${specText}</span>
             </div>
           ` : ''}
         </div>
@@ -1702,7 +1757,7 @@ export function updateBundleBranchMatrix() {
     <div class="p-3.5 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
       <div>
         <div class="flex items-center space-x-2">
-          <span class="text-sm">🚚</span>
+          ${iconTruck('w-4 h-4 text-blue-600')}
           <span class="font-extrabold text-xs text-blue-900">Inter-Branch Stock Transfer Engine</span>
         </div>
         <p class="text-[11px] text-blue-700 mt-0.5">
@@ -1715,7 +1770,8 @@ export function updateBundleBranchMatrix() {
 
       <button type="button" onclick="openInitiateTransferModal({ reason: 'Deal Bundle Kit Assembly', notes: 'Transferring parts to Colombo Hub to assemble bundle kits.' })"
         class="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs rounded-xl shadow-sm transition-all whitespace-nowrap flex items-center space-x-1.5">
-        <span>+ Transfer Parts for Kit</span>
+        ${iconPlus('w-3.5 h-3.5')}
+        <span>Transfer Parts for Kit</span>
       </button>
     </div>
   `;
@@ -1820,7 +1876,10 @@ export function updateBundleLivePreview() {
       <!-- Package Included Products Breakdown (Real Name, Real Specs & Original Price) -->
       ${(inv.componentsBreakdown || []).length > 0 ? `
         <div class="space-y-1.5 mb-3 relative z-10">
-          <span class="text-[9px] font-mono font-bold text-blue-300 uppercase tracking-wider block">📦 Included Package (${inv.componentsBreakdown.length} Products):</span>
+          <div class="flex items-center space-x-1">
+             ${iconPackage('w-3 h-3 text-blue-300 flex-shrink-0')}
+             <span class="text-[9px] font-mono font-bold text-blue-300 uppercase tracking-wider block">Included Package (${inv.componentsBreakdown.length} Products):</span>
+          </div>
           <div class="space-y-1">
             ${inv.componentsBreakdown.map(item => {
       const specEntries = Object.entries(item.specs || {}).slice(0, 2);
@@ -1832,7 +1891,7 @@ export function updateBundleLivePreview() {
                       <span class="font-bold text-white truncate">${item.name}</span>
                       ${item.qty > 1 ? `<span class="px-1 bg-blue-500/40 text-blue-200 rounded font-mono font-bold text-[8px]">x${item.qty}</span>` : ''}
                     </div>
-                    ${specText ? `<span class="text-[8.5px] text-blue-200/80 block truncate">⚡ ${specText}</span>` : ''}
+                    ${specText ? `<span class="text-[8.5px] text-blue-200/80 block truncate flex items-center space-x-0.5">${iconBolt('w-2.5 h-2.5 text-blue-300 inline-block mr-0.5 flex-shrink-0')}<span>${specText}</span></span>` : ''}
                   </div>
                   <span class="font-mono font-extrabold text-amber-300 whitespace-nowrap">Rs. ${Number(item.unitPrice).toLocaleString()}</span>
                 </div>
@@ -1959,10 +2018,10 @@ export function handleSaveBundleFormPage(event) {
 
   if (currentEditingBundleId !== null) {
     updateDealBundle(currentEditingBundleId, bundleData);
-    showToast('✅ Featured deal bundle slide updated successfully!');
+    showToast('Featured deal bundle slide updated successfully!', 'success');
   } else {
     addDealBundle(bundleData);
-    showToast('🎉 New deal bundle slide created & added to carousel!');
+    showToast('New deal bundle slide created & added to carousel!', 'success');
   }
 
   window.dispatchEvent(new Event('productsUpdated'));
@@ -2078,7 +2137,7 @@ window.handleSaveProductDiscount = function (event, productId) {
 
   updateProductDiscount(productId, { price, originalPrice, badge });
   window.dispatchEvent(new Event('productsUpdated'));
-  showToast('✅ Product discount updated successfully!');
+  showToast('Product discount updated successfully!', 'success');
   closeAdminModal();
   renderPromotionsTab();
 };

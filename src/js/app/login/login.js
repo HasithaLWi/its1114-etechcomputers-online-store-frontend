@@ -198,28 +198,34 @@ export function renderLoginPage(queryPart) {
 export function initLoginPage(queryPart) {
   let redirectParam = null;
   let tabParam = null;
+  let expiredParam = null;
 
   if (queryPart) {
     const params = new URLSearchParams(queryPart);
     redirectParam = params.get('redirect');
     tabParam = params.get('tab');
+    expiredParam = params.get('expired');
   }
 
-  // Show banner if redirected
-  if (redirectParam) {
-    const banner = document.getElementById('redirect-banner');
-    const bannerText = document.getElementById('redirect-banner-text');
-    if (banner && bannerText) {
-      banner.classList.remove('hidden');
-      if (redirectParam === 'checkout') {
-        bannerText.textContent = 'Please log in or create an account to finish your order checkout.';
-      } else if (redirectParam === 'account') {
-        bannerText.textContent = 'You must sign up or log in first to view your Account & Order history.';
-      } else if (redirectParam === 'admin') {
-        bannerText.textContent = 'Administrative credentials (Admin / Staff) required to access Management Console.';
-      } else {
-        bannerText.textContent = `Please sign in to access #${redirectParam}.`;
-      }
+  // Show banner if expired or redirected
+  const banner = document.getElementById('redirect-banner');
+  const bannerText = document.getElementById('redirect-banner-text');
+
+  if (expiredParam && banner && bannerText) {
+    banner.classList.remove('hidden');
+    banner.className = 'mb-5 p-3.5 rounded-lg bg-amber-50 border border-amber-300 text-amber-900 text-xs flex items-start space-x-2.5 shadow-sm';
+    bannerText.innerHTML = `<strong>Session Expired:</strong> Your security token has expired. Please log in again to continue ${redirectParam ? `to <strong>#${redirectParam}</strong>` : ''}.`;
+  } else if (redirectParam && banner && bannerText) {
+    banner.classList.remove('hidden');
+    banner.className = 'mb-5 p-3.5 rounded-lg bg-blue-50 border border-blue-200 text-blue-800 text-xs flex items-start space-x-2.5 shadow-sm';
+    if (redirectParam === 'checkout') {
+      bannerText.textContent = 'Please log in or create an account to finish your order checkout.';
+    } else if (redirectParam === 'account') {
+      bannerText.textContent = 'You must sign up or log in first to view your Account & Order history.';
+    } else if (redirectParam === 'admin') {
+      bannerText.textContent = 'Administrative credentials (Admin / Staff) required to access Management Console.';
+    } else {
+      bannerText.textContent = `Please sign in to access #${redirectParam}.`;
     }
   }
 

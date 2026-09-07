@@ -3,7 +3,20 @@
 // ============================================================
 import { getStoredProducts, saveStoredProducts, updateProductStockSettings, quickAdjustStock, transferBranchStock } from '../models/data.js';
 import { getBranches } from './branch_controller.js';
-import { showToast } from './cart_controller.js';
+import {
+  iconBuilding,
+  iconAlert,
+  iconClose,
+  iconRefresh,
+  iconSearch,
+  iconTruck,
+  iconPackage,
+  renderStockStatusBadge,
+  formatLKR,
+  showToast,
+  etechAlert
+} from '../util/index.js';
+
 
 /**
  * Calculates comprehensive inventory health metrics across all branch warehouses
@@ -161,8 +174,8 @@ export function renderStockHealthTab(initialSearchQuery = '') {
           return `
             <div class="bg-white border border-[#e2e8f0] rounded-lg p-4 shadow-sm space-y-3 relative overflow-hidden">
               <div class="flex items-center justify-between">
-                <div class="flex items-center space-x-2">
-                  <span class="text-blue-600 text-sm">📍</span>
+                <div class="flex items-center space-x-1.5">
+                  ${iconBuilding('w-3.5 h-3.5 text-blue-600 flex-shrink-0')}
                   <span class="text-xs font-bold text-[#0f172a]">${b.name}</span>
                 </div>
                 <span class="px-2 py-0.5 rounded text-[9px] font-bold ${bs.statusClass}">${bs.status}</span>
@@ -198,30 +211,32 @@ export function renderStockHealthTab(initialSearchQuery = '') {
                 value="${(initialSearchQuery || '').replace(/"/g, '&quot;')}"
                 placeholder="Search Product or SKU..."
                 class="w-full pl-9 pr-8 py-2 rounded-md bg-[#f8fafc] border border-[#e2e8f0] text-[#0f172a] text-xs placeholder-[#94a3b8] focus:border-blue-600 transition-colors">
-              <svg class="w-4 h-4 text-[#94a3b8] absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
+              <span class="absolute left-3 top-2.5 text-[#94a3b8]">
+                ${iconSearch('w-4 h-4')}
+              </span>
               <button id="clear-stock-search-btn" onclick="clearStockSearch()"
-                class="${initialSearchQuery ? '' : 'hidden'} absolute right-2.5 top-2 text-[#94a3b8] hover:text-[#0f172a] text-xs" title="Clear filter">✕</button>
+                class="${initialSearchQuery ? '' : 'hidden'} absolute right-2.5 top-2 text-[#94a3b8] hover:text-[#0f172a] text-xs" title="Clear filter">
+                ${iconClose('w-3.5 h-3.5')}
+              </button>
             </div>
           </div>
 
           <div class="flex flex-wrap items-center gap-2.5 w-full md:w-auto">
             <!-- Filter by Branch -->
             <select id="stock-filter-branch" onchange="filterStockHealthTable()"
-              class="px-3 py-2 rounded-md bg-[#f8fafc] border border-[#e2e8f0] text-[#0f172a] text-xs focus:border-blue-600">
+              class="px-3 py-2 rounded-md bg-[#f8fafc] border border-[#e2e8f0] text-[#0f172a] text-xs focus:border-blue-600 font-semibold">
               <option value="ALL">All Branches</option>
               ${branches.map(b => `<option value="${b.id}">${b.name} (${b.city})</option>`).join('')}
             </select>
 
             <!-- Filter by Alert Severity Stage -->
             <select id="stock-filter-stage" onchange="filterStockHealthTable()"
-              class="px-3 py-2 rounded-md bg-[#f8fafc] border border-[#e2e8f0] text-[#0f172a] text-xs focus:border-blue-600">
+              class="px-3 py-2 rounded-md bg-[#f8fafc] border border-[#e2e8f0] text-[#0f172a] text-xs focus:border-blue-600 font-semibold">
               <option value="ALL">All Alert Stages</option>
-              <option value="CRITICAL">🔴 Critical / Out of Stock (0 units)</option>
-              <option value="LOW">🟡 Low Stock Warning</option>
-              <option value="HEALTHY">🟢 Optimal / Healthy</option>
-              <option value="ALERTS_ONLY">⚠️ Active Alerts Only</option>
+              <option value="CRITICAL">Critical / Out of Stock (0 units)</option>
+              <option value="LOW">Low Stock Warning</option>
+              <option value="HEALTHY">Optimal / Healthy</option>
+              <option value="ALERTS_ONLY">Active Alerts Only</option>
             </select>
 
             <!-- Filter by Monitoring State -->
@@ -667,7 +682,7 @@ export function switchRestockModalMode(mode) {
 /**
  * Handle Direct Restock Form Submission
  */
-export function handleQuickRestockSubmit(e, productId) {
+export async function handleQuickRestockSubmit(e, productId) {
   e.preventDefault();
   const activeUser = getCurrentUser();
   const branchId = document.getElementById('quick-restock-branch').value;
@@ -676,13 +691,16 @@ export function handleQuickRestockSubmit(e, productId) {
   if (qty <= 0) return;
 
   if (activeUser && !activeUser.canManageBranch(branchId)) {
-    alert(`Permission Denied: You are only authorized to manage inventory for your assigned branch (${activeUser.assignedBranch}).`);
+    etechAlert.error('Permission Denied', `You are only authorized to manage inventory for your assigned branch (${activeUser.assignedBranch}).`);
     return;
   }
 
+  const confirmed = await etechAlert.confirmUpdate(`Warehouse Stock for Product #${productId}`, `Add +${qty} units to warehouse inventory.`);
+  if (!confirmed) return;
+
   const updated = quickAdjustStock(productId, branchId, qty, false);
   if (updated) {
-    showToast(`Added +${qty} units of ${updated.name} to warehouse.`);
+    showToast(`Added +${qty} units of ${updated.name} to warehouse.`, 'success');
     const modal = document.getElementById('admin-modal-container');
     if (modal) modal.innerHTML = '';
     renderStockHealthTab();
@@ -693,7 +711,7 @@ export function handleQuickRestockSubmit(e, productId) {
 /**
  * Handle Inter-Branch Transfer Form Submission
  */
-export function handleStockTransferSubmit(e, productId) {
+export async function handleStockTransferSubmit(e, productId) {
   e.preventDefault();
   const activeUser = getCurrentUser();
   const fromBranch = document.getElementById('transfer-from-branch').value;
@@ -701,23 +719,33 @@ export function handleStockTransferSubmit(e, productId) {
   const qty = parseInt(document.getElementById('transfer-qty').value) || 0;
 
   if (fromBranch === toBranch) {
-    alert('Source and destination warehouses cannot be the same.');
+    etechAlert.warning('Invalid Selection', 'Source and destination warehouses cannot be the same.');
     return;
   }
 
   if (activeUser && activeUser.isStaff() && toBranch !== activeUser.assignedBranch) {
-    alert(`Staff members can only request transfers inbound to their assigned branch (${activeUser.assignedBranch}).`);
+    etechAlert.warning('Branch Restriction', `Staff members can only request transfers inbound to their assigned branch (${activeUser.assignedBranch}).`);
     return;
   }
 
+  const confirmed = await etechAlert.confirm({
+    title: 'Transfer Inventory Between Branches?',
+    message: `Transfer ${qty} units of product #${productId} from ${fromBranch} to ${toBranch}?`,
+    type: 'update',
+    confirmText: 'Execute Transfer',
+    cancelText: 'Cancel'
+  });
+
+  if (!confirmed) return;
+
   const result = transferBranchStock(productId, fromBranch, toBranch, qty);
   if (result.success) {
-    showToast(`Transferred ${result.transferred} units between warehouses.`);
+    showToast(`Transferred ${result.transferred} units between warehouses.`, 'success');
     const modal = document.getElementById('admin-modal-container');
     if (modal) modal.innerHTML = '';
     renderStockHealthTab();
     if (typeof renderOverviewTab === 'function') renderOverviewTab();
   } else {
-    alert(result.message || 'Transfer failed.');
+    etechAlert.error('Transfer Failed', result.message || 'Transfer failed.');
   }
 }

@@ -1,12 +1,13 @@
 // ETech Computers - Single Page Section Toggle Router & Global App Logic
 import { products, getProductById, getFeaturedProducts, getNewArrivalProducts, syncProductsFromApi } from '../models/data.js';
-import { getHomeDealBanner, getHomeBannerRemainingTime, isHomeDealBannerActive } from '../models/deals_data.js';
-import { legalPolicies, getPolicyData, getStoredPolicies } from '../models/policy-data.js';
+import { getHomeDealBanner, getHomeBannerRemainingTime, isHomeDealBannerActive, syncPromotionsFromApi } from '../models/deals_data.js';
+import { legalPolicies, getPolicyData, getStoredPolicies, syncPoliciesFromApi } from '../models/policy-data.js';
 import { getCurrentUser, isLoggedIn, logoutUser } from '../controller/login_controller.js';
 import { getRoleBadge } from '../models/user_model.js';
 import { 
   getUserOrders, getOrderById, renderCustomerOrderDetailPage, 
-  openOrderSupportEmail, handleCustomerCancelOrder, getStatusStyle 
+  openOrderSupportEmail, handleCustomerCancelOrder, getStatusStyle,
+  syncOrdersFromApi
 } from '../controller/order_management_controller.js';
 import { initCartLogic, initCheckoutLogic, updateCartBadge, addToCart, getCart, saveCart, showToast } from '../controller/cart_controller.js';
 import { renderProductDetailsPage, viewProductDetails } from '../controller/product-details_controller.js';
@@ -14,10 +15,13 @@ import { initShopLogic, renderFilteredProducts } from '../controller/shop_contro
 import { initHotDealsLogic } from '../controller/hot_deal_controller.js';
 import { getFeaturedBrands, syncBrandsFromApi } from '../models/brand_data.js';
 import { syncCategoriesFromApi, syncBadgesFromApi } from '../models/taxonomy_data.js';
-import { initWishlistLogic, updateWishlistBadge, isInWishlist, toggleWishlist } from '../controller/wishlist_controller.js';
+import { syncBranchesFromApi } from '../controller/branch_controller.js';
+import { syncNewsletterFromApi } from '../models/newsletter_model.js';
+import { initWishlistLogic, updateWishlistBadge, isInWishlist, toggleWishlist, syncWishlistFromApi } from '../controller/wishlist_controller.js';
 import { renderLoginPage } from './login/login.js';
 import { renderAdminPage } from './administrator/administrator.js';
 import { renderAboutPage } from './about/about.js';
+import { etechAlert } from '../util/index.js';
 
 document.addEventListener('DOMContentLoaded', () => {
   initApp();
@@ -31,16 +35,25 @@ window.addEventListener('hashchange', () => {
  * Initialize SPA application
  */
 export function initApp() {
-  // Sync live backend data from MySQL
-  Promise.all([
+  // Sync live backend data from REST APIs into in-memory stores
+  Promise.allSettled([
     syncProductsFromApi({ activeOnly: true }),
     syncCategoriesFromApi({ activeOnly: true }),
     syncBrandsFromApi({ activeOnly: true }),
-    syncBadgesFromApi({ activeOnly: true })
+    syncBadgesFromApi({ activeOnly: true }),
+    syncPromotionsFromApi(),
+    syncBranchesFromApi(),
+    syncPoliciesFromApi(),
+    syncOrdersFromApi(),
+    syncWishlistFromApi(),
+    syncNewsletterFromApi()
   ]).then(() => {
     if (typeof renderHomeNewArrivalsCarousel === 'function') renderHomeNewArrivalsCarousel();
     if (typeof renderHomeFeaturedProducts === 'function') renderHomeFeaturedProducts();
-  }).catch(() => {});
+    if (typeof renderHomeDealBanner === 'function') renderHomeDealBanner();
+  }).catch(err => {
+    console.warn('[AppInit] Initial live sync notice:', err.message || err);
+  });
 
   handleRoute();
   updateCartBadge();
@@ -69,7 +82,7 @@ function handleRoute() {
     }
     const user = getCurrentUser();
     if (!user || (!user.isAdmin() && !user.isStaff())) {
-      alert('Access Denied: You do not have administrative privileges.');
+      etechAlert.error('Access Denied', 'You do not have administrative privileges to view the Admin Console.');
       window.location.hash = '#home';
       return;
     }

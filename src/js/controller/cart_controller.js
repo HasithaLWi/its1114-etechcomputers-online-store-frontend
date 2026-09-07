@@ -4,6 +4,7 @@ import { autoSelectFulfillmentBranch } from './branch_controller.js';
 import { saveOrder } from './order_management_controller.js';
 import { getCurrentUser } from './login_controller.js';
 import { recordBundleSale, getDealBundles, getHotDealByProductId, isBundleAvailable } from '../models/deals_data.js';
+import { etechAlert, showToast as modernShowToast } from '../util/index.js';
 
 const CART_STORAGE_KEY = 'etech_cart';
 
@@ -226,10 +227,12 @@ export function initCartLogic() {
 
   const clearCartBtn = document.getElementById('clear-cart-btn');
   if (clearCartBtn) {
-    clearCartBtn.addEventListener('click', () => {
-      if (confirm('Are you sure you want to clear all items from your cart?')) {
+    clearCartBtn.addEventListener('click', async () => {
+      const confirmed = await etechAlert.confirmDelete('all items from your shopping cart');
+      if (confirmed) {
         saveCart([]);
         renderCart();
+        modernShowToast('Shopping cart cleared.', 'info');
       }
     });
   }
@@ -426,7 +429,7 @@ export function initCheckoutLogic() {
   const cart = getCart();
 
   if (cart.length === 0) {
-    alert("Your cart is empty! Redirecting to shop catalog...");
+    etechAlert.info('Cart is Empty', 'Your shopping cart is currently empty! Redirecting to shop catalog...');
     window.location.hash = '#shop';
     return;
   }
@@ -536,7 +539,7 @@ export function handleCheckoutSubmit(e) {
   e.preventDefault();
 
   if (validateCartBundles()) {
-    alert("One or more promotional deal bundles in your cart have expired or changed stock. The cart has been updated.");
+    etechAlert.warning('Cart Updated', 'One or more promotional deal bundles in your cart have expired or changed stock. The cart has been updated.');
     renderCart();
     return;
   }
@@ -548,7 +551,7 @@ export function handleCheckoutSubmit(e) {
   const phone = document.getElementById('phone')?.value.trim() || '';
 
   if (!fullName || !email || !address || !city) {
-    alert("Please fill out all required shipping details.");
+    etechAlert.warning('Incomplete Shipping Information', 'Please fill out all required delivery and contact details before placing your order.');
     return;
   }
 

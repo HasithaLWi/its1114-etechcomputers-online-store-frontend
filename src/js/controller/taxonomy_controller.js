@@ -9,8 +9,30 @@ import {
 } from '../models/taxonomy_data.js';
 import { getStoredProducts } from '../models/data.js';
 import { closeAdminModal } from './admin_dashboard_controller.js';
-import { showToast } from './cart_controller.js';
 import { updateTrashSidebarBadge } from './admin_dashboard_controller.js';
+import { showToast } from '../util/toast.js';
+import { etechAlert } from '../util/etech_alert.js';
+import {
+  iconTag,
+  iconFolder,
+  iconPackage,
+  iconBolt,
+  iconCheck,
+  iconClose,
+  iconClock,
+  iconLock,
+  iconUser,
+  iconStar,
+  iconAlert,
+  iconInfo,
+  iconEdit,
+  iconPlus
+} from '../util/icons.js';
+import {
+  renderCountBadge,
+  renderRuleTypeBadge,
+  renderFeaturedBadge
+} from '../util/ui_helpers.js';
 
 /**
  * ============================================================
@@ -65,11 +87,11 @@ export function renderTaxonomyTab(shouldSync = true) {
     <div class="space-y-6">
       
       <!-- ── Top Header Banner with Action Buttons ────────────── -->
-      <div class="bg-white border border-[#e2e8f0] rounded-lg p-5 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div class="bg-white border border-[#e2e8f0] rounded-2xl p-5 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <div class="flex items-center space-x-2.5">
-            <div class="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 border border-blue-200 flex items-center justify-center font-bold text-sm">
-              🏷️
+          <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 border border-blue-200 flex items-center justify-center font-bold shadow-2xs flex-shrink-0">
+              ${iconTag('w-5 h-5 text-blue-600')}
             </div>
             <div>
               <h2 class="text-lg font-extrabold text-[#0f172a]">Categories & Badges Management</h2>
@@ -80,17 +102,18 @@ export function renderTaxonomyTab(shouldSync = true) {
 
         <div class="flex flex-wrap items-center gap-2.5">
           <button onclick="runAutoBadgeAssigner()" title="Evaluate & Auto-Assign Badges to Products"
-            class="px-3.5 py-2 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 text-xs font-bold transition-all flex items-center space-x-1.5 shadow-sm active:scale-95 cursor-pointer">
-            <span>⚡ Run Auto-Assigner</span>
+            class="px-3.5 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 text-xs font-bold transition-all flex items-center space-x-1.5 shadow-sm active:scale-95 cursor-pointer whitespace-nowrap">
+            ${iconBolt('w-3.5 h-3.5 text-emerald-600')}
+            <span>Run Auto-Assigner</span>
           </button>
 
           <button onclick="openCategoryModal()"
-            class="px-3.5 py-2 rounded-lg bg-[#f8fafc] hover:bg-[#f1f5f9] text-[#0f172a] border border-[#e2e8f0] text-xs font-bold transition-all flex items-center space-x-1.5 shadow-sm cursor-pointer">
+            class="px-3.5 py-2 rounded-xl bg-[#f8fafc] hover:bg-[#f1f5f9] text-[#0f172a] border border-[#e2e8f0] text-xs font-bold transition-all flex items-center space-x-1.5 shadow-sm cursor-pointer whitespace-nowrap">
             <span>+ Add Category</span>
           </button>
 
           <button onclick="openBadgeModal()"
-            class="px-3.5 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition-all flex items-center space-x-1.5 shadow-sm cursor-pointer">
+            class="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition-all flex items-center space-x-1.5 shadow-sm cursor-pointer whitespace-nowrap">
             <span>+ Add Badge</span>
           </button>
         </div>
@@ -98,37 +121,37 @@ export function renderTaxonomyTab(shouldSync = true) {
 
       <!-- ── Overview Summary KPI Metrics Row ─────────────────── -->
       <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div class="bg-white border border-[#e2e8f0] rounded-lg p-4 shadow-sm">
+        <div class="bg-white border border-[#e2e8f0] rounded-2xl p-4 shadow-sm">
           <div class="flex items-center justify-between">
             <span class="text-[11px] font-bold text-[#64748b] uppercase tracking-wider">Active Categories</span>
-            <span class="text-xs">📂</span>
+            <span class="w-7 h-7 rounded-lg bg-blue-50 text-blue-600 border border-blue-200 flex items-center justify-center">${iconFolder('w-3.5 h-3.5')}</span>
           </div>
           <h3 class="text-2xl font-extrabold text-[#0f172a] mt-1 font-mono">${totalCategories}</h3>
           <p class="text-[10px] text-blue-600 font-semibold mt-1">${featuredCategoriesCount} Featured on Storefront</p>
         </div>
 
-        <div class="bg-white border border-[#e2e8f0] rounded-lg p-4 shadow-sm">
+        <div class="bg-white border border-[#e2e8f0] rounded-2xl p-4 shadow-sm">
           <div class="flex items-center justify-between">
             <span class="text-[11px] font-bold text-[#64748b] uppercase tracking-wider">Badge Tags</span>
-            <span class="text-xs">🏷️</span>
+            <span class="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-600 border border-emerald-200 flex items-center justify-center">${iconTag('w-3.5 h-3.5')}</span>
           </div>
           <h3 class="text-2xl font-extrabold text-[#0f172a] mt-1 font-mono">${totalBadges}</h3>
           <p class="text-[10px] text-emerald-600 font-semibold mt-1">${activeBadgesCount} Enabled (${autoRulesCount} Auto Rules)</p>
         </div>
 
-        <div class="bg-white border border-[#e2e8f0] rounded-lg p-4 shadow-sm">
+        <div class="bg-white border border-[#e2e8f0] rounded-2xl p-4 shadow-sm">
           <div class="flex items-center justify-between">
             <span class="text-[11px] font-bold text-[#64748b] uppercase tracking-wider">Catalog Badge Coverage</span>
-            <span class="text-xs">🎯</span>
+            <span class="w-7 h-7 rounded-lg bg-blue-50 text-blue-600 border border-blue-200 flex items-center justify-center">${iconCheck('w-3.5 h-3.5')}</span>
           </div>
           <h3 class="text-2xl font-extrabold text-[#0f172a] mt-1 font-mono">${badgeCoveragePct}%</h3>
           <p class="text-[10px] text-blue-600 font-semibold mt-1">${productsWithBadgesCount} of ${products.length} Products Tagged</p>
         </div>
 
-        <div class="bg-white border border-[#e2e8f0] rounded-lg p-4 shadow-sm">
+        <div class="bg-white border border-[#e2e8f0] rounded-2xl p-4 shadow-sm">
           <div class="flex items-center justify-between">
             <span class="text-[11px] font-bold text-[#64748b] uppercase tracking-wider">Behavior History Log</span>
-            <span class="text-xs">📜</span>
+            <span class="w-7 h-7 rounded-lg bg-purple-50 text-purple-600 border border-purple-200 flex items-center justify-center">${iconClock('w-3.5 h-3.5')}</span>
           </div>
           <h3 class="text-2xl font-extrabold text-[#0f172a] mt-1 font-mono">${history.length}</h3>
           <p class="text-[10px] text-purple-600 font-semibold mt-1">Background Audit Trail Ready</p>
@@ -136,17 +159,18 @@ export function renderTaxonomyTab(shouldSync = true) {
       </div>
 
       <!-- ── Section 1: Categories Management Table ───────────── -->
-      <div class="bg-white border border-[#e2e8f0] rounded-lg shadow-sm overflow-hidden">
+      <div class="bg-white border border-[#e2e8f0] rounded-2xl shadow-sm overflow-hidden">
         <div class="p-4 border-b border-[#e2e8f0] flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div>
             <h3 class="text-sm font-extrabold text-[#0f172a] flex items-center space-x-2">
-              <span>🗂️ Product Categories Directory</span>
-              <span class="px-2 py-0.5 rounded-full text-[10px] font-mono bg-blue-50 text-blue-700 border border-blue-200">${categories.length} Categories</span>
+              <span class="w-6 h-6 rounded-lg bg-blue-50 text-blue-600 border border-blue-200 flex items-center justify-center">${iconFolder('w-3.5 h-3.5')}</span>
+              <span>Product Categories Directory</span>
+              <span class="px-2 py-0.5 rounded-full text-[10px] font-mono bg-blue-50 text-blue-700 border border-blue-200 whitespace-nowrap">${categories.length} Categories</span>
             </h3>
             <p class="text-[11px] text-[#64748b] mt-0.5">Primary navigation groupings and filter categories across catalog and shop.</p>
           </div>
 
-          <button onclick="openCategoryModal()" class="text-xs text-blue-600 hover:text-blue-700 font-bold flex items-center space-x-1 cursor-pointer">
+          <button onclick="openCategoryModal()" class="text-xs text-blue-600 hover:text-blue-700 font-bold flex items-center space-x-1 cursor-pointer whitespace-nowrap">
             <span>+ Add New Category</span>
           </button>
         </div>
@@ -155,13 +179,13 @@ export function renderTaxonomyTab(shouldSync = true) {
           <table class="w-full text-left border-collapse">
             <thead>
               <tr class="bg-[#f8fafc] border-b border-[#e2e8f0] text-[10px] uppercase font-bold text-[#64748b] tracking-wider">
-                <th class="py-3 px-4">Category Name & Icon</th>
-                <th class="py-3 px-4">Slug / Key</th>
-                <th class="py-3 px-4">Description</th>
-                <th class="py-3 px-4 text-center">Featured Storefront</th>
-                <th class="py-3 px-4 text-center">Product Count</th>
-                <th class="py-3 px-4 text-center">Status</th>
-                <th class="py-3 px-4 text-right">Actions</th>
+                <th class="py-3 px-4 min-w-[180px]">Category Name</th>
+                <th class="py-3 px-4 min-w-[120px]">Slug / Key</th>
+                <th class="py-3 px-4 min-w-[180px]">Description</th>
+                <th class="py-3 px-4 text-center min-w-[130px] whitespace-nowrap">Featured Storefront</th>
+                <th class="py-3 px-4 text-center min-w-[130px] whitespace-nowrap">Product Count</th>
+                <th class="py-3 px-4 text-center min-w-[110px] whitespace-nowrap">Status</th>
+                <th class="py-3 px-4 text-right min-w-[140px] whitespace-nowrap">Actions</th>
               </tr>
             </thead>
             <tbody class="divide-y divide-[#e2e8f0] text-xs">
@@ -172,42 +196,42 @@ export function renderTaxonomyTab(shouldSync = true) {
 
                 return `
                   <tr class="hover:bg-[#f8fafc] transition-colors">
-                    <td class="py-3 px-4 font-bold text-[#0f172a] flex items-center space-x-2">
-                      <span class="text-base">${c.icon || '📦'}</span>
-                      <span>${c.name}</span>
+                    <td class="py-3 px-4 font-bold text-[#0f172a]">
+                      <div class="flex items-center space-x-2.5">
+                        <div class="w-7 h-7 rounded-lg bg-blue-50 text-blue-600 border border-blue-200 flex items-center justify-center flex-shrink-0 shadow-2xs">
+                          ${iconFolder('w-3.5 h-3.5')}
+                        </div>
+                        <span class="truncate">${c.name}</span>
+                      </div>
                     </td>
-                    <td class="py-3 px-4 font-mono text-[11px] text-blue-600">
+                    <td class="py-3 px-4 font-mono text-[11px] text-blue-600 whitespace-nowrap">
                       ${c.slug}
                     </td>
                     <td class="py-3 px-4 max-w-xs text-[11px] text-[#475569] truncate" title="${c.description || ''}">
                       ${c.description || '<span class="italic text-[#94a3b8]">No description provided</span>'}
                     </td>
-                    <td class="py-3 px-4 text-center">
-                      ${c.featured 
-                        ? `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200">★ Featured</span>`
-                        : `<span class="text-[#94a3b8] text-[10px]">Standard</span>`}
+                    <td class="py-3 px-4 text-center whitespace-nowrap">
+                      ${renderFeaturedBadge(c.featured)}
                     </td>
-                    <td class="py-3 px-4 text-center">
-                      <span class="px-2.5 py-1 rounded-full text-xs font-mono font-extrabold ${count > 0 ? 'bg-blue-50 text-blue-700 border border-blue-200' : 'bg-[#f8fafc] text-[#64748b] border border-[#e2e8f0]'}">
-                        ${count} Products
-                      </span>
+                    <td class="py-3 px-4 text-center whitespace-nowrap">
+                      ${renderCountBadge(count, 'Product', 'Products', 'blue')}
                     </td>
                     <!-- 1-Click Status Switcher (ACTIVE / INACTIVE) -->
-                    <td class="py-3 px-4 text-center">
+                    <td class="py-3 px-4 text-center whitespace-nowrap">
                       <button type="button" onclick="toggleCategoryStatus('${c.slug}')"
                         title="Click to toggle between ACTIVE and INACTIVE"
-                        class="px-2.5 py-1 rounded-full text-[10px] font-mono font-extrabold uppercase transition-all inline-flex items-center space-x-1.5 shadow-2xs cursor-pointer ${isActive ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100' : 'bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100'}">
+                        class="px-2.5 py-1 rounded-full text-[10px] font-mono font-extrabold uppercase transition-all inline-flex items-center space-x-1.5 shadow-2xs cursor-pointer whitespace-nowrap ${isActive ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100' : 'bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100'}">
                         <span class="w-1.5 h-1.5 rounded-full ${isActive ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}"></span>
                         <span>${status}</span>
                       </button>
                     </td>
                     <td class="py-3 px-4 text-right space-x-1.5 whitespace-nowrap">
                       <button onclick="openCategoryModal('${c.slug}')" title="Edit Category"
-                        class="px-2.5 py-1 bg-[#f8fafc] hover:bg-[#f1f5f9] text-blue-600 hover:text-blue-800 rounded text-xs font-bold border border-[#e2e8f0] transition-colors shadow-sm cursor-pointer">
+                        class="px-2.5 py-1 bg-[#f8fafc] hover:bg-[#f1f5f9] text-blue-600 hover:text-blue-800 rounded text-xs font-bold border border-[#e2e8f0] transition-colors shadow-sm cursor-pointer whitespace-nowrap">
                         Edit
                       </button>
                       <button onclick="confirmDeleteCategory('${c.slug}')" title="Soft Delete (Move to Trash Bin)"
-                        class="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded text-xs font-bold border border-rose-200 transition-colors shadow-sm cursor-pointer">
+                        class="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded text-xs font-bold border border-rose-200 transition-colors shadow-sm cursor-pointer whitespace-nowrap">
                         Delete
                       </button>
                     </td>
@@ -220,22 +244,24 @@ export function renderTaxonomyTab(shouldSync = true) {
       </div>
 
       <!-- ── Section 2: Badges & Auto-Reach Rules Table ────────── -->
-      <div class="bg-white border border-[#e2e8f0] rounded-lg shadow-sm overflow-hidden">
+      <div class="bg-white border border-[#e2e8f0] rounded-2xl shadow-sm overflow-hidden">
         <div class="p-4 border-b border-[#e2e8f0] flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div>
             <h3 class="text-sm font-extrabold text-[#0f172a] flex items-center space-x-2">
-              <span>🏷️ Storefront Badges & Automated Behavioral Reach Rules</span>
-              <span class="px-2 py-0.5 rounded-full text-[10px] font-mono bg-emerald-50 text-emerald-700 border border-emerald-200">${badges.length} Badges</span>
+              <span class="w-6 h-6 rounded-lg bg-emerald-50 text-emerald-600 border border-emerald-200 flex items-center justify-center">${iconTag('w-3.5 h-3.5')}</span>
+              <span>Storefront Badges & Automated Behavioral Reach Rules</span>
+              <span class="px-2 py-0.5 rounded-full text-[10px] font-mono bg-emerald-50 text-emerald-700 border border-emerald-200 whitespace-nowrap">${badges.length} Badges</span>
             </h3>
             <p class="text-[11px] text-[#64748b] mt-0.5">Define visual highlight labels and automated threshold rules triggered by live store metrics.</p>
           </div>
 
           <div class="flex items-center space-x-2">
             <button onclick="runAutoBadgeAssigner()"
-              class="px-3 py-1.5 rounded bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 text-xs font-bold transition-all flex items-center space-x-1 shadow-sm cursor-pointer">
-              <span>⚡ Run Rules Now</span>
+              class="px-3 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 text-xs font-bold transition-all flex items-center space-x-1.5 shadow-sm cursor-pointer whitespace-nowrap">
+              ${iconBolt('w-3.5 h-3.5 text-emerald-600')}
+              <span>Run Rules Now</span>
             </button>
-            <button onclick="openBadgeModal()" class="text-xs text-blue-600 hover:text-blue-700 font-bold flex items-center space-x-1 cursor-pointer">
+            <button onclick="openBadgeModal()" class="text-xs text-blue-600 hover:text-blue-700 font-bold flex items-center space-x-1 cursor-pointer whitespace-nowrap">
               <span>+ Add New Badge</span>
             </button>
           </div>
@@ -245,13 +271,13 @@ export function renderTaxonomyTab(shouldSync = true) {
           <table class="w-full text-left border-collapse">
             <thead>
               <tr class="bg-[#f8fafc] border-b border-[#e2e8f0] text-[10px] uppercase font-bold text-[#64748b] tracking-wider">
-                <th class="py-3 px-4">Badge Title & Style</th>
-                <th class="py-3 px-4">Purpose / Intent</th>
-                <th class="py-3 px-4">Active Standard Rule & Thresholds</th>
-                <th class="py-3 px-4 text-center">Rule Type</th>
-                <th class="py-3 px-4 text-center">Applied Products</th>
-                <th class="py-3 px-4 text-center">Status</th>
-                <th class="py-3 px-4 text-right">Actions</th>
+                <th class="py-3 px-4 min-w-[160px]">Badge Title & Style</th>
+                <th class="py-3 px-4 min-w-[180px]">Purpose / Intent</th>
+                <th class="py-3 px-4 min-w-[200px]">Active Standard Rule & Thresholds</th>
+                <th class="py-3 px-4 text-center min-w-[140px] whitespace-nowrap">Rule Type</th>
+                <th class="py-3 px-4 text-center min-w-[130px] whitespace-nowrap">Applied Products</th>
+                <th class="py-3 px-4 text-center min-w-[110px] whitespace-nowrap">Status</th>
+                <th class="py-3 px-4 text-right min-w-[140px] whitespace-nowrap">Actions</th>
               </tr>
             </thead>
             <tbody class="divide-y divide-[#e2e8f0] text-xs">
@@ -266,7 +292,7 @@ export function renderTaxonomyTab(shouldSync = true) {
                   <tr class="hover:bg-[#f8fafc] transition-colors ${!isActive ? 'opacity-60' : ''}">
                     <td class="py-3 px-4">
                       <div class="flex items-center space-x-2.5">
-                        <span class="px-2.5 py-1 rounded text-[10px] font-bold uppercase tracking-wider border shadow-sm ${colorClass}">
+                        <span class="inline-flex items-center px-2.5 py-1 rounded text-[10px] font-bold uppercase tracking-wider border shadow-2xs whitespace-nowrap ${colorClass}">
                           ${b.name}
                         </span>
                       </div>
@@ -280,29 +306,23 @@ export function renderTaxonomyTab(shouldSync = true) {
                         <span class="block text-[9px] font-mono text-[#64748b]">Criteria: ${b.criteria || 'custom'} | Priority: ${b.priority || 10}</span>
                       </div>
                     </td>
-                    <td class="py-3 px-4 text-center">
-                      ${(b.ruleType === 'system' || b.id === 'bdg-hotdeal')
-                        ? `<span class="px-2 py-0.5 rounded text-[9px] font-extrabold uppercase bg-amber-50 text-amber-800 border border-amber-200">🔒 System Default</span>`
-                        : (b.ruleType === 'automatic'
-                            ? `<span class="px-2 py-0.5 rounded text-[9px] font-extrabold uppercase bg-emerald-50 text-emerald-700 border border-emerald-200">⚡ Automatic</span>`
-                            : `<span class="px-2 py-0.5 rounded text-[9px] font-extrabold uppercase bg-purple-50 text-purple-700 border border-purple-200">✋ Manual</span>`)}
+                    <td class="py-3 px-4 text-center whitespace-nowrap">
+                      ${renderRuleTypeBadge(b.ruleType, b.id)}
                     </td>
-                    <td class="py-3 px-4 text-center">
-                      <span class="px-2.5 py-1 rounded-full text-xs font-mono font-extrabold ${count > 0 ? 'bg-blue-50 text-blue-700 border border-blue-200' : 'bg-[#f8fafc] text-[#64748b] border border-[#e2e8f0]'}">
-                        ${count} Products
-                      </span>
+                    <td class="py-3 px-4 text-center whitespace-nowrap">
+                      ${renderCountBadge(count, 'Product', 'Products', 'blue')}
                     </td>
                     <!-- 1-Click Status Switcher (ACTIVE / INACTIVE) -->
-                    <td class="py-3 px-4 text-center">
+                    <td class="py-3 px-4 text-center whitespace-nowrap">
                       ${(b.id === 'bdg-hotdeal' || b.canEdit === false) ? `
-                        <span class="px-2.5 py-1 rounded-full text-[10px] font-mono font-extrabold uppercase bg-emerald-50 text-emerald-700 border border-emerald-200 inline-flex items-center space-x-1">
+                        <span class="px-2.5 py-1 rounded-full text-[10px] font-mono font-extrabold uppercase bg-emerald-50 text-emerald-700 border border-emerald-200 inline-flex items-center space-x-1 whitespace-nowrap shadow-2xs">
                           <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
                           <span>ACTIVE</span>
                         </span>
                       ` : `
                         <button type="button" onclick="toggleBadgeStatus('${b.id}')"
                           title="Click to toggle between ACTIVE and INACTIVE"
-                          class="px-2.5 py-1 rounded-full text-[10px] font-mono font-extrabold uppercase transition-all inline-flex items-center space-x-1.5 shadow-2xs cursor-pointer ${isActive ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100' : 'bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100'}">
+                          class="px-2.5 py-1 rounded-full text-[10px] font-mono font-extrabold uppercase transition-all inline-flex items-center space-x-1.5 shadow-2xs cursor-pointer whitespace-nowrap ${isActive ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100' : 'bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100'}">
                           <span class="w-1.5 h-1.5 rounded-full ${isActive ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}"></span>
                           <span>${status}</span>
                         </button>
@@ -310,22 +330,23 @@ export function renderTaxonomyTab(shouldSync = true) {
                     </td>
                     <td class="py-3 px-4 text-right space-x-1.5 whitespace-nowrap">
                       ${(b.id === 'bdg-hotdeal' || b.canEdit === false) ? `
-                        <span class="px-2.5 py-1 bg-slate-100 text-slate-600 rounded text-[11px] font-bold border border-slate-200 inline-flex items-center space-x-1" title="Protected System Default Badge (Managed exclusively by Hot Deals module)">
-                          <span>🔒 Locked (Default)</span>
+                        <span class="px-2.5 py-1 bg-slate-100 text-slate-600 rounded text-[11px] font-bold border border-slate-200 inline-flex items-center space-x-1 whitespace-nowrap" title="Protected System Default Badge (Managed exclusively by Hot Deals module)">
+                          ${iconLock('w-3 h-3 text-slate-500')}
+                          <span>Locked (Default)</span>
                         </span>
                       ` : (b.canDelete === false || b.isSystemDefault) ? `
                         <button onclick="openBadgeModal('${b.id}')" title="Edit Badge Rule & Thresholds"
-                          class="px-2.5 py-1 bg-[#f8fafc] hover:bg-[#f1f5f9] text-blue-600 hover:text-blue-800 rounded text-xs font-bold border border-[#e2e8f0] transition-colors shadow-sm cursor-pointer">
+                          class="px-2.5 py-1 bg-[#f8fafc] hover:bg-[#f1f5f9] text-blue-600 hover:text-blue-800 rounded text-xs font-bold border border-[#e2e8f0] transition-colors shadow-sm cursor-pointer whitespace-nowrap">
                           Edit
                         </button>
                         <span class="px-2 py-1 text-[10px] text-slate-400 font-semibold italic select-none" title="Permanent Core Default Badge (Cannot be deleted)">Default</span>
                       ` : `
                         <button onclick="openBadgeModal('${b.id}')" title="Edit Badge Rule & Thresholds"
-                          class="px-2.5 py-1 bg-[#f8fafc] hover:bg-[#f1f5f9] text-blue-600 hover:text-blue-800 rounded text-xs font-bold border border-[#e2e8f0] transition-colors shadow-sm cursor-pointer">
+                          class="px-2.5 py-1 bg-[#f8fafc] hover:bg-[#f1f5f9] text-blue-600 hover:text-blue-800 rounded text-xs font-bold border border-[#e2e8f0] transition-colors shadow-sm cursor-pointer whitespace-nowrap">
                           Edit
                         </button>
                         <button onclick="confirmDeleteBadge('${b.id}')" title="Soft Delete (Move to Trash Bin)"
-                          class="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded text-xs font-bold border border-rose-200 transition-colors shadow-sm cursor-pointer">
+                          class="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded text-xs font-bold border border-rose-200 transition-colors shadow-sm cursor-pointer whitespace-nowrap">
                           Delete
                         </button>
                       `}
@@ -403,7 +424,7 @@ export function openCategoryModal(slug = null) {
       <div class="bg-white border border-[#e2e8f0] rounded-xl p-6 max-w-md w-full space-y-4 shadow-xl">
         <div class="flex items-center justify-between border-b border-[#e2e8f0] pb-3">
           <h3 class="text-base font-extrabold text-[#0f172a] flex items-center space-x-2">
-            <span>${isEdit ? '✏️ Edit Category' : '➕ Add New Category'}</span>
+            <span class="inline-flex items-center space-x-1.5">${isEdit ? `${iconEdit('w-4 h-4 text-blue-600')}<span>Edit Category</span>` : `${iconPlus('w-4 h-4 text-blue-600')}<span>Add New Category</span>`}</span>
           </h3>
           <button onclick="closeAdminModal()" class="text-[#64748b] hover:text-[#0f172a] text-lg font-bold">&times;</button>
         </div>
@@ -484,9 +505,15 @@ export async function handleSaveCategorySubmit(event, isEdit = false) {
   const status = document.getElementById('modal-cat-status')?.value || 'ACTIVE';
 
   if (!name || !slug) {
-    alert('Category name and slug are required.');
+    etechAlert.warning('Validation Error', 'Category title and URL slug are required.');
     return;
   }
+
+  const confirmed = isEdit
+    ? await etechAlert.confirmUpdate(`Category "${name}"`, `Slug: #${slug} | Lifecycle Status: ${status}`)
+    : await etechAlert.confirmCreate(`Category "${name}"`, `Slug: #${slug} | Lifecycle Status: ${status}`);
+
+  if (!confirmed) return;
 
   await saveCategory({
     id: id || undefined,
@@ -501,7 +528,7 @@ export async function handleSaveCategorySubmit(event, isEdit = false) {
 
   closeAdminModal();
   renderTaxonomyTab();
-  showToast(`✓ Category "${name}" saved successfully.`);
+  showToast(`Category "${name}" saved successfully.`, 'success');
 }
 
 export async function confirmDeleteCategory(slug) {
@@ -511,17 +538,17 @@ export async function confirmDeleteCategory(slug) {
   const products = getStoredProducts();
   const linkedCount = products.filter(p => (p.category || '').toLowerCase() === slug.toLowerCase()).length;
 
-  let confirmMsg = `Move category "${category.name}" to the Trash Bin?`;
-  if (linkedCount > 0) {
-    confirmMsg += `\n\n⚠️ Note: ${linkedCount} product(s) are currently assigned under this category.`;
-  }
+  const extraDetails = linkedCount > 0 
+    ? `Warning: ${linkedCount} catalog product(s) are currently assigned under this category.`
+    : `Slug: #${category.slug}`;
 
-  if (confirm(confirmMsg)) {
-    await deleteCategory(slug);
-    renderTaxonomyTab();
-    updateTrashSidebarBadge();
-    showToast(`✓ Category "${category.name}" moved to Trash Bin.`);
-  }
+  const confirmed = await etechAlert.confirmDelete(`Category "${category.name}"`, extraDetails);
+  if (!confirmed) return;
+
+  await deleteCategory(slug);
+  renderTaxonomyTab();
+  updateTrashSidebarBadge();
+  showToast(`Category "${category.name}" moved to Trash Bin.`, 'success');
 }
 
 /**
@@ -538,7 +565,7 @@ export function openBadgeModal(badgeId = null) {
 
   const badge = badgeId ? getBadgeById(badgeId) : null;
   if (badge && (badge.canEdit === false || badge.id === 'bdg-hotdeal')) {
-    showToast('⚠️ "Hot Deal" is a protected system badge and cannot be modified.');
+    showToast('Cannot modify protected system default badge.', 'warning');
     return;
   }
   const isEdit = Boolean(badge);
@@ -556,12 +583,15 @@ export function openBadgeModal(badgeId = null) {
 
   modal.innerHTML = `
     <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#0f172a]/60 backdrop-blur-xs animate-fadeIn">
-      <div class="bg-white border border-[#e2e8f0] rounded-xl p-6 max-w-lg w-full space-y-4 shadow-xl max-h-[90vh] overflow-y-auto">
+      <div class="bg-white border border-[#e2e8f0] rounded-2xl p-6 max-w-lg w-full space-y-4 shadow-xl max-h-[90vh] overflow-y-auto">
         <div class="flex items-center justify-between border-b border-[#e2e8f0] pb-3">
           <h3 class="text-base font-extrabold text-[#0f172a] flex items-center space-x-2">
-            <span>${isEdit ? '🏷️ Edit Badge & Rule Criteria' : '➕ Add Product Badge'}</span>
+            <span class="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-600 border border-emerald-200 flex items-center justify-center">${iconTag('w-4 h-4')}</span>
+            <span>${isEdit ? 'Edit Badge & Rule Criteria' : 'Add Product Badge'}</span>
           </h3>
-          <button onclick="closeAdminModal()" class="text-[#64748b] hover:text-[#0f172a] text-lg font-bold">&times;</button>
+          <button onclick="closeAdminModal()" class="text-[#64748b] hover:text-[#0f172a] p-1.5 rounded-lg hover:bg-slate-100 cursor-pointer">
+            ${iconClose('w-4 h-4')}
+          </button>
         </div>
 
         <form onsubmit="handleSaveBadgeSubmit(event, ${isEdit})" class="space-y-3.5 text-xs">
@@ -570,13 +600,13 @@ export function openBadgeModal(badgeId = null) {
               <label class="block text-[#475569] font-bold mb-1">Badge Display Title *</label>
               <input type="text" id="modal-bdg-name" required value="${badge ? badge.name : ''}"
                 placeholder="e.g. Pro Choice"
-                class="w-full px-3 py-2 rounded-md bg-[#f8fafc] border border-[#e2e8f0] text-[#0f172a] focus:border-blue-600 font-bold">
+                class="w-full px-3 py-2 rounded-xl bg-[#f8fafc] border border-[#e2e8f0] text-[#0f172a] focus:border-blue-600 font-bold">
             </div>
 
             <div>
               <label class="block text-[#475569] font-bold mb-1">Color Theme Preset *</label>
               <select id="modal-bdg-color" required
-                class="w-full px-3 py-2 rounded-md bg-[#f8fafc] border border-[#e2e8f0] text-[#0f172a] focus:border-blue-600 font-medium">
+                class="w-full px-3 py-2 rounded-xl bg-[#f8fafc] border border-[#e2e8f0] text-[#0f172a] focus:border-blue-600 font-medium">
                 ${colors.map(c => `
                   <option value="${c.value}" ${badge && badge.color === c.value ? 'selected' : ''}>
                     ${c.label}
@@ -589,7 +619,7 @@ export function openBadgeModal(badgeId = null) {
           <div class="grid grid-cols-2 gap-3">
             <div>
               <label class="block text-[#475569] font-bold mb-1">Lifecycle Status *</label>
-              <select id="modal-bdg-status" class="w-full px-3 py-2 rounded-md bg-[#f8fafc] border border-[#e2e8f0] text-[#0f172a] focus:border-blue-600 font-bold">
+              <select id="modal-bdg-status" class="w-full px-3 py-2 rounded-xl bg-[#f8fafc] border border-[#e2e8f0] text-[#0f172a] focus:border-blue-600 font-bold">
                 <option value="ACTIVE" ${!badge || badge.status === 'ACTIVE' || badge.isActive ? 'selected' : ''}>ACTIVE (Enabled)</option>
                 <option value="INACTIVE" ${badge && (badge.status === 'INACTIVE' || badge.isActive === false) ? 'selected' : ''}>INACTIVE (Disabled)</option>
               </select>
@@ -598,9 +628,9 @@ export function openBadgeModal(badgeId = null) {
             <div>
               <label class="block text-[#475569] font-bold mb-1">Assignment Rule Type *</label>
               <select id="modal-bdg-ruletype" onchange="updateBadgeThresholdsUI()" required
-                class="w-full px-3 py-2 rounded-md bg-[#f8fafc] border border-[#e2e8f0] text-[#0f172a] focus:border-blue-600 font-medium">
-                <option value="automatic" ${badge && badge.ruleType === 'automatic' ? 'selected' : ''}>⚡ Automatic (Rule Criteria)</option>
-                <option value="manual" ${badge && badge.ruleType === 'manual' ? 'selected' : ''}>✋ Manual (Direct Staff Pick)</option>
+                class="w-full px-3 py-2 rounded-xl bg-[#f8fafc] border border-[#e2e8f0] text-[#0f172a] focus:border-blue-600 font-medium">
+                <option value="automatic" ${badge && badge.ruleType === 'automatic' ? 'selected' : ''}>Automatic (Rule Criteria)</option>
+                <option value="manual" ${badge && badge.ruleType === 'manual' ? 'selected' : ''}>Manual (Direct Staff Pick)</option>
               </select>
             </div>
           </div>
@@ -609,13 +639,13 @@ export function openBadgeModal(badgeId = null) {
             <label class="block text-[#475569] font-bold mb-1">Badge Purpose & Explanation</label>
             <input type="text" id="modal-bdg-purpose" value="${badge ? badge.purpose : ''}"
               placeholder="e.g. Highlights top-tier products chosen by our certified architects."
-              class="w-full px-3 py-2 rounded-md bg-[#f8fafc] border border-[#e2e8f0] text-[#0f172a] focus:border-blue-600">
+              class="w-full px-3 py-2 rounded-xl bg-[#f8fafc] border border-[#e2e8f0] text-[#0f172a] focus:border-blue-600">
           </div>
 
           <div>
             <label class="block text-[#475569] font-bold mb-1">Trigger Standard Criteria *</label>
             <select id="modal-bdg-criteria" onchange="updateBadgeThresholdsUI()"
-              class="w-full px-3 py-2 rounded-md bg-[#f8fafc] border border-[#e2e8f0] text-blue-600 font-mono text-[11px] focus:border-blue-600">
+              class="w-full px-3 py-2 rounded-xl bg-[#f8fafc] border border-[#e2e8f0] text-blue-600 font-mono text-[11px] focus:border-blue-600">
               <option value="discount_gte_10" ${badge && badge.criteria === 'discount_gte_10' ? 'selected' : ''}>Price Markdown / Discount</option>
               <option value="rating_gte_48" ${badge && badge.criteria === 'rating_gte_48' ? 'selected' : ''}>Customer Rating & Reviews</option>
               <option value="bestseller" ${badge && badge.criteria === 'bestseller' ? 'selected' : ''}>Sales Champion (Reviews)</option>
@@ -628,7 +658,7 @@ export function openBadgeModal(badgeId = null) {
           </div>
 
           <!-- Dynamic Thresholds Configuration Panel -->
-          <div id="modal-bdg-thresholds-container" class="p-3.5 rounded-lg bg-[#f8fafc] border border-[#e2e8f0] space-y-2.5">
+          <div id="modal-bdg-thresholds-container" class="p-3.5 rounded-xl bg-[#f8fafc] border border-[#e2e8f0] space-y-2.5">
             <!-- Dynamically populated by updateBadgeThresholdsUI() -->
           </div>
 
@@ -636,14 +666,14 @@ export function openBadgeModal(badgeId = null) {
             <label class="block text-[#475569] font-bold mb-1">Standard Reach Description</label>
             <input type="text" id="modal-bdg-standard" value="${badge ? badge.standardDescription : ''}"
               placeholder="e.g. Automated: Active price discount reaches specified benchmark."
-              class="w-full px-3 py-2 rounded-md bg-[#f8fafc] border border-[#e2e8f0] text-[#0f172a] focus:border-blue-600">
+              class="w-full px-3 py-2 rounded-xl bg-[#f8fafc] border border-[#e2e8f0] text-[#0f172a] focus:border-blue-600">
           </div>
 
           <div class="grid grid-cols-2 gap-3 pt-1">
             <div>
               <label class="block text-[#475569] font-bold mb-1">Rule Priority (Higher runs first)</label>
               <input type="number" id="modal-bdg-priority" value="${badge ? badge.priority : 10}" min="1" max="100"
-                class="w-full px-3 py-2 rounded-md bg-[#f8fafc] border border-[#e2e8f0] text-[#0f172a] font-mono focus:border-blue-600">
+                class="w-full px-3 py-2 rounded-xl bg-[#f8fafc] border border-[#e2e8f0] text-[#0f172a] font-mono focus:border-blue-600">
             </div>
           </div>
 
@@ -651,11 +681,11 @@ export function openBadgeModal(badgeId = null) {
 
           <div class="pt-3 border-t border-[#e2e8f0] flex items-center justify-end space-x-2.5">
             <button type="button" onclick="closeAdminModal()"
-              class="px-4 py-2 bg-[#f8fafc] hover:bg-[#f1f5f9] text-[#475569] rounded-md font-bold border border-[#e2e8f0] transition-colors">
+              class="px-4 py-2 bg-[#f8fafc] hover:bg-[#f1f5f9] text-[#475569] rounded-xl font-bold border border-[#e2e8f0] transition-colors cursor-pointer">
               Cancel
             </button>
             <button type="submit"
-              class="px-5 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-md font-bold shadow-sm transition-colors">
+              class="px-5 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold shadow-sm transition-colors cursor-pointer">
               ${isEdit ? 'Save Badge Rule' : 'Create Badge'}
             </button>
           </div>
@@ -680,7 +710,7 @@ export function updateBadgeThresholdsUI() {
   if (!isAuto) {
     container.innerHTML = `
       <div class="text-[11px] text-[#64748b] flex items-center space-x-2">
-        <span>ℹ️</span>
+        ${iconInfo('w-4 h-4 text-slate-500 flex-shrink-0')}
         <span>Manual Badge: Assigned directly by staff to hardware catalog items. No automated rule checks.</span>
       </div>
     `;
@@ -776,9 +806,15 @@ export async function handleSaveBadgeSubmit(event, isEdit = false) {
   }
 
   if (!name) {
-    alert('Badge name is required.');
+    etechAlert.warning('Validation Error', 'Badge name is required.');
     return;
   }
+
+  const confirmed = isEdit
+    ? await etechAlert.confirmUpdate(`Badge "${name}"`, `Rule Type: ${ruleType} | Criteria: ${criteria} | Status: ${status}`)
+    : await etechAlert.confirmCreate(`Badge "${name}"`, `Rule Type: ${ruleType} | Criteria: ${criteria} | Status: ${status}`);
+
+  if (!confirmed) return;
 
   await saveBadge({
     id: id || undefined,
@@ -796,22 +832,23 @@ export async function handleSaveBadgeSubmit(event, isEdit = false) {
 
   closeAdminModal();
   renderTaxonomyTab();
-  showToast(`✓ Badge "${name}" rule saved successfully.`);
+  showToast(`Badge "${name}" rule saved successfully.`, 'success');
 }
 
 export async function confirmDeleteBadge(badgeId) {
   const badge = getBadgeById(badgeId);
   if (!badge) return;
 
-  if (confirm(`Move badge "${badge.name}" to the Trash Bin?`)) {
-    const success = await deleteBadge(badgeId);
-    if (success) {
-      renderTaxonomyTab();
-      updateTrashSidebarBadge();
-      showToast(`✓ Badge "${badge.name}" moved to Trash Bin.`);
-    } else {
-      showToast('⚠️ Cannot delete system protected badge.');
-    }
+  const confirmed = await etechAlert.confirmDelete(`Badge "${badge.name}"`, `Rule Type: ${badge.ruleType || 'Custom'}`);
+  if (!confirmed) return;
+
+  const success = await deleteBadge(badgeId);
+  if (success) {
+    renderTaxonomyTab();
+    updateTrashSidebarBadge();
+    showToast(`Badge "${badge.name}" moved to Trash Bin.`, 'success');
+  } else {
+    etechAlert.error('Protected System Badge', 'Cannot delete system protected badge.');
   }
 }
 

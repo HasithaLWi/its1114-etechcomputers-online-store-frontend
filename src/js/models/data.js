@@ -1,14 +1,19 @@
 // ============================================================
-//  src/js/models/data.js — Product Inventory Model & Storage Layer
+//  src/js/models/data.js — Product Inventory In-Memory Model Layer
 // ============================================================
 import { ProductsApi } from '../api/productsApi.js';
+import { InventoryApi } from '../api/inventoryApi.js';
+import { products as defaultProducts } from '../../data/products.js';
+import { getCategories, getBadges } from './taxonomy_data.js';
+import { getBrands } from './brand_data.js';
 
-export const products = [];
+// Reactive In-Memory Products Store
+let memoryProducts = Array.isArray(defaultProducts) ? defaultProducts.map(p => ({ ...p })) : [];
 
-const PRODUCTS_STORAGE_KEY = 'etech_products';
+export const products = memoryProducts;
 
 /**
- * Get all stored products from localStorage cache
+ * Get all stored products from in-memory cache
  * @param {object} options
  * @param {boolean} [options.includeDeleted=false] - If true, returns deleted items too
  * @param {boolean} [options.activeOnly=false] - If true, returns only ACTIVE items
@@ -16,19 +21,8 @@ const PRODUCTS_STORAGE_KEY = 'etech_products';
  */
 export function getStoredProducts(options = {}) {
     const { includeDeleted = false, activeOnly = false } = options;
-    const raw = typeof localStorage !== 'undefined' ? localStorage.getItem(PRODUCTS_STORAGE_KEY) : null;
-    let list = [];
+    let list = memoryProducts;
 
-    if (raw) {
-        try {
-            list = JSON.parse(raw);
-            if (!Array.isArray(list)) list = [];
-        } catch (e) {
-            list = [];
-        }
-    }
-
-    // Filter based on requested status scope
     if (includeDeleted) {
         return list;
     }
@@ -44,23 +38,15 @@ export function getStoredProducts(options = {}) {
  * @returns {Array}
  */
 export function getDeletedProducts() {
-    const raw = typeof localStorage !== 'undefined' ? localStorage.getItem(PRODUCTS_STORAGE_KEY) : null;
-    if (!raw) return [];
-    try {
-        const list = JSON.parse(raw);
-        if (!Array.isArray(list)) return [];
-        return list.filter(p => (p.productStatus || p.status || '').toUpperCase() === 'DELETED');
-    } catch (e) {
-        return [];
-    }
+    return memoryProducts.filter(p => (p.productStatus || p.status || '').toUpperCase() === 'DELETED');
 }
 
 /**
- * Save full products array to localStorage
+ * Update the in-memory products array
  */
 export function saveStoredProducts(productsList) {
-    if (typeof localStorage !== 'undefined') {
-        localStorage.setItem(PRODUCTS_STORAGE_KEY, JSON.stringify(productsList));
+    if (Array.isArray(productsList)) {
+        memoryProducts = [...productsList];
     }
 }
 
@@ -103,22 +89,19 @@ export function getNewArrivalProducts() {
  */
 export async function updateProductStatus(id, newStatus) {
     const upperStatus = (newStatus || 'ACTIVE').toUpperCase();
-    const all = getStoredProducts({ includeDeleted: true });
-    const index = all.findIndex(p => p.id === parseInt(id));
+    const index = memoryProducts.findIndex(p => p.id === parseInt(id));
 
     if (index !== -1) {
-        all[index].productStatus = upperStatus;
-        all[index].status = upperStatus;
-        saveStoredProducts(all);
+        memoryProducts[index].productStatus = upperStatus;
+        memoryProducts[index].status = upperStatus;
 
-        // Async API update in background
         try {
             await ProductsApi.updateStatus(id, upperStatus);
         } catch (err) {
             console.warn(`[DataModel] Backend status sync notice for product ${id}:`, err.message);
         }
 
-        return { success: true, product: all[index] };
+        return { success: true, product: memoryProducts[index] };
     }
     return { success: false, message: 'Product not found.' };
 }
@@ -149,10 +132,8 @@ export async function restoreProduct(id) {
  * Synchronizes with backend API DELETE /products/perma-delete/{id}
  */
 export async function permanentlyDeleteProduct(id) {
-    let all = getStoredProducts({ includeDeleted: true });
-    const target = all.find(p => p.id === parseInt(id));
-    all = all.filter(p => p.id !== parseInt(id));
-    saveStoredProducts(all);
+    const target = memoryProducts.find(p => p.id === parseInt(id));
+    memoryProducts = memoryProducts.filter(p => p.id !== parseInt(id));
 
     try {
         await ProductsApi.permaDelete(id);
@@ -167,7 +148,7 @@ export async function permanentlyDeleteProduct(id) {
  * Save or update a product
  */
 export async function saveProduct(productData) {
-    const all = getStoredProducts({ includeDeleted: true });
+    const all = memoryProducts;
     const index = all.findIndex(p => p.id === parseInt(productData.id));
 
     // Filter and sanitize images array (max 5 images)
@@ -184,9 +165,9 @@ export async function saveProduct(productData) {
     const totalStock = Object.values(branchStock).reduce((sum, v) => sum + parseInt(v || 0), 0);
     const productStatus = (productData.productStatus || productData.status || (index > -1 ? all[index].productStatus : 'ACTIVE')).toUpperCase();
 
-    const cachedCategories = getCachedCategories();
-    const cachedBrands = getCachedBrands();
-    const cachedBadges = getCachedBadges();
+    const cachedCategories = getCategories({ includeDeleted: true });
+    const cachedBrands = getBrands({ includeDeleted: true });
+    const cachedBadges = getBadges({ includeDeleted: true });
     const brandInfo = resolveBrandInfo(productData, cachedBrands);
     const categoryInfo = resolveCategoryInfo(productData, cachedCategories);
     const badgeInfo = resolveBadgeInfo(productData, cachedBadges);
@@ -251,27 +232,28 @@ export async function saveProduct(productData) {
  * Deduct stock from a specific branch when an order is placed
  */
 export function deductBranchStock(productId, branchId, quantity) {
-    const all = getStoredProducts({ includeDeleted: true });
-    const product = all.find(p => p.id === parseInt(productId));
+    const product = memoryProducts.find(p => p.id === parseInt(productId));
     if (product && product.branchStock) {
         const current = product.branchStock[branchId] || 0;
         product.branchStock[branchId] = Math.max(0, current - quantity);
         product.totalStock = Object.values(product.branchStock).reduce((a, b) => a + b, 0);
         product.inStock = product.totalStock > 0;
-        saveStoredProducts(all);
     }
 }
 
 /**
  * Update stock alert configuration for a specific product
  */
-export function updateProductStockSettings(productId, { alertEnabled, lowStockMargin }) {
-    const all = getStoredProducts({ includeDeleted: true });
-    const product = all.find(p => p.id === parseInt(productId));
+export async function updateProductStockSettings(productId, { alertEnabled, lowStockMargin }) {
+    const product = memoryProducts.find(p => p.id === parseInt(productId));
     if (product) {
         if (alertEnabled !== undefined) product.alertEnabled = Boolean(alertEnabled);
         if (lowStockMargin !== undefined) product.lowStockMargin = Math.max(1, parseInt(lowStockMargin) || 5);
-        saveStoredProducts(all);
+
+        try {
+            await InventoryApi.updateSettings(productId, { alertEnabled, lowStockMargin });
+        } catch (e) {}
+
         return product;
     }
     return null;
@@ -280,12 +262,13 @@ export function updateProductStockSettings(productId, { alertEnabled, lowStockMa
 /**
  * Adjust stock quantity directly for a branch warehouse
  */
-export function quickAdjustStock(productId, branchId, quantityOrDelta, isAbsolute = false) {
-    const all = getStoredProducts({ includeDeleted: true });
-    const product = all.find(p => p.id === parseInt(productId));
+export async function quickAdjustStock(productId, branchId, quantityOrDelta, isAbsolute = false) {
+    const product = memoryProducts.find(p => p.id === parseInt(productId));
     if (product) {
         if (!product.branchStock) product.branchStock = { "BR-COL": 0, "BR-GAL": 0, "BR-MAT": 0, "BR-KAN": 0 };
         const current = parseInt(product.branchStock[branchId] || 0);
+        const delta = isAbsolute ? (parseInt(quantityOrDelta) - current) : parseInt(quantityOrDelta || 0);
+
         if (isAbsolute) {
             product.branchStock[branchId] = Math.max(0, parseInt(quantityOrDelta) || 0);
         } else {
@@ -293,11 +276,9 @@ export function quickAdjustStock(productId, branchId, quantityOrDelta, isAbsolut
         }
         product.totalStock = Object.values(product.branchStock).reduce((a, b) => a + parseInt(b || 0), 0);
         product.inStock = product.totalStock > 0;
-        saveStoredProducts(all);
 
-        // Async sync inventory stock with backend
         try {
-            ProductsApi.updateInventory(productId, product.branchStock).catch(() => {});
+            await InventoryApi.adjustStock(productId, { branchId, quantityDelta: delta });
         } catch (e) {}
 
         return product;
@@ -309,8 +290,7 @@ export function quickAdjustStock(productId, branchId, quantityOrDelta, isAbsolut
  * Transfer stock from one branch warehouse to another
  */
 export function transferBranchStock(productId, fromBranchId, toBranchId, transferQty) {
-    const all = getStoredProducts({ includeDeleted: true });
-    const product = all.find(p => p.id === parseInt(productId));
+    const product = memoryProducts.find(p => p.id === parseInt(productId));
     const qty = parseInt(transferQty) || 0;
     if (product && qty > 0 && fromBranchId !== toBranchId) {
         if (!product.branchStock) product.branchStock = { "BR-COL": 0, "BR-GAL": 0, "BR-MAT": 0, "BR-KAN": 0 };
@@ -320,9 +300,7 @@ export function transferBranchStock(productId, fromBranchId, toBranchId, transfe
         product.branchStock[toBranchId] = (parseInt(product.branchStock[toBranchId] || 0)) + actualTransfer;
         product.totalStock = Object.values(product.branchStock).reduce((a, b) => a + parseInt(b || 0), 0);
         product.inStock = product.totalStock > 0;
-        saveStoredProducts(all);
 
-        // Async sync inventory stock with backend
         try {
             ProductsApi.updateInventory(productId, product.branchStock).catch(() => {});
         } catch (e) {}
@@ -330,33 +308,6 @@ export function transferBranchStock(productId, fromBranchId, toBranchId, transfe
         return { success: true, transferred: actualTransfer, product };
     }
     return { success: false, message: 'Invalid transfer parameters.' };
-}
-
-function getCachedCategories() {
-    try {
-        const raw = typeof localStorage !== 'undefined' ? localStorage.getItem('etech_categories_data') : null;
-        return raw ? JSON.parse(raw) : [];
-    } catch (e) {
-        return [];
-    }
-}
-
-function getCachedBrands() {
-    try {
-        const raw = typeof localStorage !== 'undefined' ? localStorage.getItem('etech_brands_data') : null;
-        return raw ? JSON.parse(raw) : [];
-    } catch (e) {
-        return [];
-    }
-}
-
-function getCachedBadges() {
-    try {
-        const raw = typeof localStorage !== 'undefined' ? localStorage.getItem('etech_badges_data') : null;
-        return raw ? JSON.parse(raw) : [];
-    } catch (e) {
-        return [];
-    }
 }
 
 function resolveBrandInfo(p, cachedBrands) {
@@ -495,7 +446,7 @@ function resolveBadgeInfo(p, cachedBadges) {
 }
 
 /**
- * Fetch and sync products from backend API into local storage
+ * Fetch and sync products from backend API into in-memory store
  */
 export async function syncProductsFromApi(options = {}) {
     try {
@@ -503,13 +454,17 @@ export async function syncProductsFromApi(options = {}) {
         let apiList = [];
         if (Array.isArray(res)) {
             apiList = res;
+        } else if (res && Array.isArray(res.body)) {
+            apiList = res.body;
         } else if (res && Array.isArray(res.data)) {
             apiList = res.data;
+        } else if (res && Array.isArray(res.content)) {
+            apiList = res.content;
         }
 
-        const cachedCategories = getCachedCategories();
-        const cachedBrands = getCachedBrands();
-        const cachedBadges = getCachedBadges();
+        const cachedCategories = getCategories({ includeDeleted: true });
+        const cachedBrands = getBrands({ includeDeleted: true });
+        const cachedBadges = getBadges({ includeDeleted: true });
 
         const normalized = apiList.map(p => {
             const brandInfo = resolveBrandInfo(p, cachedBrands);
@@ -551,7 +506,9 @@ export async function syncProductsFromApi(options = {}) {
             };
         });
 
-        saveStoredProducts(normalized);
+        if (normalized.length > 0) {
+            saveStoredProducts(normalized);
+        }
         return getStoredProducts(options);
     } catch (err) {
         console.warn('[DataModel] Live API sync notice:', err.message);

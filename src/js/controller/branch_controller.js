@@ -1,46 +1,86 @@
-// ETech Computers - Branch & Distance Shipping Management Module
+// ============================================================
+//  src/js/controller/branch_controller.js — Branch & Logistics Module
+// ============================================================
 import { DEFAULT_BRANCHES, CITY_DISTANCES } from '../../data/branches.js';
+import { BranchesApi } from '../api/branchesApi.js';
 
 export { DEFAULT_BRANCHES, CITY_DISTANCES };
 
-const BRANCHES_STORAGE_KEY = 'etech_branches';
+export const BRANCHES_STORAGE_KEY = 'etech_branches';
+
+// Reactive In-Memory Store
+let memoryBranches = Array.isArray(DEFAULT_BRANCHES) ? DEFAULT_BRANCHES.map(b => ({ ...b })) : [];
 
 /**
- * Get all branches from localStorage (or initialize with seed)
+ * Sync branches from backend API
  */
-export function getBranches() {
-  const data = localStorage.getItem(BRANCHES_STORAGE_KEY);
-  if (!data) {
-    localStorage.setItem(BRANCHES_STORAGE_KEY, JSON.stringify(DEFAULT_BRANCHES));
-    return DEFAULT_BRANCHES;
+export async function syncBranchesFromApi(activeOnly = false) {
+  try {
+    const res = await BranchesApi.getAll(activeOnly);
+    let apiList = [];
+    if (Array.isArray(res)) {
+      apiList = res;
+    } else if (res && Array.isArray(res.body)) {
+      apiList = res.body;
+    } else if (res && Array.isArray(res.data)) {
+      apiList = res.data;
+    }
+
+    if (apiList.length > 0) {
+      memoryBranches = apiList.map(b => ({
+        id: b.id,
+        name: b.name || '',
+        city: b.city || '',
+        address: b.address || '',
+        phone: b.phone || b.hotline || '',
+        email: b.email || '',
+        baseShippingFee: parseFloat(b.baseShippingFee || b.baseRate || 300),
+        perKmFee: parseFloat(b.perKmFee || 25),
+        status: b.status || (b.active !== false ? 'Active' : 'Inactive')
+      }));
+    }
+  } catch (err) {
+    console.warn('[BranchController] Branches sync notice:', err.message);
   }
-  return JSON.parse(data);
 }
 
 /**
- * Save all branches array to localStorage
+ * Get all branches from in-memory state
+ */
+export function getBranches() {
+  return memoryBranches;
+}
+
+/**
+ * Save all branches array to in-memory state
  */
 export function saveBranches(branches) {
-  localStorage.setItem(BRANCHES_STORAGE_KEY, JSON.stringify(branches));
+  if (Array.isArray(branches)) {
+    memoryBranches = [...branches];
+  }
 }
 
 /**
  * Get branch by ID
  */
 export function getBranchById(branchId) {
-  const branches = getBranches();
-  return branches.find(b => b.id === branchId) || null;
+  return memoryBranches.find(b => b.id === branchId) || null;
 }
 
 /**
  * Save or update a single branch
  */
-export function saveBranch(branchData) {
-  const branches = getBranches();
+export async function saveBranch(branchData) {
+  const branches = memoryBranches;
   const index = branches.findIndex(b => b.id === branchData.id);
   
   if (index > -1) {
     branches[index] = { ...branches[index], ...branchData };
+    try {
+      await BranchesApi.update(branches[index].id, branches[index]);
+    } catch (e) {
+      console.warn('[BranchController] Update branch API notice:', e.message);
+    }
   } else {
     const newBranch = {
       id: branchData.id || 'BR-' + Math.floor(100 + Math.random() * 900),
@@ -54,6 +94,11 @@ export function saveBranch(branchData) {
       status: branchData.status || 'Active'
     };
     branches.push(newBranch);
+    try {
+      await BranchesApi.create(newBranch);
+    } catch (e) {
+      console.warn('[BranchController] Create branch API notice:', e.message);
+    }
   }
   
   saveBranches(branches);
@@ -63,10 +108,13 @@ export function saveBranch(branchData) {
 /**
  * Delete branch by ID
  */
-export function deleteBranch(branchId) {
-  let branches = getBranches();
-  branches = branches.filter(b => b.id !== branchId);
-  saveBranches(branches);
+export async function deleteBranch(branchId) {
+  memoryBranches = memoryBranches.filter(b => b.id !== branchId);
+  try {
+    await BranchesApi.delete(branchId);
+  } catch (e) {
+    console.warn('[BranchController] Delete branch API notice:', e.message);
+  }
   return true;
 }
 
@@ -77,13 +125,12 @@ export function calculateDistanceKm(branchCity, destCity) {
   const bCity = branchCity || "Colombo";
   const dCity = destCity || "Colombo";
   
-  if (bCity === dCity) return 5; // local delivery distance
+  if (bCity === dCity) return 5;
   
   if (CITY_DISTANCES[bCity] && CITY_DISTANCES[bCity][dCity]) {
     return CITY_DISTANCES[bCity][dCity];
   }
   
-  // Default estimate fallback if city not in matrix
   return 80;
 }
 
@@ -91,10 +138,10 @@ export function calculateDistanceKm(branchCity, destCity) {
  * Calculate shipping fee based on branch and destination city
  */
 export function calculateShippingFee(branchId, destinationCity) {
-  const branch = getBranchById(branchId) || getBranches()[0];
+  const branch = getBranchById(branchId) || getBranches()[0] || { city: 'Colombo', baseShippingFee: 300, perKmFee: 25 };
   const distanceKm = calculateDistanceKm(branch.city, destinationCity);
   
-  const fee = branch.baseShippingFee + (distanceKm * branch.perKmFee);
+  const fee = (branch.baseShippingFee || 300) + (distanceKm * (branch.perKmFee || 25));
   return {
     distanceKm,
     fee: Math.round(fee),
@@ -104,18 +151,16 @@ export function calculateShippingFee(branchId, destinationCity) {
 }
 
 /**
- * AUTOMATIC FULFILLMENT BRANCH SELECTION:
- * Finds the closest branch to customer's city that has ALL requested cart items in stock.
+ * AUTOMATIC FULFILLMENT BRANCH SELECTION
  */
 export function autoSelectFulfillmentBranch(cartItems, customerCity, productsList) {
-  const branches = getBranches().filter(b => b.status === 'Active');
+  const branches = getBranches().filter(b => (b.status || 'Active').toLowerCase() === 'active');
   if (!branches.length) return null;
 
   let bestBranch = null;
   let minDistance = Infinity;
 
   for (const branch of branches) {
-    // Check if branch has sufficient stock for all cart items (including composite bundles)
     let hasStockForAll = true;
     for (const item of cartItems) {
       if (item.isBundle && Array.isArray(item.bundleComponents)) {
@@ -151,7 +196,6 @@ export function autoSelectFulfillmentBranch(cartItems, customerCity, productsLis
     }
   }
 
-  // If no single branch has stock for ALL items, pick closest branch as fallback
   if (!bestBranch) {
     bestBranch = branches[0];
     minDistance = calculateDistanceKm(bestBranch.city, customerCity);
