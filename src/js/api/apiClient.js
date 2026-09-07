@@ -2,7 +2,7 @@
 //  src/js/api/apiClient.js — Centralized jQuery AJAX API Client
 // ============================================================
 
-export const API_BASE_URL = (typeof window !== 'undefined' && window.API_BASE_URL) ? window.API_BASE_URL : 'http://localhost:8080/api/v1';
+export const API_BASE_URL = (typeof window !== 'undefined' && window.API_BASE_URL) ? window.API_BASE_URL : 'https://its1114-etechcomputers-online-store.onrender.com/api/v1';
 export const TOKEN_STORAGE_KEY = 'etech_jwt_token';
 export const CURRENT_USER_STORAGE_KEY = 'etech_current_user';
 
@@ -155,8 +155,8 @@ export function ajaxRequest({ endpoint, method = 'GET', data = null, headers = {
 
         // Check if response body envelops a 401/403 or "Token expired" status
         const isAuthError = response && (
-          response.status === 401 || 
-          response.status === 403 || 
+          response.status === 401 ||
+          response.status === 403 ||
           (typeof response.message === 'string' && (
             response.message.toLowerCase().includes('token expired') ||
             response.message.toLowerCase().includes('token invalid') ||
