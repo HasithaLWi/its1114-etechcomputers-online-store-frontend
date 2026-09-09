@@ -2,20 +2,17 @@
 //  src/js/models/taxonomy_data.js — Categories & Badges In-Memory Models
 // ============================================================
 import { getStoredProducts, saveStoredProducts } from './data.js';
-import {
-  DEFAULT_CATEGORIES,
-  DEFAULT_BADGES,
-  defaultCategories,
-  defaultBadges
-} from '../../data/taxonomy.js';
 import { CategoriesApi } from '../api/categoriesApi.js';
 import { BadgesApi } from '../api/badgesApi.js';
 
-export { DEFAULT_CATEGORIES, DEFAULT_BADGES, defaultCategories, defaultBadges };
+export const DEFAULT_CATEGORIES = [];
+export const DEFAULT_BADGES = [];
+export const defaultCategories = [];
+export const defaultBadges = [];
 
 // Reactive In-Memory Stores
-let memoryCategories = Array.isArray(defaultCategories) ? defaultCategories.map(c => ({ ...c })) : [];
-let memoryBadges = Array.isArray(defaultBadges) ? defaultBadges.map(b => ({ ...b })) : [];
+let memoryCategories = [];
+let memoryBadges = [];
 let memoryBehaviorHistory = [];
 
 // ============================================================

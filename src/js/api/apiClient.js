@@ -2,7 +2,8 @@
 //  src/js/api/apiClient.js — Centralized jQuery AJAX API Client
 // ============================================================
 
-export const API_BASE_URL = (typeof window !== 'undefined' && window.API_BASE_URL) ? window.API_BASE_URL : 'https://its1114-etechcomputers-online-store.onrender.com/api/v1';
+// export const API_BASE_URL = (typeof window !== 'undefined' && window.API_BASE_URL) ? window.API_BASE_URL : 'https://its1114-etechcomputers-online-store.onrender.com/api/v1';
+export const API_BASE_URL = 'http://localhost:8080/api/v1';
 export const TOKEN_STORAGE_KEY = 'etech_jwt_token';
 export const CURRENT_USER_STORAGE_KEY = 'etech_current_user';
 

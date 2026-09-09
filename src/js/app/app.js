@@ -22,6 +22,7 @@ import { renderLoginPage } from './login/login.js';
 import { renderAdminPage } from './administrator/administrator.js';
 import { renderAboutPage } from './about/about.js';
 import { etechAlert } from '../util/index.js';
+import { checkServerHealth } from '../util/server_health.js';
 
 document.addEventListener('DOMContentLoaded', () => {
   initApp();
@@ -35,9 +36,12 @@ window.addEventListener('hashchange', () => {
  * Initialize SPA application
  */
 export function initApp() {
+  // Test server connectivity via test API
+  checkServerHealth(true);
+
   // Sync live backend data from REST APIs into in-memory stores
   Promise.allSettled([
-    syncProductsFromApi({ activeOnly: true }),
+    syncProductsFromApi({ page: 0, size: 20 }),
     syncCategoriesFromApi({ activeOnly: true }),
     syncBrandsFromApi({ activeOnly: true }),
     syncBadgesFromApi({ activeOnly: true }),
@@ -48,9 +52,9 @@ export function initApp() {
     syncWishlistFromApi(),
     syncNewsletterFromApi()
   ]).then(() => {
-    if (typeof renderHomeNewArrivalsCarousel === 'function') renderHomeNewArrivalsCarousel();
-    if (typeof renderHomeFeaturedProducts === 'function') renderHomeFeaturedProducts();
-    if (typeof renderHomeDealBanner === 'function') renderHomeDealBanner();
+    const hash = window.location.hash || '#home';
+    const [routePart, queryPart] = hash.substring(1).split('?');
+    triggerPageHooks(routePart || 'home', queryPart);
   }).catch(err => {
     console.warn('[AppInit] Initial live sync notice:', err.message || err);
   });

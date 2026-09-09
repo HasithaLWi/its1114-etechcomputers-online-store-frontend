@@ -1289,7 +1289,7 @@
                   <span>Filter Products</span>
                 </h3>
                 <button id="reset-filters-btn"
-                  onclick="if(window.clearCategoryFilters){document.getElementById('search-input').value='';document.getElementById('price-slider').value=1000000;document.getElementById('price-value').textContent='Rs. 1,000,000';document.getElementById('sort-select').value='featured';clearCategoryFilters();clearBrandFilters();}"
+                  onclick="if(window.resetProductFilters){window.resetProductFilters();}else if(window.clearCategoryFilters){document.getElementById('search-input').value='';document.getElementById('price-slider').value=1000000;document.getElementById('price-value').textContent='Rs. 1,000,000';document.getElementById('sort-select').value='featured';clearCategoryFilters();clearBrandFilters();}"
                   class="text-xs text-blue-600 hover:text-blue-700 font-medium hover:underline cursor-pointer">
                   Reset All
                 </button>
@@ -1300,7 +1300,7 @@
                 <label class="block text-xs font-bold text-[#475569] uppercase tracking-wider mb-2">Search</label>
                 <div class="relative">
                   <input type="text" id="search-input" placeholder="Search product name..."
-                    oninput="if(window.renderFilteredProducts) window.renderFilteredProducts()"
+                    onchange="if(window.applyProductFilters) window.applyProductFilters()"
                     class="w-full px-3.5 py-2 rounded-md bg-[#f8fafc] border border-[#e2e8f0] text-[#0f172a] placeholder-[#94a3b8] text-sm focus:border-blue-600">
                   <svg class="w-4 h-4 text-[#94a3b8] absolute right-3 top-2.5" fill="none" stroke="currentColor"
                     viewBox="0 0 24 24">
@@ -1351,8 +1351,7 @@
                   <span id="price-value" class="text-xs font-bold text-blue-600 font-mono">Rs. 1,000,000</span>
                 </div>
                 <input type="range" id="price-slider" min="0" max="1000000" step="1000" value="1000000"
-                  oninput="document.getElementById('price-value').textContent='Rs. '+parseInt(this.value).toLocaleString(); if(window.renderFilteredProducts) window.renderFilteredProducts()"
-                  onchange="if(window.renderFilteredProducts) window.renderFilteredProducts()"
+                  oninput="document.getElementById('price-value').textContent='Rs. '+parseInt(this.value).toLocaleString()"
                   class="w-full accent-blue-600 cursor-pointer bg-[#e2e8f0]">
                 <div class="flex justify-between text-[10px] text-[#64748b] font-mono mt-1">
                   <span>Rs. 0</span>
@@ -1364,7 +1363,7 @@
               <!-- Sort Option -->
               <div>
                 <label class="block text-xs font-bold text-[#475569] uppercase tracking-wider mb-2">Sort By</label>
-                <select id="sort-select" onchange="if(window.renderFilteredProducts) window.renderFilteredProducts()"
+                <select id="sort-select"
                   class="w-full px-3 py-2 rounded-md bg-[#f8fafc] border border-[#e2e8f0] text-[#0f172a] text-sm focus:border-blue-600 cursor-pointer">
                   <option value="featured">Featured First</option>
                   <option value="price-low">Price: Low to High</option>
@@ -1372,6 +1371,17 @@
                   <option value="rating">Customer Rating</option>
                   <option value="name">Product Name (A-Z)</option>
                 </select>
+              </div>
+
+              <!-- Apply Filters Button -->
+              <div class="pt-2">
+                <button id="apply-filters-btn" type="button" onclick="if(window.applyProductFilters) window.applyProductFilters()"
+                  class="w-full py-2.5 px-4 bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white text-xs font-extrabold rounded-lg shadow-sm transition-all flex items-center justify-center space-x-2 cursor-pointer">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/>
+                  </svg>
+                  <span>Apply Filters</span>
+                </button>
               </div>
 
             </div>

@@ -3,15 +3,14 @@
 // ============================================================
 import { getStoredProducts, saveStoredProducts } from './data.js';
 import { getBranches } from '../controller/branch_controller.js';
-import { DEFAULT_TRANSFERS } from '../../data/transfers.js';
 import { TransfersApi } from '../api/transfersApi.js';
 
-export { DEFAULT_TRANSFERS };
+export const DEFAULT_TRANSFERS = [];
 
 export const TRANSFERS_STORAGE_KEY = 'etech_stock_transfers';
 
 // Reactive In-Memory Transfers Store
-let memoryTransfers = Array.isArray(DEFAULT_TRANSFERS) ? DEFAULT_TRANSFERS.map(t => ({ ...t })) : [];
+let memoryTransfers = [];
 
 /**
  * Sync transfers from backend API

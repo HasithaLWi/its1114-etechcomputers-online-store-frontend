@@ -429,7 +429,7 @@ export function updateHomeBannerLivePreview() {
   `;
 }
 
-window.handleSaveHomeBanner = function (event) {
+window.handleSaveHomeBanner = async function (event) {
   if (event) event.preventDefault();
 
   const isActive = document.getElementById('hb-active-toggle') ? document.getElementById('hb-active-toggle').checked : true;
@@ -449,14 +449,14 @@ window.handleSaveHomeBanner = function (event) {
     targetUrl: '#deals'
   };
 
-  saveHomeDealBanner(bannerData);
+  await saveHomeDealBanner(bannerData);
   window.dispatchEvent(new Event('productsUpdated'));
   if (isActive) {
     showToast('Home Page Weekend Tech Deal Banner saved & published live!', 'success');
   } else {
     showToast('Home Page Deal Banner hidden and Hot Deals campaign paused.', 'info');
   }
-  renderPromotionsTab();
+  await renderPromotionsTab();
 };
 
 window.setHomeBannerTimerPreset = function (days, hours, mins, secs) {
@@ -591,23 +591,23 @@ function renderHotBundlesManager(bundles) {
   `;
 }
 
-window.toggleBundleActiveStatus = function (id) {
+window.toggleBundleActiveStatus = async function (id) {
   const bundles = getDealBundles();
   const bundle = bundles.find(b => b.id === Number(id));
   if (!bundle) return;
 
-  updateDealBundle(id, { active: !bundle.active });
+  await updateDealBundle(id, { active: !bundle.active });
   showToast(`Bundle "${bundle.title}" is now ${!bundle.active ? 'Active in Carousel' : 'Inactive'}.`);
-  renderPromotionsTab();
+  await renderPromotionsTab();
 };
 
 window.handleDeleteBundle = async function (id) {
   const confirmed = await etechAlert.confirmDelete('this Deal Bundle slide', 'It will be removed from the homepage promotions carousel.');
   if (!confirmed) return;
 
-  deleteDealBundle(id);
+  await deleteDealBundle(id);
   showToast('Deal bundle deleted.', 'success');
-  renderPromotionsTab();
+  await renderPromotionsTab();
 };
 
 /* ========================================================================== */
@@ -930,7 +930,7 @@ export function openHotDealModal(dealId = null) {
 }
 
 export function closeHotDealModal() {
-  const modalEl = document.getElementById('hot-deal-modal-overlay');
+  const modalEl = document.getElementById('admin-hot-deal-modal') || document.getElementById('hot-deal-modal-overlay');
   if (modalEl) modalEl.remove();
 }
 
@@ -987,7 +987,9 @@ export function setHotDealModalTimer(days, hours, mins, secs) {
 export async function handleSaveHotDealSubmit(event, dealId = null) {
   if (event) event.preventDefault();
 
+  const products = getStoredProducts();
   const productId = Number(document.getElementById('hdm-product-id').value);
+  const product = products.find(p => p.id === productId);
   const dealPrice = Number(document.getElementById('hdm-deal-price').value);
   const badge = document.getElementById('hdm-badge').value.trim();
   const durationDays = Number(document.getElementById('hdm-days').value) || 0;
@@ -1018,15 +1020,15 @@ export async function handleSaveHotDealSubmit(event, dealId = null) {
   if (!confirmed) return;
 
   if (dealId) {
-    updateHotDeal(dealId, dealData);
+    await updateHotDeal(dealId, dealData);
     showToast('Hot Deal updated successfully!', 'success');
   } else {
-    addHotDeal(dealData);
+    await addHotDeal(dealData);
     showToast('New Hot Deal created and live on store!', 'success');
   }
 
   closeHotDealModal();
-  renderPromotionsTab();
+  await renderPromotionsTab();
   window.dispatchEvent(new Event('productsUpdated'));
 }
 
@@ -1038,16 +1040,16 @@ export async function handleDeleteHotDeal(id) {
 
   if (!confirmed) return;
 
-  deleteHotDeal(id);
+  await deleteHotDeal(id);
   showToast('Hot Deal removed. Product reverted to catalog price.', 'info');
-  renderPromotionsTab();
+  await renderPromotionsTab();
   window.dispatchEvent(new Event('productsUpdated'));
 }
 
-export function handleToggleHotDealStatus(id) {
-  const isNowActive = toggleHotDealStatus(id);
+export async function handleToggleHotDealStatus(id) {
+  const isNowActive = await toggleHotDealStatus(id);
   showToast(isNowActive ? '● Hot Deal activated!' : '○ Hot Deal paused.');
-  renderPromotionsTab();
+  await renderPromotionsTab();
   window.dispatchEvent(new Event('productsUpdated'));
 }
 
@@ -1966,7 +1968,7 @@ export function updateBundleLivePreview() {
 /**
  * Handles saving the deal bundle form page
  */
-export function handleSaveBundleFormPage(event) {
+export async function handleSaveBundleFormPage(event) {
   if (event) event.preventDefault();
 
   const bundleItems = window.bundleFormItemsState || [];
@@ -2017,16 +2019,16 @@ export function handleSaveBundleFormPage(event) {
   };
 
   if (currentEditingBundleId !== null) {
-    updateDealBundle(currentEditingBundleId, bundleData);
+    await updateDealBundle(currentEditingBundleId, bundleData);
     showToast('Featured deal bundle slide updated successfully!', 'success');
   } else {
-    addDealBundle(bundleData);
+    await addDealBundle(bundleData);
     showToast('New deal bundle slide created & added to carousel!', 'success');
   }
 
   window.dispatchEvent(new Event('productsUpdated'));
   closeBundleFormPage();
-  renderPromotionsTab();
+  await renderPromotionsTab();
 }
 
 // ── Global Window Aliases for complete backwards compatibility ──
@@ -2128,22 +2130,31 @@ window.openEditDiscountModal = function (productId) {
   `;
 };
 
-window.handleSaveProductDiscount = function (event, productId) {
+window.handleSaveProductDiscount = async function (event, productId) {
   if (event) event.preventDefault();
 
   const price = Number(document.getElementById('dm-price').value);
   const originalPrice = Number(document.getElementById('dm-orig-price').value);
   const badge = document.getElementById('dm-badge').value;
 
-  updateProductDiscount(productId, { price, originalPrice, badge });
+  await updateProductDiscount(productId, { price, originalPrice, badge });
   window.dispatchEvent(new Event('productsUpdated'));
   showToast('Product discount updated successfully!', 'success');
   closeAdminModal();
-  renderPromotionsTab();
+  await renderPromotionsTab();
 };
 
 // Global Window Bindings for Dynamic Admin UI
 window.switchPromoSubTab = switchPromoSubTab;
 window.renderPromotionsTab = renderPromotionsTab;
 window.updateHomeBannerLivePreview = updateHomeBannerLivePreview;
+window.handleSaveHomeBanner = handleSaveHomeBanner;
+window.toggleBundleActiveStatus = toggleBundleActiveStatus;
+window.handleDeleteBundle = handleDeleteBundle;
+window.openHotDealModal = openHotDealModal;
+window.closeHotDealModal = closeHotDealModal;
+window.handleSaveHotDealSubmit = handleSaveHotDealSubmit;
+window.handleDeleteHotDeal = handleDeleteHotDeal;
+window.handleToggleHotDealStatus = handleToggleHotDealStatus;
+window.handleSaveProductDiscount = handleSaveProductDiscount;
 

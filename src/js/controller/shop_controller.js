@@ -1,7 +1,8 @@
 // ============================================================
-//  src/js/controller/shop_controller.js — Shop Catalog & Multi-Filter Logic
+//  src/js/controller/shop_controller.js — Shop Catalog & DB Multi-Filter Logic
 // ============================================================
-import { products, getStoredProducts, syncProductsFromApi } from '../models/data.js';
+import { products, getStoredProducts, saveStoredProducts } from '../models/data.js';
+import { ProductsApi } from '../api/productsApi.js';
 import { addToCart } from './cart_controller.js';
 import { viewProductDetails } from './product-details_controller.js';
 import { getCategories, syncCategoriesFromApi } from '../models/taxonomy_data.js';
@@ -18,7 +19,6 @@ import {
   iconHeart,
   formatLKR
 } from '../util/index.js';
-
 
 // Module-level state for multi-selected filters
 let selectedCategorySlugs = [];
@@ -41,7 +41,6 @@ export function addCategoryFilter(slug) {
   }
   renderCategoryCombobox();
   renderSelectedCategoryTags();
-  renderFilteredProducts();
 }
 
 export function removeCategoryFilter(slug) {
@@ -50,14 +49,12 @@ export function removeCategoryFilter(slug) {
   selectedCategorySlugs = selectedCategorySlugs.filter(s => s !== normalizedSlug);
   renderCategoryCombobox();
   renderSelectedCategoryTags();
-  renderFilteredProducts();
 }
 
 export function clearCategoryFilters() {
   selectedCategorySlugs = [];
   renderCategoryCombobox();
   renderSelectedCategoryTags();
-  renderFilteredProducts();
 }
 
 export function renderCategoryCombobox() {
@@ -147,7 +144,6 @@ export function addBrandFilter(slug) {
   }
   renderBrandCombobox();
   renderSelectedBrandTags();
-  renderFilteredProducts();
 }
 
 export function removeBrandFilter(slug) {
@@ -156,14 +152,12 @@ export function removeBrandFilter(slug) {
   selectedBrandSlugs = selectedBrandSlugs.filter(s => s !== normalizedSlug);
   renderBrandCombobox();
   renderSelectedBrandTags();
-  renderFilteredProducts();
 }
 
 export function clearBrandFilters() {
   selectedBrandSlugs = [];
   renderBrandCombobox();
   renderSelectedBrandTags();
-  renderFilteredProducts();
 }
 
 export function renderBrandCombobox() {
@@ -245,6 +239,7 @@ export function initShopLogic(queryPart = '') {
   const priceValueDisplay = document.getElementById('price-value');
   const sortSelect = document.getElementById('sort-select');
   const resetBtn = document.getElementById('reset-filters-btn');
+  const applyBtn = document.getElementById('apply-filters-btn');
   const catCombobox = document.getElementById('shop-category-combobox');
   const brandCombobox = document.getElementById('shop-brand-combobox');
 
@@ -296,7 +291,7 @@ export function initShopLogic(queryPart = '') {
   renderBrandCombobox();
   renderSelectedBrandTags();
 
-  // Event Listeners for Comboboxes
+  // Event Listeners for Comboboxes (tags updated, filter applied when clicking Apply button)
   if (catCombobox) {
     catCombobox.onchange = (e) => {
       const chosenSlug = e.target.value;
@@ -311,45 +306,56 @@ export function initShopLogic(queryPart = '') {
     };
   }
 
-  // Event Listeners for Live Filtering
+  // Only attach CHANGE event listener to search bar
   if (searchInput) {
-    searchInput.oninput = renderFilteredProducts;
-    searchInput.onkeyup = renderFilteredProducts;
-    searchInput.onchange = renderFilteredProducts;
-  }
-  if (sortSelect) {
-    sortSelect.onchange = renderFilteredProducts;
+    searchInput.oninput = null;
+    searchInput.onkeyup = null;
+    searchInput.onchange = () => {
+      console.log('[ShopController] Search input change triggered -> executing DB filter');
+      applyProductFilters();
+    };
+    searchInput.onkeydown = (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        applyProductFilters();
+      }
+    };
   }
 
+  // Price slider updates text display without querying DB until Apply button is clicked
   if (priceSlider) {
-    const handlePriceChange = (e) => {
+    priceSlider.onchange = null;
+    priceSlider.oninput = (e) => {
       const val = parseInt(e.target.value || 1000000);
       if (priceValueDisplay) priceValueDisplay.textContent = `Rs. ${val.toLocaleString()}`;
-      renderFilteredProducts();
     };
-    priceSlider.oninput = handlePriceChange;
-    priceSlider.onchange = handlePriceChange;
   }
 
+  // Sort select does not auto-filter on change; applies when Apply button is clicked
+  if (sortSelect) {
+    sortSelect.onchange = null;
+  }
+
+  // Apply Filters Button
+  if (applyBtn) {
+    applyBtn.onclick = () => {
+      console.log('[ShopController] Apply Filters button clicked -> querying database');
+      applyProductFilters();
+    };
+  }
+
+  // Reset Filters Button
   if (resetBtn) {
     resetBtn.onclick = () => {
-      if (searchInput) searchInput.value = '';
-      if (priceSlider) {
-        priceSlider.value = 1000000;
-        if (priceValueDisplay) priceValueDisplay.textContent = 'Rs. 1,000,000';
-      }
-      if (sortSelect) sortSelect.value = 'featured';
-      clearCategoryFilters();
-      clearBrandFilters();
+      resetProductFilters();
     };
   }
 
-  // Initial render from cache
-  renderFilteredProducts();
+  // Initial load: Fetch live matching products directly from database
+  applyProductFilters();
 
-  // Trigger live background sync from backend MySQL database
+  // Background sync for categories & brands taxonomies
   Promise.all([
-    syncProductsFromApi({ activeOnly: true }),
     syncCategoriesFromApi({ activeOnly: true }),
     syncBrandsFromApi({ activeOnly: true })
   ]).then(() => {
@@ -357,16 +363,15 @@ export function initShopLogic(queryPart = '') {
     renderSelectedCategoryTags();
     renderBrandCombobox();
     renderSelectedBrandTags();
-    renderFilteredProducts();
   }).catch(() => {});
 }
 
 /**
  * ============================================================
- * FILTER, SORT & RENDER CATALOG PRODUCTS GRID
+ * FILTER, SORT & RENDER CATALOG PRODUCTS DIRECTLY FROM DATABASE
  * ============================================================
  */
-export function renderFilteredProducts() {
+export async function applyProductFilters() {
   const grid = document.getElementById('product-grid');
   const itemCountEl = document.getElementById('item-count');
   const noProductsMsg = document.getElementById('no-products-msg');
@@ -374,114 +379,276 @@ export function renderFilteredProducts() {
 
   if (!grid) return;
 
-  const allProducts = (typeof getStoredProducts === 'function' ? getStoredProducts({ activeOnly: true }) : null) || products || [];
-  const categoriesList = getCategories({ includeDeleted: true });
-  const brandsList = getBrands({ includeDeleted: true });
-
-  // Extract filter values
   const searchInput = document.getElementById('search-input');
   const priceSlider = document.getElementById('price-slider');
   const sortSelect = document.getElementById('sort-select');
 
-  const searchQuery = searchInput ? searchInput.value.toLowerCase().trim() : '';
+  const searchQuery = searchInput ? searchInput.value.trim() : '';
   const maxPrice = priceSlider ? parseFloat(priceSlider.value) : 1000000;
   const sortOption = sortSelect ? sortSelect.value : 'featured';
 
-  // Apply filters
-  let filtered = allProducts.filter(product => {
-    // 1. Search Query
-    const matchesSearch = searchQuery === '' ||
-      (product.name && product.name.toLowerCase().includes(searchQuery)) ||
-      (product.description && product.description.toLowerCase().includes(searchQuery)) ||
-      (product.fullDescription && product.fullDescription.toLowerCase().includes(searchQuery)) ||
-      (product.category && product.category.toLowerCase().includes(searchQuery)) ||
-      (product.categoryName && product.categoryName.toLowerCase().includes(searchQuery)) ||
-      (product.brand && product.brand.toLowerCase().includes(searchQuery)) ||
-      (product.sku && product.sku.toLowerCase().includes(searchQuery));
+  // Show live querying spinner state
+  grid.innerHTML = `
+    <div class="col-span-full py-16 text-center space-y-3">
+      <div class="inline-block w-8 h-8 border-3 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+      <p class="text-xs font-semibold text-slate-500">Querying live products from database...</p>
+    </div>
+  `;
+  if (noProductsMsg) noProductsMsg.classList.add('hidden');
 
-    // 2. Category Filter (Multi-select)
-    let matchesCategory = true;
-    if (selectedCategorySlugs.length > 0) {
-      const pCat = (product.category || '').toLowerCase().trim();
-      const pCatId = (product.categoryId || '').toLowerCase().trim();
-      const pCatSlug = (product.categorySlug || '').toLowerCase().trim();
-      const pCatName = (product.categoryName || '').toLowerCase().trim();
-
-      matchesCategory = selectedCategorySlugs.some(sSlug => {
-        const normSlug = sSlug.toLowerCase().trim();
-        const catObj = categoriesList.find(c => 
-          c.slug.toLowerCase() === normSlug || 
-          c.id.toLowerCase() === normSlug || 
-          c.name.toLowerCase() === normSlug
-        );
-        const targetSlug = catObj ? catObj.slug.toLowerCase() : normSlug;
-        const targetId = catObj ? catObj.id.toLowerCase() : normSlug;
-        const targetName = catObj ? catObj.name.toLowerCase() : normSlug;
-
-        return (
-          pCat === normSlug || pCat === targetSlug || pCat === targetId || pCat === targetName ||
-          pCatId === normSlug || pCatId === targetSlug || pCatId === targetId ||
-          pCatSlug === normSlug || pCatSlug === targetSlug || pCatSlug === targetId ||
-          pCatName === normSlug || pCatName === targetSlug || pCatName === targetName ||
-          (targetName && pCat.length >= 3 && targetName.includes(pCat)) ||
-          (pCat && targetName.length >= 3 && pCat.includes(targetName))
-        );
-      });
-    }
-
-    // 3. Brand Filter (Multi-select)
-    let matchesBrand = true;
-    if (selectedBrandSlugs.length > 0) {
-      const pBrand = (product.brand || '').toLowerCase().trim();
-      const pBrandId = (product.brandId || '').toLowerCase().trim();
-      const pBrandSlug = (product.brandSlug || '').toLowerCase().trim();
-
-      matchesBrand = selectedBrandSlugs.some(bSlug => {
-        const normSlug = bSlug.toLowerCase().trim();
-        const brandObj = brandsList.find(b => 
-          b.slug.toLowerCase() === normSlug || 
-          b.id.toLowerCase() === normSlug || 
-          b.name.toLowerCase() === normSlug
-        );
-        const targetSlug = brandObj ? brandObj.slug.toLowerCase() : normSlug;
-        const targetId = brandObj ? brandObj.id.toLowerCase() : normSlug;
-        const targetName = brandObj ? brandObj.name.toLowerCase() : normSlug;
-
-        return (
-          pBrand === normSlug || pBrand === targetSlug || pBrand === targetId || pBrand === targetName ||
-          pBrandId === normSlug || pBrandId === targetSlug || pBrandId === targetId ||
-          pBrandSlug === normSlug || pBrandSlug === targetSlug || pBrandSlug === targetId ||
-          (targetName.length >= 3 && pBrand.includes(targetName)) ||
-          (pBrand.length >= 3 && targetName.includes(pBrand))
-        );
-      });
-    }
-
-    // 4. Price Filter
-    const productPrice = Number(product.price || 0);
-    const matchesPrice = !isNaN(productPrice) ? (productPrice <= maxPrice) : true;
-
-    return matchesSearch && matchesCategory && matchesBrand && matchesPrice;
-  });
-
-  // Apply sorting
+  // Map sort option to DB Pageable parameters
+  let sortBy = 'id';
+  let sortDir = 'asc';
   if (sortOption === 'price-low') {
-    filtered.sort((a, b) => (a.price || 0) - (b.price || 0));
+    sortBy = 'price';
+    sortDir = 'asc';
   } else if (sortOption === 'price-high') {
-    filtered.sort((a, b) => (b.price || 0) - (a.price || 0));
+    sortBy = 'price';
+    sortDir = 'desc';
   } else if (sortOption === 'rating') {
-    filtered.sort((a, b) => (b.rating || 0) - (a.rating || 0));
+    sortBy = 'rating';
+    sortDir = 'desc';
   } else if (sortOption === 'name') {
-    filtered.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+    sortBy = 'name';
+    sortDir = 'asc';
   } else if (sortOption === 'newest') {
-    filtered.sort((a, b) => (b.id || 0) - (a.id || 0));
+    sortBy = 'id';
+    sortDir = 'desc';
   }
 
+  // Build backend query parameters for GET /api/v1/products/filter
+  const filterParams = {
+    page: 0,
+    size: 100,
+    sortBy: sortBy,
+    sortDir: sortDir
+  };
+
+  if (searchQuery) {
+    filterParams.search = searchQuery;
+  }
+
+  if (maxPrice < 1000000) {
+    filterParams.maxPrice = maxPrice;
+  }
+
+  if (selectedCategorySlugs.length === 1) {
+    filterParams.category = selectedCategorySlugs[0];
+  }
+
+  try {
+    console.log('[ShopController] Fetching filtered products from DB API:', filterParams);
+    const res = await ProductsApi.getFiltered(filterParams);
+    let apiList = [];
+    if (Array.isArray(res)) {
+      apiList = res;
+    } else if (res && Array.isArray(res.body)) {
+      apiList = res.body;
+    } else if (res && Array.isArray(res.content)) {
+      apiList = res.content;
+    } else if (res && Array.isArray(res.data)) {
+      apiList = res.data;
+    }
+
+    const categoriesList = getCategories({ includeDeleted: true });
+    const brandsList = getBrands({ includeDeleted: true });
+
+    // Normalize products from DB response
+    let productsList = apiList.map(p => {
+      const brandObj = brandsList.find(b => 
+        (p.brandId && b.id === p.brandId) || 
+        (b.slug && p.brand && b.slug.toLowerCase() === p.brand.toLowerCase()) || 
+        (b.name && p.brand && b.name.toLowerCase() === p.brand.toLowerCase())
+      );
+      const catObj = categoriesList.find(c => 
+        (p.categoryId && c.id === p.categoryId) || 
+        (c.slug && p.category && c.slug.toLowerCase() === p.category.toLowerCase()) || 
+        (c.name && p.category && c.name.toLowerCase() === p.category.toLowerCase())
+      );
+
+      return {
+        id: p.id,
+        name: p.name || p.title || '',
+        brand: brandObj ? brandObj.name : (p.brand || ''),
+        brandId: p.brandId || (brandObj ? brandObj.id : ''),
+        brandSlug: brandObj ? brandObj.slug : (p.brandSlug || ''),
+        category: catObj ? catObj.slug : (p.category || ''),
+        categoryId: p.categoryId || (catObj ? catObj.id : ''),
+        categorySlug: catObj ? catObj.slug : (p.categorySlug || ''),
+        categoryName: catObj ? catObj.name : (p.categoryName || (p.category || '')),
+        price: Number(p.price || 0),
+        originalPrice: p.originalPrice ? Number(p.originalPrice) : null,
+        rating: Number(p.rating || 4.8),
+        reviews: Number(p.reviews || p.reviewsCount || 0),
+        reviewsCount: Number(p.reviewsCount || p.reviews || 0),
+        image: p.image || (Array.isArray(p.images) && p.images[0]) || '',
+        images: Array.isArray(p.images) && p.images.length > 0 ? p.images : (p.image ? [p.image] : []),
+        description: p.description || '',
+        fullDescription: p.fullDescription || p.description || '',
+        inStock: p.inStock !== undefined ? p.inStock : ((p.totalStock || 0) > 0),
+        totalStock: Number(p.totalStock || 0),
+        branchStock: p.branchStock || {},
+        badge: p.badge || (p.badgeId ? p.badgeId.replace('bdg-', '').toUpperCase() : ''),
+        badgeId: p.badgeId || '',
+        sku: p.sku || '',
+        warranty: p.warranty || '1-Year Warranty',
+        specs: p.specs || {},
+        features: Array.isArray(p.features) ? p.features : [],
+        productStatus: (p.productStatus || p.status || 'ACTIVE').toUpperCase(),
+        status: (p.productStatus || p.status || 'ACTIVE').toUpperCase()
+      };
+    });
+
+    // Multi-category filtering in memory if >1 category selected
+    if (selectedCategorySlugs.length > 1) {
+      productsList = productsList.filter(product => {
+        const pCat = (product.category || '').toLowerCase().trim();
+        const pCatId = (product.categoryId || '').toLowerCase().trim();
+        const pCatSlug = (product.categorySlug || '').toLowerCase().trim();
+        const pCatName = (product.categoryName || '').toLowerCase().trim();
+
+        return selectedCategorySlugs.some(sSlug => {
+          const normSlug = sSlug.toLowerCase().trim();
+          const catObj = categoriesList.find(c => 
+            c.slug.toLowerCase() === normSlug || c.id.toLowerCase() === normSlug || c.name.toLowerCase() === normSlug
+          );
+          const targetSlug = catObj ? catObj.slug.toLowerCase() : normSlug;
+          const targetId = catObj ? catObj.id.toLowerCase() : normSlug;
+          const targetName = catObj ? catObj.name.toLowerCase() : normSlug;
+
+          return (
+            pCat === normSlug || pCat === targetSlug || pCat === targetId || pCat === targetName ||
+            pCatId === normSlug || pCatId === targetSlug || pCatId === targetId ||
+            pCatSlug === normSlug || pCatSlug === targetSlug || pCatSlug === targetId ||
+            pCatName === normSlug || pCatName === targetSlug || pCatName === targetName
+          );
+        });
+      });
+    }
+
+    // Brand filtering in memory
+    if (selectedBrandSlugs.length > 0) {
+      productsList = productsList.filter(product => {
+        const pBrand = (product.brand || '').toLowerCase().trim();
+        const pBrandId = (product.brandId || '').toLowerCase().trim();
+        const pBrandSlug = (product.brandSlug || '').toLowerCase().trim();
+
+        return selectedBrandSlugs.some(bSlug => {
+          const normSlug = bSlug.toLowerCase().trim();
+          const brandObj = brandsList.find(b => 
+            b.slug.toLowerCase() === normSlug || b.id.toLowerCase() === normSlug || b.name.toLowerCase() === normSlug
+          );
+          const targetSlug = brandObj ? brandObj.slug.toLowerCase() : normSlug;
+          const targetId = brandObj ? brandObj.id.toLowerCase() : normSlug;
+          const targetName = brandObj ? brandObj.name.toLowerCase() : normSlug;
+
+          return (
+            pBrand === normSlug || pBrand === targetSlug || pBrand === targetId || pBrand === targetName ||
+            pBrandId === normSlug || pBrandId === targetSlug || pBrandId === targetId ||
+            pBrandSlug === normSlug || pBrandSlug === targetSlug || pBrandSlug === targetId ||
+            (targetName.length >= 3 && pBrand.includes(targetName)) ||
+            (pBrand.length >= 3 && targetName.includes(pBrand))
+          );
+        });
+      });
+    }
+
+    // Price safety check
+    if (maxPrice < 1000000) {
+      productsList = productsList.filter(p => Number(p.price || 0) <= maxPrice);
+    }
+
+    // Sort client-side ensuring exact matching order
+    if (sortOption === 'price-low') {
+      productsList.sort((a, b) => (a.price || 0) - (b.price || 0));
+    } else if (sortOption === 'price-high') {
+      productsList.sort((a, b) => (b.price || 0) - (a.price || 0));
+    } else if (sortOption === 'rating') {
+      productsList.sort((a, b) => (b.rating || 0) - (a.rating || 0));
+    } else if (sortOption === 'name') {
+      productsList.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+    } else if (sortOption === 'newest') {
+      productsList.sort((a, b) => (b.id || 0) - (a.id || 0));
+    }
+
+    // Sync in-memory store so other views remain updated
+    if (productsList.length > 0) {
+      saveStoredProducts(productsList);
+    }
+
+    renderProductsGridUI(productsList, searchQuery, maxPrice);
+
+  } catch (err) {
+    console.error('[ShopController] DB filter request error:', err);
+    renderFilteredProductsFallback();
+  }
+}
+
+/**
+ * Fallback to in-memory rendering if database connection fails
+ */
+function renderFilteredProductsFallback() {
+  const allProducts = getStoredProducts({ activeOnly: true }) || products || [];
+  const searchInput = document.getElementById('search-input');
+  const priceSlider = document.getElementById('price-slider');
+  const searchQuery = searchInput ? searchInput.value.toLowerCase().trim() : '';
+  const maxPrice = priceSlider ? parseFloat(priceSlider.value) : 1000000;
+
+  const filtered = allProducts.filter(p => {
+    const matchesSearch = !searchQuery || (p.name && p.name.toLowerCase().includes(searchQuery));
+    const matchesPrice = Number(p.price || 0) <= maxPrice;
+    return matchesSearch && matchesPrice;
+  });
+
+  renderProductsGridUI(filtered, searchQuery, maxPrice);
+}
+
+/**
+ * Reset all filter controls and fetch clean product list from DB
+ */
+export async function resetProductFilters() {
+  const searchInput = document.getElementById('search-input');
+  const priceSlider = document.getElementById('price-slider');
+  const priceValueDisplay = document.getElementById('price-value');
+  const sortSelect = document.getElementById('sort-select');
+
+  if (searchInput) searchInput.value = '';
+  if (priceSlider) {
+    priceSlider.value = 1000000;
+    if (priceValueDisplay) priceValueDisplay.textContent = 'Rs. 1,000,000';
+  }
+  if (sortSelect) sortSelect.value = 'featured';
+
+  selectedCategorySlugs = [];
+  selectedBrandSlugs = [];
+
+  renderCategoryCombobox();
+  renderSelectedCategoryTags();
+  renderBrandCombobox();
+  renderSelectedBrandTags();
+
+  await applyProductFilters();
+}
+
+/**
+ * Renders the products grid and active filter tags into the DOM
+ */
+function renderProductsGridUI(productsList, searchQuery = '', maxPrice = 1000000) {
+  const grid = document.getElementById('product-grid');
+  const itemCountEl = document.getElementById('item-count');
+  const noProductsMsg = document.getElementById('no-products-msg');
+  const activeTagsContainer = document.getElementById('active-filter-tags');
+
+  if (!grid) return;
+
+  const categoriesList = getCategories({ includeDeleted: true });
+  const brandsList = getBrands({ includeDeleted: true });
+
   // Update item count UI
-  if (itemCountEl) itemCountEl.textContent = filtered.length;
+  if (itemCountEl) itemCountEl.textContent = productsList.length;
 
   // Toggle empty state message
-  if (filtered.length === 0) {
+  if (productsList.length === 0) {
     grid.innerHTML = '';
     if (noProductsMsg) noProductsMsg.classList.remove('hidden');
   } else {
@@ -540,7 +707,7 @@ export function renderFilteredProducts() {
   }
 
   // Render product cards
-  grid.innerHTML = filtered.map(product => {
+  grid.innerHTML = productsList.map(product => {
     const productBrand = product.brand || '';
     const brandObj = productBrand ? brandsList.find(b => 
       b.name.toLowerCase() === productBrand.toLowerCase() || 
@@ -642,6 +809,11 @@ export function renderFilteredProducts() {
   }).join('');
 }
 
+// Export renderFilteredProducts as an alias for applyProductFilters for backward compatibility
+export function renderFilteredProducts() {
+  return applyProductFilters();
+}
+
 // Global window bindings for inline onclick attributes
 window.addCategoryFilter = addCategoryFilter;
 window.removeCategoryFilter = removeCategoryFilter;
@@ -649,5 +821,7 @@ window.clearCategoryFilters = clearCategoryFilters;
 window.addBrandFilter = addBrandFilter;
 window.removeBrandFilter = removeBrandFilter;
 window.clearBrandFilters = clearBrandFilters;
+window.applyProductFilters = applyProductFilters;
+window.resetProductFilters = resetProductFilters;
 window.renderFilteredProducts = renderFilteredProducts;
 window.initShopLogic = initShopLogic;
