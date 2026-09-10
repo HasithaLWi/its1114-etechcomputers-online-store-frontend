@@ -1,13 +1,12 @@
 import { getCurrentUser } from './login_controller.js';
-import { DEFAULT_ORDERS } from '../../data/orders.js';
 import { OrdersApi } from '../api/ordersApi.js';
 import { iconCheck, iconClose } from '../util/icons.js';
 import { etechAlert } from '../util/index.js';
 
-export { DEFAULT_ORDERS };
+export const DEFAULT_ORDERS = [];
 
 // Pure in-memory reactive state
-let memoryOrders = [...DEFAULT_ORDERS];
+let memoryOrders = [];
 
 /**
  * Sync orders from backend API into memory

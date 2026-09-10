@@ -1,14 +1,14 @@
 // ============================================================
 //  src/js/models/brand_data.js — Hardware Brands In-Memory Model Layer
 // ============================================================
-import { DEFAULT_BRANDS } from '../../data/brands.js';
 import { getStoredProducts } from './data.js';
 import { BrandsApi } from '../api/brandsApi.js';
 
+export const DEFAULT_BRANDS = [];
 export const BRANDS_STORAGE_KEY = 'etech_brands_data';
 
 // Reactive In-Memory Store
-let memoryBrands = Array.isArray(DEFAULT_BRANDS) ? DEFAULT_BRANDS.map(b => ({ ...b })) : [];
+let memoryBrands = [];
 
 /**
  * Retrieve all brands from in-memory state

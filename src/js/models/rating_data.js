@@ -3,20 +3,17 @@
 // ============================================================
 import { getStoredProducts, saveStoredProducts } from './data.js';
 import { runAutoBadgeAssignment, recordProductBehaviorEvent } from './taxonomy_data.js';
-import {
-  DEFAULT_REVIEWS,
-  DEFAULT_RATINGS,
-  defaultReviews,
-  defaultRatings
-} from '../../data/ratings_reviews.js';
 import { ReviewsApi } from '../api/reviewsApi.js';
 
-export { DEFAULT_REVIEWS, DEFAULT_RATINGS, defaultReviews, defaultRatings };
+export const DEFAULT_REVIEWS = [];
+export const DEFAULT_RATINGS = [];
+export const defaultReviews = [];
+export const defaultRatings = [];
 
 export const REVIEWS_STORAGE_KEY = 'etech_product_reviews';
 
 // Reactive In-Memory Reviews Store
-let memoryReviews = Array.isArray(defaultReviews) ? defaultReviews.map(r => ({ ...r })) : [];
+let memoryReviews = [];
 
 /**
  * Sync reviews from backend API for a product

@@ -1,15 +1,21 @@
 // ============================================================
 //  src/js/controller/branch_controller.js — Branch & Logistics Module
 // ============================================================
-import { DEFAULT_BRANCHES, CITY_DISTANCES } from '../../data/branches.js';
 import { BranchesApi } from '../api/branchesApi.js';
 
-export { DEFAULT_BRANCHES, CITY_DISTANCES };
+export const DEFAULT_BRANCHES = [];
+
+export const CITY_DISTANCES = {
+  "Colombo": { "Colombo": 5, "Galle": 125, "Matara": 160, "Kandy": 115, "Negombo": 38, "Jaffna": 395, "Kurunegala": 94, "Ratnapura": 101 },
+  "Galle": { "Colombo": 125, "Galle": 5, "Matara": 35, "Kandy": 220, "Negombo": 160, "Jaffna": 510, "Kurunegala": 210, "Ratnapura": 130 },
+  "Matara": { "Colombo": 160, "Galle": 35, "Matara": 5, "Kandy": 250, "Negombo": 195, "Jaffna": 540, "Kurunegala": 240, "Ratnapura": 150 },
+  "Kandy": { "Colombo": 115, "Galle": 220, "Matara": 250, "Kandy": 5, "Negombo": 105, "Jaffna": 310, "Kurunegala": 42, "Ratnapura": 125 }
+};
 
 export const BRANCHES_STORAGE_KEY = 'etech_branches';
 
 // Reactive In-Memory Store
-let memoryBranches = Array.isArray(DEFAULT_BRANCHES) ? DEFAULT_BRANCHES.map(b => ({ ...b })) : [];
+let memoryBranches = [];
 
 /**
  * Sync branches from backend API
@@ -34,7 +40,7 @@ export async function syncBranchesFromApi(activeOnly = false) {
         address: b.address || '',
         phone: b.phone || b.hotline || '',
         email: b.email || '',
-        baseShippingFee: parseFloat(b.baseShippingFee || b.baseRate || 300),
+        baseShippingFee: parseFloat(b.baseShippingFee || b.baseShippingRate || b.baseRate || 300),
         perKmFee: parseFloat(b.perKmFee || 25),
         status: b.status || (b.active !== false ? 'Active' : 'Inactive')
       }));

@@ -22,11 +22,10 @@ import {
 } from '../util/index.js';
 
 
-import { DEFAULT_HOT_DEALS } from '../../data/deals.js';
 import { NewsletterApi } from '../api/newsletterApi.js';
 import { NEWSLETTER_SOURCE } from '../models/newsletter_model.js';
 
-export const HOT_DEALS_DATA = DEFAULT_HOT_DEALS;
+export const HOT_DEALS_DATA = [];
 
 // Module State
 let activeDealCategory = 'all';
@@ -390,7 +389,8 @@ export function renderFlashDealsGrid() {
  * Toggles a deal in user's wishlist
  */
 export function toggleDealWishlist(dealId, btnElement) {
-  const deal = HOT_DEALS_DATA.find(d => d.id === dealId);
+  const deals = getHotDeals() || [];
+  const deal = deals.find(d => d.id === dealId);
   const targetId = deal ? (deal.productId || deal.id) : dealId;
   toggleWishlist(targetId, btnElement);
   renderFlashDealsGrid();

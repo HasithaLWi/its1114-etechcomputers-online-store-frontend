@@ -45,7 +45,7 @@ import {
     getAllRatings, getProductRatings, getUserRatingForProduct, hasUserRatedProduct, submitProductRating
 } from './src/js/models/rating_data.js';
 import { 
-    initShopLogic, renderFilteredProducts, 
+    initShopLogic, renderFilteredProducts, applyProductFilters, resetProductFilters,
     addCategoryFilter, removeCategoryFilter, clearCategoryFilters, getSelectedCategories,
     addBrandFilter, removeBrandFilter, clearBrandFilters, getSelectedBrands
 } from './src/js/controller/shop_controller.js';
@@ -284,7 +284,7 @@ Object.assign(window, {
     getAllRatings, getProductRatings, getUserRatingForProduct, hasUserRatedProduct, submitProductRating,
 
     // Shop Catalog & Brand Filters
-    initShopLogic, renderFilteredProducts,
+    initShopLogic, renderFilteredProducts, applyProductFilters, resetProductFilters,
     addCategoryFilter, removeCategoryFilter, clearCategoryFilters, getSelectedCategories,
     addBrandFilter, removeBrandFilter, clearBrandFilters, getSelectedBrands,
     renderHomeBrandsShowcase, scrollHomeBrands,

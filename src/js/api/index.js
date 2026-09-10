@@ -19,3 +19,4 @@ export { NewsletterApi } from './newsletterApi.js';
 export { PoliciesApi } from './policiesApi.js';
 export { ChatApi } from './chatApi.js';
 export { AnalyticsApi } from './analyticsApi.js';
+export { TestApi } from './testApi.js';

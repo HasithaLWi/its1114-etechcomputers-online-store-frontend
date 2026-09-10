@@ -1,8 +1,6 @@
-// ============================================================
-//  administrator.js — Dynamic Administrator Dashboard View Generator
-// ============================================================
 import { initAdminDashboard, switchAdminTab, closeAdminSidebar, toggleAdminSidebar } from '../../controller/admin_dashboard_controller.js';
 import { isLoggedIn, getCurrentUser } from '../../controller/login_controller.js';
+import { checkServerHealth, updateSystemStatusUI } from '../../util/server_health.js';
 
 /**
  * Dynamically renders and mounts the complete Administrator Management Console
@@ -255,11 +253,11 @@ export function renderAdminPage(queryPart) {
           <!-- Right Header Tools: Status, Profile -->
           <div class="flex items-center space-x-3 sm:space-x-4">
             <!-- System Status Pill -->
-            <div class="hidden sm:flex items-center space-x-2 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-200 shadow-2xs">
-              <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+            <div id="admin-system-status-pill" class="hidden sm:flex items-center space-x-2 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-200 shadow-2xs">
+              <span id="admin-system-status-dot" class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
               <div class="flex flex-col text-[10px] leading-tight">
                 <span class="text-[#64748b] text-[8px] font-semibold uppercase">System Status</span>
-                <span class="text-emerald-700 font-extrabold font-mono tracking-wider">ONLINE</span>
+                <span id="admin-system-status-text" class="text-emerald-700 font-extrabold font-mono tracking-wider">ONLINE</span>
               </div>
             </div>
 
@@ -778,7 +776,7 @@ export function renderAdminPage(queryPart) {
           <span class="text-[11px] font-medium">&copy; 2026 ETech Computers Management Console v3.5</span>
           <div class="flex items-center space-x-4">
             <span id="admin-footer-last-updated" class="text-[11px] font-mono">Last Updated: Aug 26, 2026 02:44 PM</span>
-            <span class="font-mono text-[10px] hidden sm:inline">System Status: <strong class="text-emerald-600 font-bold">ONLINE</strong></span>
+            <span id="admin-footer-status" class="font-mono text-[10px] hidden sm:inline">System Status: <strong class="text-emerald-600 font-bold">ONLINE</strong></span>
           </div>
         </footer>
 
@@ -805,6 +803,9 @@ export function initAdminPage(queryPart) {
     const tabParam = params.get('tab');
     if (tabParam) requestedTab = tabParam;
   }
+
+  // Ping test API to verify server online status & update UI
+  checkServerHealth(true);
 
   // Security Role Guard: Handled by initAdminDashboard
   initAdminDashboard();

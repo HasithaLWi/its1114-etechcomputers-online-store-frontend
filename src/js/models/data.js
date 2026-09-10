@@ -3,14 +3,13 @@
 // ============================================================
 import { ProductsApi } from '../api/productsApi.js';
 import { InventoryApi } from '../api/inventoryApi.js';
-import { products as defaultProducts } from '../../data/products.js';
 import { getCategories, getBadges } from './taxonomy_data.js';
 import { getBrands } from './brand_data.js';
 
 // Reactive In-Memory Products Store
-let memoryProducts = Array.isArray(defaultProducts) ? defaultProducts.map(p => ({ ...p })) : [];
+let memoryProducts = [];
 
-export const products = memoryProducts;
+export let products = memoryProducts;
 
 /**
  * Get all stored products from in-memory cache
@@ -47,6 +46,7 @@ export function getDeletedProducts() {
 export function saveStoredProducts(productsList) {
     if (Array.isArray(productsList)) {
         memoryProducts = [...productsList];
+        products = memoryProducts;
     }
 }
 
@@ -446,11 +446,30 @@ function resolveBadgeInfo(p, cachedBadges) {
 }
 
 /**
- * Fetch and sync products from backend API into in-memory store
+ * Fetch and sync products from backend API into in-memory store using /products/filter
+ * Supports Spring Boot Pageable and multi-criteria filters (category, brand, search, minPrice, maxPrice, badge, page, size, sortBy, sortDir)
  */
 export async function syncProductsFromApi(options = {}) {
     try {
-        const res = await ProductsApi.getAll();
+        const filterParams = {
+            page: options.page !== undefined ? options.page : 0,
+            size: options.size !== undefined ? options.size : 20,
+            sortBy: options.sortBy || 'id',
+            sortDir: options.sortDir || 'asc'
+        };
+
+        if (options.category) filterParams.category = options.category;
+        if (options.brand) filterParams.brand = options.brand;
+        if (options.search) filterParams.search = options.search;
+        if (options.minPrice !== undefined && options.minPrice !== null && options.minPrice !== '') {
+            filterParams.minPrice = options.minPrice;
+        }
+        if (options.maxPrice !== undefined && options.maxPrice !== null && options.maxPrice !== '') {
+            filterParams.maxPrice = options.maxPrice;
+        }
+        if (options.badge) filterParams.badge = options.badge;
+
+        const res = await ProductsApi.getFiltered(filterParams);
         let apiList = [];
         if (Array.isArray(res)) {
             apiList = res;
