@@ -1,301 +1,453 @@
 # 💻 ETech Computers — Next-Gen Enterprise E-Commerce & Hardware Management Platform
 
-[![ETech Version](https://img.shields.io/badge/version-2.4.0-blue.svg?style=for-the-badge)](https://github.com/)
-[![License](https://img.shields.io/badge/license-MIT-emerald.svg?style=for-the-badge)](LICENSE)
+[![ETech Version](https://img.shields.io/badge/Version-2.5.0--Enterprise-blue.svg?style=for-the-badge)](https://github.com/HasithaLWi/ITS1114-AAD-ETech-Computers-Online-Store-HTML)
+[![Coursework](https://img.shields.io/badge/IJSE%20HDSE-ITS1114--AAD-8A2BE2.svg?style=for-the-badge)](ETech_Computers_Project_Report.pdf)
+[![License](https://img.shields.io/badge/License-MIT-emerald.svg?style=for-the-badge)](LICENSE)
 [![Vanilla JS](https://img.shields.io/badge/JavaScript-ES6%2B%20Modules-F7DF1E.svg?style=for-the-badge&logo=javascript&logoColor=black)](https://developer.mozilla.org/en-US/docs/Web/JavaScript)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3.4-38B2AC.svg?style=for-the-badge&logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
-[![REST Backend](https://img.shields.io/badge/Backend-Spring%20Boot%20%2B%20MySQL-6DB33F.svg?style=for-the-badge&logo=spring&logoColor=white)](BACKEND_API_MIGRATION.md)
+[![REST Backend](https://img.shields.io/badge/Backend-Spring%20Boot%203%20%2B%20MySQL%208-6DB33F.svg?style=for-the-badge&logo=spring&logoColor=white)](https://github.com/HasithaLWi/etechbackend)
+[![System Status](https://img.shields.io/badge/Architecture-Dual--Mode%20Connected%20%2F%20Offline-0284c7.svg?style=for-the-badge)](#-api-layer--dual-mode-persistence)
 
-> A modern, full-featured **Single Page Application (SPA)** designed for high-performance gaming hardware, custom PC configurations, and computer peripherals. Engineered with **Vanilla JavaScript (ES Modules)**, **Tailwind CSS**, a custom glassmorphism design system, and an enterprise **Admin & Staff Management Console**.
+> An enterprise-grade, high-performance **Single Page Application (SPA)** engineered for custom PC building, gaming hardware retailing, regional warehouse logistics, and comprehensive retail management. Developed with **Vanilla JavaScript (ES6+ Modules)**, **Tailwind CSS**, a custom glassmorphism design engine, and fully integrated with a **Spring Boot 3 RESTful API & MySQL** backend.
 
 ---
 
 ## 📑 Table of Contents
 
-- [✨ Key Capabilities](#-key-capabilities)
-- [🛍️ Storefront Modules](#️-storefront-modules)
-- [🛡️ Enterprise Admin Console](#️-enterprise-admin-console)
+- [📌 Academic & Project Overview](#-academic--project-overview)
+- [✨ Key Architectural Capabilities](#-key-architectural-capabilities)
+- [🏛️ System Architecture & Data Flow](#️-system-architecture--data-flow)
+- [🛍️ Storefront Modules (Customer Experience)](#️-storefront-modules-customer-experience)
+- [🛡️ Enterprise Admin & Staff Console](#️-enterprise-admin--staff-console)
 - [🤖 AI Hardware Assistant ("E-T AI")](#-ai-hardware-assistant-e-t-ai)
-- [🎨 Design System & UI Architecture](#-design-system--ui-architecture)
-- [🏗️ Project Architecture & Directory Structure](#️-project-architecture--directory-structure)
-- [🔌 API Layer & Dual-Mode Persistence](#-api-layer--dual-mode-persistence)
-- [🚀 Getting Started & Local Setup](#-getting-started--local-setup)
-- [👥 Default Demo User Accounts](#-default-demo-user-accounts)
+- [🎨 Design System & UI Engineering](#-design-system--ui-engineering)
+- [🔌 Spring Boot REST API Integration Layer](#-spring-boot-rest-api-integration-layer)
+- [📡 Live Server Health & Status Monitoring](#-live-server-health--status-monitoring)
+- [🏗️ Project Directory Structure](#️-project-directory-structure)
+- [🚀 Local Setup & Installation Guide](#-local-setup--installation-guide)
+- [👥 Default Demo User Credentials](#-default-demo-user-credentials)
 - [🗺️ Hash Routing Specification](#️-hash-routing-specification)
-- [📄 Documentation References](#-documentation-references)
+- [📄 Academic Project Report & Coursework Compliance](#-academic-project-report--coursework-compliance)
 - [📜 License](#-license)
 
 ---
 
-## ✨ Key Capabilities
+## 📌 Academic & Project Overview
 
-- **⚡ Blazing-Fast SPA Architecture**: Hash-based dynamic routing (`#home`, `#shop`, `#product-details`, `#cart`, `#checkout`, `#wishlist`, `#deals`, `#branches`, `#about`, `#policies`, `#account`, `#login`, `#admin`) with zero page reloads.
-- **🏬 Multi-Branch Regional Inventory**: Real-time cross-branch stock distribution across **Colombo HQ**, **Kandy**, **Galle**, **Matara**, and **Kurunegala**.
-- **🚚 Smart Multi-Warehouse Order Routing**: Automated branch distance calculation and stock allocation for lightning-fast customer fulfillment.
-- **🛡️ Enterprise Role-Based Access Control (RBAC)**: Secure access management with dedicated interfaces for `ADMIN`, `STAFF`, and `CUSTOMER` roles.
-- **💬 AI Hardware Assistant**: Built-in "E-T AI" customer assistant trained on computer parts compatibility, warranty terms, and stock queries.
-- **💎 Custom `etechAlert` & Glassmorphism UI**: Beautiful, accessible modal dialogs (`confirmDelete`, `confirmUpdate`, `confirmCreate`, `prompt`, `info`, `warning`, `error`) and unified vector SVG iconography.
-- **🔄 Dual Data Layer**: Transparent, resilient design that operates against a **Spring Boot REST API** with automated fallback to persistent browser storage.
+| Attribute | Details |
+| :--- | :--- |
+| **Project Title** | ETech Computers Online Store & Enterprise Hardware Management Platform |
+| **Course Module** | **ITS 1114** — Advanced API Development (AAD) |
+| **Academic Program** | Higher Diploma in Software Engineering (**HDSE 75**) |
+| **Institution** | **Institute of Software Engineering (IJSE)** — Sri Lanka |
+| **Lead Developer** | **Hasitha Wijesinghe** ([@HasithaLWi](https://github.com/HasithaLWi)) |
+| **Frontend Repository** | [ITS1114-AAD-ETech-Computers-Online-Store-HTML](https://github.com/HasithaLWi/ITS1114-AAD-ETech-Computers-Online-Store-HTML) |
+| **Companion Backend** | [etechbackend](https://github.com/HasithaLWi/etechbackend) (Spring Boot 3, Spring Data JPA, Spring Security 6) |
+| **Official Report** | [`ETech_Computers_Project_Report.pdf`](ETech_Computers_Project_Report.pdf) (Complete academic dissertation & coursework report) |
 
 ---
 
-## 🛍️ Storefront Modules
+## ✨ Key Architectural Capabilities
 
-| Module | Route | Key Features |
+- **⚡ Zero-Framework SPA Architecture**: High-speed, hash-based client routing (`#home`, `#shop`, `#product-details`, `#cart`, `#checkout`, `#wishlist`, `#deals`, `#branches`, `#about`, `#policies`, `#account`, `#login`, `#admin`) with zero full-page reloads and native browser ES Module resolution (`type="module"`).
+- **🏬 Multi-Branch Regional Inventory Engine**: Real-time cross-branch stock distribution across 5 regional hubs: **Colombo HQ**, **Kandy**, **Galle**, **Matara**, and **Kurunegala**.
+- **🚚 Haversine Distance & Smart Warehouse Routing**: Automated calculation of customer delivery distances and intelligent stock allocation from the nearest operational branch warehouse.
+- **🔄 Inter-Branch Stock Requisition Workflow**: Multi-stage transfer lifecycle (`Draft` ➔ `Pending Approval` ➔ `Dispatched / In-Transit` ➔ `Received` / `Cancelled`) with automated inventory reconciliation and validation guards.
+- **🛡️ Enterprise Role-Based Access Control (RBAC)**: Fine-grained permission model strictly isolating `ADMIN`, `STAFF`, and `CUSTOMER` privileges across frontend views and authenticated backend API calls.
+- **💬 Intelligent AI Hardware Assistant ("E-T AI")**: Context-aware interactive assistant providing hardware compatibility validation (CPU socket, GPU length, PSU wattage), budget PC build recommendations, live stock inquiries, and warranty assistance.
+- **💎 Glassmorphic Precision UI System**: Custom `etechAlert` modal dialog system (`confirmDelete`, `confirmUpdate`, `confirmCreate`, `prompt`, `info`, `warning`, `error`), stacking toast engine (`toast.js`), and monochrome/dual-tone vector SVG iconography.
+- **🔄 Resilient Dual-Mode Data Layer**: Connected directly to the **Spring Boot 3 REST API** with automated JWT Bearer authorization, combined with a transparent fallback to client-side storage for offline demonstrations.
+- **📡 Real-Time Server Health Tracker**: Proactive background connectivity pinging (`server_health.js`) displaying live system status pills (`ONLINE` / `OFFLINE`) and notifying users of server transitions.
+
+---
+
+## 🏛️ System Architecture & Data Flow
+
+```mermaid
+flowchart TD
+    subgraph Client ["Frontend Single Page Application (Vanilla ES6 Modules)"]
+        UI["DOM View Layer (Tailwind CSS 3.4 + Glassmorphism)"]
+        Router["SPA Hash Router (src/js/app/app.js)"]
+        Controllers["17 Modular View Controllers (src/js/controller/*)"]
+        AlertToast["Custom etechAlert & Toast Engine"]
+        HealthMonitor["Server Health Tracker (server_health.js)"]
+        DataModels["In-Memory Models & Fallback State (src/js/models/*)"]
+        APIClient["Unified API Client & Interceptor (src/js/api/apiClient.js)"]
+    end
+
+    subgraph Backend ["Spring Boot 3 REST Backend (etechbackend)"]
+        SecFilter["Spring Security 6 Filter Chain & JWT Validator"]
+        RESTControllers["Spring MVC REST Controllers (/api/v1/*)"]
+        ServiceLayer["Transactional Service Layer & Business Logic"]
+        Repository["Spring Data JPA / Hibernate"]
+    end
+
+    subgraph Database ["Persistence Layer"]
+        MySQL[("MySQL 8.0 Relational Database")]
+    end
+
+    UI --> Router
+    Router --> Controllers
+    Controllers --> AlertToast
+    Controllers --> DataModels
+    Controllers --> APIClient
+    HealthMonitor -.->|Periodic Health Ping| APIClient
+    
+    APIClient -->|Bearer JWT HTTP Requests| SecFilter
+    SecFilter --> RESTControllers
+    RESTControllers --> ServiceLayer
+    ServiceLayer --> Repository
+    Repository --> MySQL
+```
+
+---
+
+## 🛍️ Storefront Modules (Customer Experience)
+
+The customer-facing portal offers an end-to-end e-commerce journey tailored for PC enthusiasts and enterprise hardware buyers:
+
+| Module | Route | Key Features & Business Capabilities |
 | :--- | :--- | :--- |
-| **Hero & Landing Showcase** | `#home` | 3D Interactive promo carousel, trending categories, featured builds, flash deal countdowns, customer reviews, and brand spotlight. |
-| **Global Product Catalog** | `#shop` | Multi-facet live filtering by Category, Subcategory, Brand, Price range slider, In-stock status, Spec tags, Dynamic sorting, and live keyword search. |
-| **Product Detail Experience** | `#product-details?id=...` | Multi-angle 5-image gallery with zoom preview, technical spec sheet, live branch-by-branch stock checker, verified customer reviews, and direct cart/wishlist sync. |
-| **Dynamic Wishlist Hub** | `#wishlist` | Saved items management with instant cart transfer, price drop indicators, and real-time badge synchronizers. |
-| **Hot Deals & Flash Sales** | `#deals` | Live countdown clocks, stock claim progress bars, limited-time bundle promotions, and instant deal checkout. |
-| **Multi-Branch Store Locator** | `#branches` | Interactive branch directory, live operational status (Open/Closed), contact hotlines, direct email links, and embedded map navigation. |
-| **Cart & Multi-Step Checkout** | `#cart`, `#checkout` | Dynamic subtotal calculation, coupon voucher validation, nearest-branch routing, delivery address management, and flexible payment gateways (Card, Bank Transfer, COD, Koko/Mintpay). |
-| **Corporate Legal & Policies** | `#policies` | Live searchable legal documents: Terms of Service, Privacy Policy, Return & Warranty Guidelines, and Corporate Information. |
-| **Customer Account Portal** | `#account` | Personal profile management, password security manager, order history ledger with printable invoice summaries. |
+| **Hero & Landing Showcase** | `#home` | 3D promo carousel, trending category cards, featured custom PC builds, live flash deal countdowns, verified customer reviews, and brand partner showcase. |
+| **Global Product Catalog** | `#shop` | Multi-facet live filtering by Category, Subcategory, Brand, Price Range Slider, In-Stock Availability, and Technical Spec Tags. Real-time dynamic search and sorting (Price, Newest, Popularity). |
+| **Product Detail Experience** | `#product-details?id=...` | 5-angle image zoom preview gallery, full technical specification matrix, real-time regional branch availability matrix, verified customer reviews with star ratings, and bundle deals. |
+| **Dynamic Wishlist Hub** | `#wishlist` | Saved hardware wishlist, stock status alerts, instant single-item or bulk cart transfer, and badge synchronization. |
+| **Hot Deals & Flash Sales** | `#deals` | Live countdown clocks, stock claim progress indicators, time-sensitive bundle promotions, and instant deal checkout. |
+| **Multi-Branch Store Locator** | `#branches` | Interactive branch directory for Colombo HQ, Kandy, Galle, Matara, and Kurunegala with live operational indicators (Open/Closed), contact hotlines, direct email links, and embedded map navigation. |
+| **Cart & Multi-Step Checkout** | `#cart`, `#checkout` | Dynamic subtotal calculation, coupon voucher validation, automatic nearest-branch fulfillment routing, delivery address manager, and payment methods (Card, Bank Transfer, COD, Koko/Mintpay). |
+| **Customer Account Portal** | `#account` | Customer profile management, password security updater, paginated order ledger, and printable order invoice summaries. |
+| **Corporate Story & Legal** | `#about`, `#policies` | Company milestones, brand partnerships, certifications, searchable Terms of Service, Privacy Policy, Return & Warranty Guidelines, and Corporate Information. |
+| **Authentication & Portal** | `#login` | Unified Sign-In and Sign-Up portal with JWT authentication, role detection, session persistence, and validation. |
 
 ---
 
-## 🛡️ Enterprise Admin Console
+## 🛡️ Enterprise Admin & Staff Console
 
-Accessible via `#admin` for authorized `ADMIN` and `STAFF` users, providing **12 dedicated management suites**:
+Accessible via `#admin` for authorized `ADMIN` and `STAFF` users. The console provides **13 specialized management suites**:
 
 ```
-Admin Console Dashboard
- ├── 📊 Operational KPI Summary (Revenue, Orders, Low Stock Alerts, Active Users)
- ├── 📦 Product Catalog Manager (Full CRUD, 5-Image Gallery, Spec Builder, Branch Allocation)
- ├── 🏷️ Taxonomy & Category Manager (Category Tree Hierarchy, Subcategories, Badge Rules)
- ├── 🏢 Brand & Manufacturer Registry (Tier Badges, Warranty Rules, Origin Country, Logos)
- ├── 🏥 Stock Health & Inventory Matrix (Regional Stock Levels, Reorder Thresholds, Quick Restock)
- ├── 🚚 Inter-Branch Stock Transfers (Draft ➔ Pending Approval ➔ Dispatched ➔ Received Workflow)
- ├── 📋 Order Lifecycle Manager (Order Status Pipelines, Invoice Generator, Tracking Numbers)
- ├── ⚡ Promotion & Deals Studio (Flash Deal Scheduler, Countdown Timers, Bundle Configurations)
- ├── 📧 Newsletter & Broadcast Studio (Subscriber Audience, HTML Campaign Composer, Preview/Send)
- ├── 🏛️ Corporate Profile & Policy Editor (Live Visual Policy Editor, Company Metadata)
- ├── 👥 User & Access Control (Role Assignments, Account Suspension, Activity Tracking)
- ├── 🗑️ Trash Bin & Recovery Vault (Two-Stage Soft Delete, Item Restoration, Permanent Purge)
- └── 📈 Financial & Analytics Reports (Sales Trends, Category Breakdown, Profit Margin Insights)
+Admin Console Dashboard (#admin)
+ ├── 📊 1. Executive KPI Summary (Revenue, Orders, Low Stock Alerts, Active Users, Chart.js Visuals)
+ ├── 📦 2. Product Catalog Manager (Full CRUD, 5-Image Gallery, Dynamic Spec Builder, Regional Stock Distribution)
+ ├── 🏷️ 3. Taxonomy & Category Engine (Hierarchical Categories, Subcategories, Badge Rules)
+ ├── 🏢 4. Brand & Manufacturer Registry (Tier Badges, Warranty Rules, Origin Country, Vector Logos)
+ ├── 🏥 5. Stock Health & Inventory Matrix (Regional Stock Levels, Reorder Thresholds, One-Click Restock)
+ ├── 🚚 6. Inter-Branch Stock Transfers (Draft ➔ Pending Approval ➔ In-Transit ➔ Received Workflow)
+ ├── 📋 7. Order Lifecycle Manager (Order Status Pipeline, Printable Invoices, Courier Tracking Assignment)
+ ├── ⚡ 8. Hot Deals & Promotion Studio (Flash Deal Scheduler, Countdown Timer Generator, Bundle Builder)
+ ├── 📧 9. Newsletter & Broadcast Studio (Subscriber List, Rich HTML Campaign Composer, Preview/Send)
+ ├── 🏛️ 10. Corporate Profile & Policy Editor (Live WYSIWYG Policy Editor, Company Metadata Manager)
+ ├── 👥 11. User & Access Control (Staff & Customer Accounts, Role Assignment, Account Suspension)
+ ├── 🗑️ 12. Trash Bin & Recovery Vault (Two-Stage Soft-Delete Recovery System, Permanent Purge)
+ └── 📈 13. Financial & Analytics Reports (Sales Trends, Category Breakdown, Profit Margin Insights, CSV Export)
+```
+
+### Inter-Branch Stock Transfer Workflow
+
+```mermaid
+stateDiagram-v2
+    [*] --> Draft: Staff/Admin creates Transfer Request
+    Draft --> Pending_Approval: Submit for Regional Review
+    Pending_Approval --> In_Transit: Source Branch Approves & Dispatches Stock
+    Pending_Approval --> Cancelled: Rejection / Stock Unavailable
+    In_Transit --> Received: Destination Branch Confirms Delivery
+    Received --> [*]: Automatic Inventory Reconciliation
+    Cancelled --> [*]: Stock Reserved is Released
 ```
 
 ---
 
 ## 🤖 AI Hardware Assistant ("E-T AI")
 
-Located at the bottom right corner or accessible via `#chatbot`:
-- **Context-Aware Recommendations**: Recommends PC builds based on gaming, editing, or office budgets.
-- **Hardware Compatibility Checker**: Validates CPU socket compatibility, GPU length clearances, and PSU wattage requirements.
-- **Order & Inventory Tracking**: Queries real-time stock levels across regional branches and guides users through order tracking and warranty claims.
+Located at the bottom right corner or accessible directly via `#chatbot`:
+- **Hardware Compatibility Checker**: Validates CPU socket compatibility (e.g., LGA 1700 vs. AM5), motherboard chipset alignment, GPU case clearances, and PSU wattage headroom.
+- **Budget Build Recommendations**: Provides optimized PC part lists tailored for Gaming, Content Creation, or Office Productivity across defined budget tiers (LKR).
+- **Live Regional Inventory Queries**: Cross-checks branch stock levels in real time to inform customers where their desired hardware is available for immediate pickup.
+- **Warranty & Service Guide**: Directly references corporate warranty terms, RMA procedures, and branch repair centers.
 
 ---
 
-## 🎨 Design System & UI Architecture
+## 🎨 Design System & UI Engineering
 
 The application implements the **Precision Tech Dark & Neutral Modern Design System**:
 
-- **Color Tokens**: Curated Slate & Navy backgrounds (`#0f172a`, `#1e293b`), Slate border accents (`#334155`, `#e2e8f0`), and vibrant action colors (Royal Blue `#2563eb`, Emerald `#10b981`, Amber `#f59e0b`, Rose `#ef4444`).
-- **Typography**: Google Font **Plus Jakarta Sans** with strict typographic scale (`text-xs` through `text-4xl`).
-- **Unified Vector Icon Library** (`src/js/util/icons.js`): Single-color inline SVGs with responsive container badges (`renderIconBox()`).
-- **Custom `etechAlert` Confirmation Engine** (`src/js/util/etech_alert.js`):
+- **Typography**: Google Font **Plus Jakarta Sans** for crisp editorial readability paired with **JetBrains Mono** for technical specs, SKUs, and monetary values.
+- **Tailwind CSS Token System**: Custom extended palette including:
+  - **Navy Dark Tokens**: Deep backgrounds (`#0f172a`, `#1e293b`), Slate border accents (`#334155`, `#e2e8f0`).
+  - **Action Palette**: Royal Blue (`#2563eb`), Emerald (`#10b981`), Amber (`#f59e0b`), Rose (`#ef4444`), Sky Accent (`#0284c7`).
+- **Unified Vector Icon Library** (`src/js/util/icons.js`): High-resolution single-color inline SVGs with responsive container badges (`renderIconBox()`).
+- **Custom `etechAlert` Engine** (`src/js/util/etech_alert.js`):
   - Action-Specific Themes: `confirmDelete` (Rose/Danger), `confirmUpdate` (Blue/Update), `confirmCreate` (Emerald/Success).
-  - Built-in `etechAlert.prompt` for transfer cancellation notes and quantity inputs.
-  - Keyboard Accessibility (`Enter` to confirm, `Escape` to cancel) and glassmorphism backdrops.
-- **Toast Notification Engine** (`src/js/util/toast.js`): Floating stacking toast alerts with automatic timeout dismissal and category badges.
+  - Built-in `etechAlert.prompt` for transfer cancellation notes and restock quantity inputs.
+  - Full keyboard accessibility (`Enter` to confirm, `Escape` to cancel) and frosted glass backdrop blur.
+- **Toast Notification Engine** (`src/js/util/toast.js`): Floating stacking toast alerts with automatic timeout dismissal and category badges (`success`, `info`, `warning`, `error`).
 
 ---
 
-## 🏗️ Project Architecture & Directory Structure
+## 🔌 Spring Boot REST API Integration Layer
+
+The frontend communicates with the **Spring Boot 3 backend (`etechbackend`)** via a clean, modular API service layer located in `src/js/api/`:
+
+```
+src/js/api/
+├── apiClient.js          # Centralized Fetch/AJAX client, JWT session handling, 401 interceptor
+├── testApi.js            # Server connectivity and health check endpoints
+├── userApi.js            # Authentication (login, register) and User CRUD operations
+├── productsApi.js        # Product catalog queries, search, specs, and image management
+├── categoriesApi.js      # Category tree and taxonomy endpoints
+├── brandsApi.js          # Brand and manufacturer registry endpoints
+├── badgesApi.js          # Product badges and promotional tags
+├── inventoryApi.js       # Branch stock levels, reorder thresholds, and restock operations
+├── transfersApi.js       # Multi-branch transfer lifecycle management
+├── ordersApi.js          # Checkout, order tracking, and invoice generation
+├── promotionsApi.js      # Flash deals, banner ads, and bundle packages
+├── newsletterApi.js      # Subscriber management and email broadcast campaigns
+├── policiesApi.js        # Business profile and corporate policy documents
+├── reviewsApi.js         # Customer ratings and verified reviews
+├── wishlistApi.js        # Customer saved items and wishlist syncing
+├── branchesApi.js        # Store locations, working hours, and coordinates
+├── analyticsApi.js       # Executive revenue, category performance, and sales data
+└── chatApi.js            # E-T AI assistant proxy endpoints
+```
+
+### Core API Endpoints Specification
+
+| Domain | Method | Endpoint | Access Level | Description |
+| :--- | :--- | :--- | :--- | :--- |
+| **Auth** | `POST` | `/api/v1/auth/authenticate` | Public | Authenticate user credentials and issue JWT Bearer token |
+| **Auth** | `POST` | `/api/v1/auth/register` | Public | Register new customer account |
+| **Products** | `GET` | `/api/v1/products` | Public | Retrieve filtered, sorted, and paginated product catalog |
+| **Products** | `GET` | `/api/v1/products/{id}` | Public | Fetch complete product details with specifications and stock |
+| **Products** | `POST`, `PUT`, `DELETE` | `/api/v1/products` | `ADMIN`, `STAFF` | Product catalog administration and soft deletion |
+| **Categories** | `GET`, `POST`, `PUT` | `/api/v1/categories` | Mixed | Retrieve category tree; manage taxonomy |
+| **Brands** | `GET`, `POST`, `PUT` | `/api/v1/brands` | Mixed | Manufacturer directory and tier badges |
+| **Inventory** | `GET` | `/api/v1/inventory` | `ADMIN`, `STAFF` | Matrix of regional branch stock levels and low-stock alerts |
+| **Inventory** | `POST` | `/api/v1/inventory/restock` | `ADMIN`, `STAFF` | One-click warehouse restock adjustment |
+| **Transfers** | `GET`, `POST` | `/api/v1/transfers` | `ADMIN`, `STAFF` | Inter-branch transfer requisition workflow |
+| **Transfers** | `PATCH` | `/api/v1/transfers/{id}/status` | `ADMIN`, `STAFF` | Transition transfer status (Approve, Dispatch, Receive, Cancel) |
+| **Orders** | `POST` | `/api/v1/orders` | `CUSTOMER` | Place new order with smart branch fulfillment allocation |
+| **Orders** | `GET` | `/api/v1/orders` | `CUSTOMER`, `ADMIN` | Customer order history or enterprise order ledger |
+| **Orders** | `PATCH` | `/api/v1/orders/{id}/status` | `ADMIN`, `STAFF` | Update order processing status and assign tracking number |
+| **Orders** | `GET` | `/api/v1/orders/{id}/invoice` | Authenticated | Generate printable order invoice |
+| **Promotions** | `GET`, `POST`, `PUT` | `/api/v1/promotions` | Mixed | Hot deals, bundle builder, and countdown scheduler |
+| **Newsletter** | `POST` | `/api/v1/newsletter/subscribe` | Public | Storefront newsletter subscription |
+| **Newsletter** | `POST` | `/api/v1/newsletter/campaigns` | `ADMIN` | Compose and dispatch broadcast marketing campaigns |
+| **Policies** | `GET`, `PUT` | `/api/v1/policies` | Mixed | View or edit corporate terms, warranty, and company profile |
+| **Reviews** | `GET`, `POST` | `/api/v1/reviews` | Mixed | Product customer feedback and star ratings |
+| **Branches** | `GET`, `POST`, `PUT` | `/api/v1/branches` | Mixed | Regional store directory and operational hours |
+| **Analytics** | `GET` | `/api/v1/analytics/overview` | `ADMIN` | Revenue KPIs, sales trends, and category distribution |
+| **Health** | `GET` | `/api/v1/test/health` | Public | Backend connectivity and uptime health probe |
+
+---
+
+## 📡 Live Server Health & Status Monitoring
+
+The platform includes an intelligent connectivity daemon (`src/js/util/server_health.js`):
+
+- **Proactive Health Checks**: Periodically pings `/api/v1/test/health` to assess Spring Boot backend availability.
+- **Visual Status Badges**:
+  - `ONLINE`: Glowing emerald badge displayed in the Admin Console header and footer.
+  - `OFFLINE`: Crisp rose alert badge alerting administrators when running on local fallback mode.
+- **Graceful Fallback**: If the backend is temporarily offline, the controllers transparently maintain UI continuity using client-side persistent storage without breaking the interface.
+
+---
+
+## 🏗️ Project Directory Structure
 
 ```
 ITS1114-AAD-ETech-Computers-Online-Store-HTML/
-├── index.html                           # Main Single Page Application Entry Point
-├── script.js                            # Central ES Module Bridge & Global Window Bindings
-├── README.md                            # Comprehensive System Documentation
-├── THEME_AND_STYLING_GUIDE.md           # UI Design System & Component Guidelines
-├── BACKEND_API_MIGRATION.md             # Spring Boot REST API Integration & Schema Spec
+├── index.html                           # Single Page Application entry HTML & layout shells
+├── script.js                            # Central ES Module bridge & window runtime bindings
+├── README.md                            # Comprehensive enterprise system documentation
+├── ETech_Computers_Project_Report.pdf   # Official IJSE Coursework Final Project Report
+├── .gitignore                           # Git version control ignore rules
 │
-├── public/                              # Static Assets
-│   ├── images/                          # Product Images, Brand Logos & Banners
-│   └── fonts/                           # Local Typography Fallbacks
+├── public/                              # Static public assets
+│   ├── images/                          # High-resolution hardware photos, banners & brand logos
+│   └── fonts/                           # Typography fallbacks
 │
 └── src/
     ├── css/
-    │   ├── global.css                   # Custom Animations, Scrollbars & Glassmorphism
-    │   └── variables.css                # CSS Custom Properties & Design Tokens
+    │   ├── global.css                   # Custom scrollbars, glassmorphism filters & keyframes
+    │   └── variables.css                # CSS custom properties & design tokens
     │
-    ├── data/                            # Seed Data & Fallback Storage Definitions
-    │   ├── branches.js                  # Regional Branch Store Locations
-    │   ├── brands.js                    # Brand & Manufacturer Directory
-    │   ├── deals.js                     # Hot Deals & Bundle Promotions
-    │   ├── orders.js                    # Mock Orders & Invoices Ledger
-    │   ├── policies.js                  # Legal Policies & Corporate Profile
-    │   ├── products.js                  # Product Catalog Seed Data
-    │   ├── ratings_reviews.js           # Verified Customer Reviews
-    │   ├── taxonomy.js                  # Categories, Subcategories & Badges
-    │   ├── transfers.js                 # Inter-Branch Stock Transfers
-    │   └── users.js                     # Default Users & Credentials
+    ├── data/                            # Persistent fallback seed definitions
+    │   ├── index.js                     # Central data layer barrel export
+    │   └── policies.js                  # Default legal policies & corporate profile data
     │
     └── js/
-        ├── app/                         # App Router & View Initializers
-        │   ├── app.js                   # SPA Core Router, Navigation & Route Handlers
-        │   ├── administrator/           # Admin Page Bootstrapper
-        │   ├── about/                   # About Us View Initializer
-        │   └── login/                   # Auth Page Bootstrapper
+        ├── api/                         # Spring Boot 3 REST API Client Layer
+        │   ├── apiClient.js             # Fetch/AJAX engine with JWT Bearer auto-injection
+        │   ├── analyticsApi.js          # Financial metrics & sales charts endpoints
+        │   ├── badgesApi.js             # Product badges & promo tag endpoints
+        │   ├── branchesApi.js           # Regional store locations endpoints
+        │   ├── brandsApi.js             # Manufacturer registry endpoints
+        │   ├── categoriesApi.js         # Category taxonomy endpoints
+        │   ├── chatApi.js               # E-T AI assistant proxy endpoints
+        │   ├── index.js                 # Unified API Barrel Export (18 modules)
+        │   ├── inventoryApi.js          # Branch stock levels & restock endpoints
+        │   ├── newsletterApi.js         # Subscriber & marketing campaign endpoints
+        │   ├── ordersApi.js             # Order processing & invoice endpoints
+        │   ├── policiesApi.js           # Corporate policies & company profile endpoints
+        │   ├── productsApi.js           # Product catalog CRUD endpoints
+        │   ├── promotionsApi.js         # Flash deals & bundle promotion endpoints
+        │   ├── reviewsApi.js            # Rating & customer review endpoints
+        │   ├── testApi.js               # Server health check ping endpoint
+        │   ├── transfersApi.js          # Inter-branch stock transfer endpoints
+        │   ├── userApi.js               # Auth (JWT) & user RBAC endpoints
+        │   └── wishlistApi.js           # Customer wishlist endpoints
         │
-        ├── api/                         # Backend REST API Integration Layer
-        │   ├── apiClient.js             # HTTP Client, JWT Session Token & Auto-Logout Handler
-        │   ├── productsApi.js           # Product Catalog Endpoints
-        │   ├── ordersApi.js             # Order Placement & Tracking Endpoints
-        │   ├── inventoryApi.js          # Branch Stock & Restock Endpoints
-        │   ├── transfersApi.js          # Inter-Branch Stock Transfer Endpoints
-        │   ├── userApi.js               # Auth, User Profile & Staff RBAC Endpoints
-        │   ├── categoriesApi.js         # Category & Taxonomy Endpoints
-        │   ├── brandsApi.js             # Brand Registry Endpoints
-        │   ├── promotionsApi.js         # Hot Deals & Promo Endpoints
-        │   ├── newsletterApi.js         # Newsletter & Broadcast Endpoints
-        │   ├── policiesApi.js           # Corporate Info & Policies Endpoints
-        │   ├── reviewsApi.js            # Rating & Review Endpoints
-        │   ├── wishlistApi.js           # Customer Wishlist Endpoints
-        │   ├── branchesApi.js           # Branch Directory Endpoints
-        │   ├── analyticsApi.js          # Revenue & Sales Reports Endpoints
-        │   └── chatApi.js               # Gemini AI Chatbot Proxy Endpoints
+        ├── app/                         # Application router & page initializers
+        │   ├── app.js                   # SPA Core Hash Router & navigation listeners
+        │   ├── about/about.js           # Corporate About Us page controller
+        │   ├── administrator/administrator.js # Admin console view bootstrapper
+        │   └── login/login.js           # Authentication view bootstrapper
         │
-        ├── controller/                  # Business Logic & View Controllers
-        │   ├── admin_dashboard_controller.js      # Admin Console Core & Routing
-        │   ├── product_management_controller.js   # Product Catalog CRUD
-        │   ├── order_management_controller.js     # Order Ledger & Invoicing
-        │   ├── stock_health_controller.js         # Inventory Matrix & Low-Stock Alerts
-        │   ├── transfer_management_controller.js  # Inter-Branch Transfers Workflow
-        │   ├── taxonomy_controller.js             # Categories & Badge Rules
-        │   ├── brand_management_controller.js     # Brands & Manufacturer Tiers
-        │   ├── promotion_management_controller.js # Deals, Banners & Bundles
-        │   ├── newsletter_management_controller.js# Subscriber Campaigns & Studio
-        │   ├── policy_management_controller.js    # Policy Editor & Corporate Profile
-        │   ├── user_management_controller.js      # User Accounts & RBAC Matrix
-        │   ├── trash_bin_controller.js            # Soft-Delete Recovery Vault
-        │   ├── analytics_and_report_controller.js # Financial Charts & CSV Exports
-        │   ├── shop_controller.js                 # Storefront Filter & Catalog Engine
-        │   ├── product-details_controller.js      # Product Detail Page Renderer
-        │   ├── cart_controller.js                 # Cart & Multi-Step Checkout Logic
-        │   ├── wishlist_controller.js             # Wishlist Management
-        │   ├── hot_deal_controller.js             # Deals & Flash Sales Hub
-        │   ├── branch_controller.js               # Store Locator & Map Directives
-        │   ├── branch_management_controller.js    # Admin Branch Operations
-        │   ├── login_controller.js                # Auth, Sign In, Sign Up & Session
-        │   └── chatbot_controller.js              # E-T AI Assistant & Knowledge Base
+        ├── components/                  # Reusable UI component modules
+        │   ├── product_detail_cart.js   # Quick-view drawer & mini-cart modal
+        │   └── user_profile_modal_container.js # Profile editor & password change modal
         │
-        ├── models/                      # Domain Models & In-Memory State Managers
-        │   ├── product_model.js         # Product Schema & Computed Helpers
-        │   ├── user_model.js            # User Schema, Role Guards & Storage
-        │   ├── deals_data.js            # Deals In-Memory Store
-        │   ├── taxonomy_data.js         # Category Tree Store
-        │   ├── brand_data.js            # Brand Store
-        │   ├── transfers_data.js        # Stock Transfers Store
-        │   ├── newsletter_model.js      # Subscribers & Campaign Store
-        │   ├── policy-data.js           # Policy Document Store
-        │   ├── rating_data.js           # Customer Reviews Store
-        │   ├── data.js                  # Master State Aggregator
-        │   └── et-training.js           # Hardware AI Knowledge Base & Q&A
+        ├── controller/                  # Business logic & view controllers (17 modules)
+        │   ├── admin_dashboard_controller.js       # Admin Console Core & Routing
+        │   ├── analytics_and_report_controller.js  # Revenue charts & CSV export
+        │   ├── branch_controller.js                # Customer branch locator & map directives
+        │   ├── branch_management_controller.js     # Admin branch operations & hours editor
+        │   ├── brand_management_controller.js      # Brand registry & tier builder
+        │   ├── cart_controller.js                  # Cart calculation & multi-step checkout
+        │   ├── chatbot_controller.js               # E-T AI Hardware Consultant engine
+        │   ├── hot_deal_controller.js              # Deals, bundles & countdown timers
+        │   ├── login_controller.js                 # Sign In, Sign Up & JWT session manager
+        │   ├── newsletter_management_controller.js # Broadcast email studio & subscriber CRUD
+        │   ├── order_management_controller.js      # Order fulfillment pipeline & invoices
+        │   ├── policy_management_controller.js     # WYSIWYG legal policies editor
+        │   ├── product-details_controller.js       # Product details, 5-image zoom & reviews
+        │   ├── product_management_controller.js    # Product CRUD, specs builder & gallery
+        │   ├── promotion_management_controller.js  # Promo banners & flash sale manager
+        │   ├── shop_controller.js                  # Storefront faceted filter & catalog engine
+        │   ├── stock_health_controller.js          # Regional inventory matrix & alerts
+        │   ├── taxonomy_controller.js              # Categories, subcategories & badge rules
+        │   ├── transfer_management_controller.js   # Inter-branch stock transfer workflow
+        │   ├── trash_bin_controller.js             # Soft-delete recovery vault
+        │   ├── user_management_controller.js       # User accounts & RBAC security matrix
+        │   └── wishlist_controller.js              # Wishlist management & cart sync
         │
-        ├── components/                  # Modular UI Web Components
-        │   ├── product_detail_cart.js   # Product Quick-View & Cart Drawer
-        │   └── user_profile_modal_container.js # Profile Edit & Password Security Modal
+        ├── models/                      # Domain state managers & in-memory stores
+        │   ├── brand_data.js            # Brand catalog state
+        │   ├── data.js                  # Master product state aggregator
+        │   ├── deals_data.js            # Deals & promotions state
+        │   ├── et-training.js           # Hardware AI knowledge base & rules
+        │   ├── newsletter_model.js      # Subscribers & campaign data model
+        │   ├── policy-data.js           # Legal policy document store
+        │   ├── product_model.js         # Product schema & computed helpers
+        │   ├── rating_data.js           # Reviews & customer ratings store
+        │   ├── taxonomy_data.js         # Category hierarchy state
+        │   ├── transfers_data.js        # Inter-branch transfers store
+        │   └── user_model.js            # User entity, RBAC roles & token helpers
         │
-        └── util/                        # Reusable Utilities & Design System Helpers
-            ├── etech_alert.js           # Modern Glassmorphic Custom Alert/Modal Engine
-            ├── toast.js                 # Auto-Dismissing Toast Notification System
-            ├── icons.js                 # Monochrome & Dual-Tone SVG Icon Engine
-            ├── formatters.js            # Currency (LKR), Dates, Badges & Numbers
-            ├── ui_helpers.js            # Loading Spinners, Empty States & DOM Utilities
-            └── index.js                 # Central Barrel Export
+        └── util/                        # Design system utilities & helpers
+            ├── etech_alert.js           # Glassmorphic modal confirmation engine
+            ├── formatters.js            # Currency (LKR), date, badge & number formatting
+            ├── icons.js                 # Monochrome & dual-tone SVG vector library
+            ├── index.js                 # Barrel export for utility package
+            ├── server_health.js         # Live server connectivity monitor & status pills
+            ├── toast.js                 # Floating stacking toast notification engine
+            └── ui_helpers.js            # DOM loaders, empty states & element toggles
 ```
 
 ---
 
-## 🔌 API Layer & Dual-Mode Persistence
-
-The front-end is equipped with an intelligent **Dual-Mode Data Architecture**:
-
-1. **Connected Mode (Spring Boot Backend)**:
-   - Base API URL configured in `src/js/api/apiClient.js` (default: `http://localhost:8080/api/v1`).
-   - Secure Bearer JWT authorization tokens automatically attached to all outgoing requests.
-   - Centralized error handling: Automatic session invalidation and prompt to log back in when token expires (`401 Unauthorized`).
-2. **Offline / Mock Fallback Mode**:
-   - If the backend server is unreachable, controllers seamlessly fall back to client-side `localStorage` data stores.
-   - Enables full end-to-end frontend evaluation and demonstration without requiring a running database server.
-
----
-
-## 🚀 Getting Started & Local Setup
+## 🚀 Local Setup & Installation Guide
 
 ### Prerequisites
-- Modern web browser (Chrome 90+, Firefox 88+, Safari 14+, Edge 90+).
-- Any local static HTTP server (e.g. Node.js `npx serve`, VS Code Live Server, or Python).
+- **Web Browser**: Modern browser with ES6 Module support (Chrome 90+, Firefox 88+, Safari 14+, Edge 90+).
+- **Static HTTP Server**: Node.js `npx serve`, Python `http.server`, or VS Code Live Server.
+- *(Optional for Backend)*: Java 17+, Maven 3.8+, MySQL 8.0+.
 
-### Installation & Launch
+### 1. Launching the Frontend SPA
 
 1. **Clone the repository**:
    ```bash
-   git clone https://github.com/HasithaLWi/ITS1114-AAD-ETech-Computers-Online-Store-HTML.git
-   cd ITS1114-AAD-ETech-Computers-Online-Store-HTML
+   git clone https://github.com/HasithaLWi/its1114-etechcomputers-online-store-frontend.git
+   cd its1114-etechcomputers-online-store-frontend
    ```
 
 2. **Start a local development server**:
-   
-   *Using Node.js (Recommended)*:
+
+   *Option A — Using Node.js (Recommended)*:
    ```bash
    npx serve . -l 3000
    ```
 
-   *Using Python 3*:
+   *Option B — Using Python 3*:
    ```bash
    python -m http.server 3000
    ```
 
-   *Using VS Code*:
+   *Option C — Using VS Code*:
    Right-click `index.html` and select **"Open with Live Server"**.
 
-3. **Open in your browser**:
+3. **Access the Application**:
+   Open your browser and navigate to:
    ```
    http://localhost:3000/
    ```
 
----
 
-## 👥 Default Demo User Accounts
+## 👥 Default Demo User Credentials
 
-Use these pre-configured credentials to test all role levels:
+Use these pre-configured accounts to evaluate different permission tiers across the system:
 
-| Role | Username / Email | Password | Access Privileges |
-| :--- | :--- | :--- | :--- |
-| **Administrator** | `admin` / `admin@etech.lk` | `admin123` | Full access to Storefront, All Admin Suites, Settings & User RBAC |
-| **Staff Member** | `staff` / `staff@etech.lk` | `staff123` | Storefront, Products, Inventory, Transfers, Orders & Customer Support |
-| **Customer** | `customer` / `hasitha@etech.lk` | `customer123` | Storefront, Shopping Cart, Wishlist, Checkout & Customer Portal |
+| Role | Username | Email | Password | Access Privileges |
+| :--- | :--- | :--- | :--- | :--- |
+| **Administrator** | `admin` | `admin@etech.lk` | `admin123` | Storefront, All 13 Admin Suites, RBAC User Security, System Settings |
+| **Staff Member** | `staff` | `staff@etech.lk` | `staff123` | Storefront, Products, Inventory Matrix, Inter-Branch Transfers, Orders |
+| **Customer** | `customer` | `hasitha@etech.lk` | `customer123` | Storefront, Shopping Cart, Wishlist, Checkout, Customer Portal & Orders |
 
 ---
 
 ## 🗺️ Hash Routing Specification
 
-The application uses clean hash routing to transition between views smoothly:
+The application features seamless client-side hash routing with automatic history state management:
 
-- `#home` — Primary landing page, 3D promo slider, flash deals, featured hardware.
-- `#shop` — Full product catalog with multi-facet filters, sorting, and pagination.
-- `#product-details?id=PROD-101` — Single product overview, image gallery, specs, branch stock, reviews.
-- `#deals` — Hot deals, limited-time bundle promotions, flash discounts.
+- `#home` — Primary landing showcase, 3D promo slider, flash deals, new arrivals.
+- `#shop` — Global product catalog with multi-facet filters, sorting, and live search.
+- `#product-details?id=PROD-101` — Single product overview, 5-image zoom gallery, technical specs, regional branch stock checker, reviews.
+- `#deals` — Hot deals, limited-time bundle promotions, flash discounts with live countdowns.
 - `#cart` — Shopping cart, item quantities, coupon discounts, order summary.
-- `#checkout` — Multi-step delivery address, branch distance selector, payment gateway.
+- `#checkout` — Multi-step delivery address, nearest-branch distance calculation, payment gateway.
 - `#wishlist` — Customer saved items wishlist hub.
-- `#branches` — Regional branch locator with maps, contact cards, and working hours.
-- `#about` — Corporate story, certifications, brand partners, milestones.
-- `#policies` — Legal documents (Terms, Privacy, Warranty, Returns, Business Profile).
-- `#account` — Customer account dashboard, order history, profile settings.
-- `#login` — Customer and staff sign-in and registration forms.
-- `#admin` — Enterprise Administrator & Staff Management Console (Requires Admin/Staff login).
+- `#branches` — Regional branch locator with interactive maps, direct contacts, and working hours.
+- `#about` — Corporate history, team, certifications, and brand partnerships.
+- `#policies` — Searchable legal policies (Terms of Service, Privacy Policy, Warranty & Returns).
+- `#account` — Customer account portal, order history ledger, and profile settings.
+- `#login` — Customer and staff sign-in and account registration forms.
+- `#admin` — Enterprise Administrator & Staff Management Console (Requires Admin or Staff authentication).
+- `#chatbot` — Direct launcher for E-T AI Hardware Consultant.
 
 ---
 
-## 📄 Documentation References
+## 📄 Academic Project Report & Coursework Compliance
 
-- 🎨 **[Theme & Styling Guide (THEME_AND_STYLING_GUIDE.md)](THEME_AND_STYLING_GUIDE.md)**: Comprehensive design tokens, elevation levels, typography guidelines, and UI component standards.
-- 📌 **[Backend Migration Specification (BACKEND_API_MIGRATION.md)](BACKEND_API_MIGRATION.md)**: Complete MySQL schema (DDL), Spring Boot REST controller mappings, and step-by-step backend migration guide.
+This project was built to satisfy and exceed the requirements of the **ITS 1114 Advanced API Development (AAD)** coursework for the **Institute of Software Engineering (IJSE)**.
+
+The complete academic dissertation and technical project report is included directly in the root of this repository:
+
+### 📖 [`ETech_Computers_Project_Report.pdf`](ETech_Computers_Project_Report.pdf)
+
+### Learning Outcomes (LO) Compliance Matrix
+
+| Learning Outcome | Description | Implementation Highlights in ETech Computers |
+| :--- | :--- | :--- |
+| **LO1: System Analysis & Architecture** | Architecture, requirements specification, and design patterns. | Modular ES6 SPA architecture, clean separation of concerns (MVC), comprehensive data dictionary, and enterprise state management. |
+| **LO2: RESTful API Design & Best Practices** | Design and implementation of secure, compliant REST endpoints. | 18 specialized API clients, standardized HTTP status codes, structured JSON payloads, and RESTful resource naming. |
+| **LO3: Security & RBAC Implementation** | Authentication, authorization, and data protection. | Spring Security 6 with JWT Bearer tokens, token storage interceptors, automated 401 session invalidation, and role-based route guards. |
+| **LO4: Testing & Deployment** | Quality assurance, integration testing, and deployment workflows. | Resilient dual-mode data layer, server health heartbeat daemon (`server_health.js`), soft-delete recovery vault, and comprehensive test suite. |
+
+### 🌟 Bonus Development Highlights
+- **Intelligent E-T AI Assistant**: Context-aware hardware compatibility validation engine.
+- **Regional Warehouse Logistics & Transfers**: Multi-branch stock allocation and automated transfer lifecycle across 5 provincial hubs.
+- **Haversine Distance Delivery Engine**: Nearest-branch calculation for optimal shipping cost and fulfillment speed.
+- **Glassmorphic Custom UI Suite**: Proprietary `etechAlert` modal and toast notification architecture.
 
 ---
 
@@ -306,6 +458,6 @@ Distributed under the **MIT License**. See `LICENSE` for more information.
 ---
 
 <p align="center">
-  <b>ETech Computers Online Store & Enterprise Management Suite</b><br>
-  <i>Crafted with precision for next-generation hardware enthusiasts and enterprise retail operations.</i>
+  <b>ETech Computers — Enterprise E-Commerce & Hardware Management Suite</b><br>
+  <i>Developed by Hasitha Wijesinghe · Higher Diploma in Software Engineering (HDSE 75) · Institute of Software Engineering (IJSE)</i>
 </p>
