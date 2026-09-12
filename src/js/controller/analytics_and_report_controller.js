@@ -1,6 +1,7 @@
 import { getAllOrders, syncOrdersFromApi } from './order_management_controller.js';
 import { getBranches, syncBranchesFromApi } from './branch_controller.js';
 import { AnalyticsApi } from '../api/analyticsApi.js';
+import { parseLKR } from '../util/formatters.js';
 
 /**
  * ============================================================
@@ -46,7 +47,7 @@ export async function renderAnalyticsTab() {
   // Branch Revenue Calculations
   const branchSales = branches.map(b => {
     const branchOrders = orders.filter(o => o.fulfillmentBranchId === b.id || o.fulfillmentBranch === b.name);
-    const revenue = branchOrders.reduce((sum, o) => sum + (parseFloat((o.totalAmount || "0").toString().replace(/[^0-9.]/g, '')) || 0), 0);
+    const revenue = branchOrders.reduce((sum, o) => sum + parseLKR(o.totalAmount || o.total), 0);
     return { name: b.name, city: b.city, count: branchOrders.length, revenue };
   });
 

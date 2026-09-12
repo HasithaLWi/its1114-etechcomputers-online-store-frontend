@@ -37,7 +37,17 @@ export class User {
         this.name = data.name ?? '';
         this.email = data.email ?? '';
         this.password = data.password ?? null;
-        this.role = (data.role ?? DEFAULT_ROLE).toUpperCase();
+        let rawRole = (data.role ?? data.userRole ?? DEFAULT_ROLE).toString().toUpperCase().trim();
+        if (rawRole.startsWith('ROLE_')) rawRole = rawRole.substring(5);
+        if (rawRole === 'SUPER_ADMIN' || rawRole === 'SUPERADMIN') {
+            this.role = USER_ROLE.SUPERADMIN;
+        } else if (rawRole === 'ADMIN') {
+            this.role = USER_ROLE.ADMIN;
+        } else if (rawRole === 'STAFF') {
+            this.role = USER_ROLE.STAFF;
+        } else {
+            this.role = USER_ROLE.CUSTOMER;
+        }
         this.status = (data.status ?? data.userStatus ?? USER_STATUS.ACTIVE).toUpperCase();
         this.assignedBranch = data.assignedBranch ?? null;
         this.createdAt = data.createdAt ?? new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
@@ -48,7 +58,8 @@ export class User {
      * @returns {boolean}
      */
     isSuperAdmin() {
-        return this.role === USER_ROLE.SUPERADMIN;
+        const r = (this.role || '').toUpperCase().replace(/[^A-Z]/g, '');
+        return r === 'SUPERADMIN' || r === 'ROLESUPERADMIN';
     }
 
     /**
@@ -56,7 +67,7 @@ export class User {
      * @returns {boolean}
      */
     isAdmin() {
-        return this.role === USER_ROLE.ADMIN || this.role === USER_ROLE.SUPERADMIN;
+        return this.isSuperAdmin() || this.role === USER_ROLE.ADMIN;
     }
 
     /**
@@ -163,9 +174,11 @@ export function logoutUser() {
  * @returns {string}
  */
 export function buildRoleOptionsHtml(selectedRole = '') {
-    const active = String(selectedRole || DEFAULT_ROLE).toUpperCase();
+    let cleanRole = String(selectedRole || DEFAULT_ROLE).toUpperCase().trim();
+    if (cleanRole.startsWith('ROLE_')) cleanRole = cleanRole.substring(5);
+    if (cleanRole === 'SUPER_ADMIN') cleanRole = 'SUPERADMIN';
     return Object.values(USER_ROLE).map(role => {
-        const isSelected = role === active;
+        const isSelected = role === cleanRole;
         return `<option value="${role}" ${isSelected ? 'selected' : ''}>${role}</option>`;
     }).join('');
 }

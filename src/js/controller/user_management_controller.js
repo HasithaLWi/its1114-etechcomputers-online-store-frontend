@@ -48,8 +48,9 @@ export async function renderUsersTab() {
   `;
 
   try {
-    const users = await UserApi.getUsers();
-    cachedUsers = (users || []).map(u => u instanceof User ? u : new User(u));
+    const res = await UserApi.getUsers();
+    const userList = Array.isArray(res) ? res : (res?.body || res?.data || []);
+    cachedUsers = (Array.isArray(userList) ? userList : []).map(u => u instanceof User ? u : new User(u));
     const branches = getBranches();
 
     if (cachedUsers.length === 0) {
@@ -77,11 +78,16 @@ export async function renderUsersTab() {
       const userStatus = (u.status || 'ACTIVE').toUpperCase();
       const isStatusActive = userStatus === 'ACTIVE';
 
+      const isSuper = Boolean(u.isSuperAdmin?.() || u.role === 'SUPERADMIN' || u.role === 'SUPER_ADMIN');
+      const avatarClass = isStatusActive
+        ? (isSuper ? 'bg-purple-50 text-purple-600 border-purple-200' : 'bg-blue-50 text-blue-600 border-blue-200')
+        : 'bg-slate-100 text-slate-400 border-slate-200 opacity-60';
+
       return `
         <tr class="hover:bg-[#f8fafc] transition-colors">
           <td class="py-3 px-3.5">
             <div class="flex items-center space-x-2.5">
-              <div class="w-7 h-7 rounded font-bold text-xs flex items-center justify-center border shadow-sm ${isStatusActive ? 'bg-blue-50 text-blue-600 border-blue-200' : 'bg-slate-100 text-slate-400 border-slate-200 opacity-60'}">
+              <div class="w-7 h-7 rounded font-bold text-xs flex items-center justify-center border shadow-sm ${avatarClass}">
                 ${u.getInitial()}
               </div>
               <div>
@@ -227,7 +233,8 @@ export async function openUserModal(userId = null) {
   if (userId && !targetUser) {
     try {
       const fetched = await UserApi.getUserById(userId);
-      targetUser = fetched ? new User(fetched) : null;
+      const userPayload = (fetched && fetched.body !== undefined && fetched.body !== null) ? fetched.body : fetched;
+      targetUser = userPayload ? (userPayload instanceof User ? userPayload : new User(userPayload)) : null;
     } catch (e) {
       showToast('Could not fetch user details.', 'error');
       return;

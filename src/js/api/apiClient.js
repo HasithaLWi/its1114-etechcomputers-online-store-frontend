@@ -191,11 +191,17 @@ export function ajaxRequest({ endpoint, method = 'GET', data = null, headers = {
         } else if (xhr.responseJSON) {
           if (xhr.responseJSON.message) {
             errorMessage = xhr.responseJSON.message;
+            if (xhr.responseJSON.body && typeof xhr.responseJSON.body === 'object') {
+              const details = Object.values(xhr.responseJSON.body).filter(Boolean).join(', ');
+              if (details) {
+                errorMessage = `${xhr.responseJSON.message}: ${details}`;
+              }
+            }
             if (errorMessage.toLowerCase().includes('token expired') || errorMessage.toLowerCase().includes('token invalid') || errorMessage.toLowerCase().includes('jwt expired')) {
               handleSessionExpired(errorMessage);
             }
           } else if (xhr.responseJSON.body && typeof xhr.responseJSON.body === 'object') {
-            errorMessage = Object.values(xhr.responseJSON.body).join(', ');
+            errorMessage = Object.values(xhr.responseJSON.body).filter(Boolean).join(', ');
           }
         } else if (xhr.responseText) {
           try {

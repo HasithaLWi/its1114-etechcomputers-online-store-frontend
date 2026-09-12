@@ -1,6 +1,6 @@
 // ETech Computers - Shopping Cart & Order Checkout System
 import { products, getStoredProducts, deductBranchStock } from '../models/data.js';
-import { autoSelectFulfillmentBranch } from './branch_controller.js';
+import { autoSelectFulfillmentBranch, initCheckoutMap, setCheckoutMapDestination, resolveLocationCoords } from './branch_controller.js';
 import { saveOrder } from './order_management_controller.js';
 import { getCurrentUser } from './login_controller.js';
 import { recordBundleSale, getDealBundles, getHotDealByProductId, isBundleAvailable } from '../models/deals_data.js';
@@ -40,6 +40,7 @@ export function addToCart(productId, quantity = 1) {
   const hotDeal = getHotDealByProductId(product.id);
   const effectivePrice = hotDeal ? hotDeal.dealPrice : product.price;
   const isHotDeal = !!hotDeal;
+  const isFreeShipping = isHotDeal ? Boolean(hotDeal.isFreeShipping) : false;
 
   let cart = getCart();
   const existingItem = cart.find(item => item.id === product.id && !item.isBundleItem);
@@ -48,6 +49,7 @@ export function addToCart(productId, quantity = 1) {
     existingItem.quantity += quantity;
     existingItem.price = effectivePrice;
     existingItem.isHotDeal = isHotDeal;
+    existingItem.isFreeShipping = isFreeShipping;
   } else {
     cart.push({
       id: product.id,
@@ -56,6 +58,7 @@ export function addToCart(productId, quantity = 1) {
       price: effectivePrice,
       originalPrice: product.originalPrice || product.price,
       isHotDeal: isHotDeal,
+      isFreeShipping: isFreeShipping,
       dealBadge: isHotDeal ? hotDeal.badge : null,
       image: product.image,
       category: product.category,
@@ -137,7 +140,8 @@ export function addBundleToCart(bundleId, quantity = 1) {
       isBundleItem: true,
       bundleId: bundle.id,
       bundleTitle: bundle.title,
-      bundleGroupId: bundleGroupId
+      bundleGroupId: bundleGroupId,
+      isFreeShipping: Boolean(bundle.isFreeShipping)
     });
   });
 
@@ -390,7 +394,40 @@ export function removeItemFromCart(cartItemId) {
 }
 
 /**
+ * Luhn Algorithm (MOD 10) Checksum Validator
+ */
+export function validateLuhn(cardNumber) {
+  const clean = String(cardNumber || '').replace(/\D/g, '');
+  if (clean.length < 13 || clean.length > 19) return false;
+
+  let sum = 0;
+  let shouldDouble = false;
+  for (let i = clean.length - 1; i >= 0; i--) {
+    let digit = parseInt(clean.charAt(i), 10);
+    if (shouldDouble) {
+      digit *= 2;
+      if (digit > 9) digit -= 9;
+    }
+    sum += digit;
+    shouldDouble = !shouldDouble;
+  }
+  return (sum % 10) === 0;
+}
+
+/**
+ * Detect Credit/Debit Card Brand
+ */
+export function detectCardBrand(cardNumber) {
+  const clean = String(cardNumber || '').replace(/\D/g, '');
+  if (/^4/.test(clean)) return { brand: 'Visa', label: 'VISA', color: 'text-blue-700 bg-blue-50 border-blue-200' };
+  if (/^(5[1-5]|222[1-9]|22[3-9]|2[3-6]|27[01]|2720)/.test(clean)) return { brand: 'Mastercard', label: 'MASTERCARD', color: 'text-orange-700 bg-orange-50 border-orange-200' };
+  if (/^3[47]/.test(clean)) return { brand: 'Amex', label: 'AMEX', color: 'text-emerald-700 bg-emerald-50 border-emerald-200' };
+  return { brand: 'Generic', label: 'CREDIT / DEBIT', color: 'text-slate-600 bg-slate-100 border-slate-200' };
+}
+
+/**
  * Recalculates subtotal, tax (8%), shipping, and total amount
+ * DYNAMIC FREE SHIPPING: Only orders containing promotional items marked isFreeShipping qualify for Rs. 0 delivery fee
  */
 export function updateSummaryTotals(subtotal) {
   const subtotalEl = document.getElementById('summary-subtotal');
@@ -398,8 +435,11 @@ export function updateSummaryTotals(subtotal) {
   const shippingEl = document.getElementById('summary-shipping');
   const totalEl = document.getElementById('summary-total');
 
+  const cart = getCart();
+  const hasFreeShipping = cart.some(i => i.isFreeShipping);
+
   const tax = subtotal * 0.08;
-  const shipping = subtotal > 150000 || subtotal === 0 ? 0 : 2500;
+  const shipping = (hasFreeShipping || subtotal === 0) ? 0 : 2500;
   const grandTotal = subtotal + tax + shipping;
 
   if (subtotalEl) subtotalEl.textContent = `Rs. ${subtotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -409,9 +449,9 @@ export function updateSummaryTotals(subtotal) {
     if (subtotal === 0) {
       shippingEl.textContent = 'Rs. 0.00';
       shippingEl.className = 'font-bold text-[#0f172a] font-mono';
-    } else if (shipping === 0) {
-      shippingEl.textContent = 'FREE';
-      shippingEl.className = 'font-bold text-emerald-600 font-mono';
+    } else if (hasFreeShipping) {
+      shippingEl.innerHTML = '<span class="text-emerald-600 font-bold">FREE</span> <span class="text-[9px] font-mono font-bold bg-emerald-50 text-emerald-700 px-1.5 py-0.5 rounded border border-emerald-200 uppercase">PROMO APPLIED</span>';
+      shippingEl.className = 'flex items-center space-x-1.5 font-mono';
     } else {
       shippingEl.textContent = `Rs. ${shipping.toFixed(2)}`;
       shippingEl.className = 'font-bold text-[#0f172a] font-mono';
@@ -423,6 +463,8 @@ export function updateSummaryTotals(subtotal) {
 
 
 /* ================= CHECKOUT HOOK & LOGIC ================= */
+
+let currentCheckoutLocation = null;
 
 export function initCheckoutLogic() {
   validateCartBundles();
@@ -438,31 +480,153 @@ export function initCheckoutLogic() {
   if (user) {
     const fullNameInput = document.getElementById('full-name');
     const emailInput = document.getElementById('email');
-    if (fullNameInput && !fullNameInput.value) fullNameInput.value = user.name;
-    if (emailInput && !emailInput.value) emailInput.value = user.email;
+    const phoneInput = document.getElementById('phone');
+    if (fullNameInput && !fullNameInput.value) fullNameInput.value = user.name || user.username || '';
+    if (emailInput && !emailInput.value) emailInput.value = user.email || '';
+    if (phoneInput && !phoneInput.value && user.phone) phoneInput.value = user.phone;
   }
 
+  const districtSelect = document.getElementById('district');
   const cityInput = document.getElementById('city');
-  const initialCity = cityInput ? (cityInput.value.trim() || 'Colombo') : 'Colombo';
+  const initialDestination = (districtSelect ? districtSelect.value : '') || (cityInput ? cityInput.value.trim() : '') || 'Colombo';
 
-  renderCheckoutSummary(cart, initialCity);
+  // 1. Initialize Interactive Leaflet Map
+  initCheckoutMap('checkout-delivery-map', (locInfo) => {
+    currentCheckoutLocation = locInfo;
+    renderCheckoutSummary(getCart(), locInfo);
+  });
 
-  if (cityInput) {
-    cityInput.addEventListener('change', () => {
-      renderCheckoutSummary(getCart(), cityInput.value.trim() || 'Colombo');
+  // 2. District selector listener
+  if (districtSelect) {
+    districtSelect.addEventListener('change', () => {
+      const selectedDistrict = districtSelect.value;
+      setCheckoutMapDestination(selectedDistrict, (locInfo) => {
+        currentCheckoutLocation = locInfo;
+        renderCheckoutSummary(getCart(), locInfo);
+      });
+      if (cityInput && !cityInput.value) {
+        cityInput.value = selectedDistrict;
+      }
     });
   }
 
+  if (cityInput) {
+    cityInput.addEventListener('change', () => {
+      const cityVal = cityInput.value.trim();
+      if (cityVal) {
+        setCheckoutMapDestination(cityVal, (locInfo) => {
+          currentCheckoutLocation = locInfo;
+          renderCheckoutSummary(getCart(), locInfo);
+        });
+      }
+    });
+  }
+
+  // 3. Payment Method Switcher (Card vs COD)
+  const cardRadio = document.getElementById('pay-method-card');
+  const codRadio = document.getElementById('pay-method-cod');
+  const cardFields = document.getElementById('card-fields');
+  const labelCard = document.getElementById('label-pay-card');
+  const labelCod = document.getElementById('label-pay-cod');
+
+  function updatePaymentMethodUI() {
+    const isCard = cardRadio ? cardRadio.checked : true;
+    if (cardFields) {
+      if (isCard) {
+        cardFields.classList.remove('hidden');
+      } else {
+        cardFields.classList.add('hidden');
+      }
+    }
+    if (labelCard && labelCod) {
+      if (isCard) {
+        labelCard.className = 'relative flex items-center p-3.5 rounded-md bg-[#f8fafc] border border-blue-600 cursor-pointer space-x-3 shadow-sm';
+        labelCod.className = 'relative flex items-center p-3.5 rounded-md bg-[#f8fafc] border border-[#e2e8f0] hover:border-[#cbd5e1] cursor-pointer space-x-3';
+      } else {
+        labelCod.className = 'relative flex items-center p-3.5 rounded-md bg-[#f8fafc] border border-blue-600 cursor-pointer space-x-3 shadow-sm';
+        labelCard.className = 'relative flex items-center p-3.5 rounded-md bg-[#f8fafc] border border-[#e2e8f0] hover:border-[#cbd5e1] cursor-pointer space-x-3';
+      }
+    }
+  }
+
+  if (cardRadio) cardRadio.addEventListener('change', updatePaymentMethodUI);
+  if (codRadio) codRadio.addEventListener('change', updatePaymentMethodUI);
+
+  // 4. Real-time Card Formatting & Luhn Algorithm Validation
+  const cardNumberInput = document.getElementById('card-number');
+  const cardBrandBadge = document.getElementById('card-brand-badge');
+  const cardValidIndicator = document.getElementById('card-valid-indicator');
+  const cardErrorMsg = document.getElementById('card-error-msg');
+
+  if (cardNumberInput) {
+    cardNumberInput.addEventListener('input', (e) => {
+      let val = e.target.value.replace(/\D/g, '').substring(0, 19);
+      // Format in blocks of 4 digits
+      let formatted = val.match(/.{1,4}/g)?.join(' ') || val;
+      cardNumberInput.value = formatted;
+
+      // Brand detection
+      const brandInfo = detectCardBrand(val);
+      if (cardBrandBadge) {
+        cardBrandBadge.textContent = brandInfo.label;
+        cardBrandBadge.className = `text-[10px] font-mono font-bold px-2 py-0.5 rounded border ${brandInfo.color}`;
+      }
+
+      // Live Luhn Validation
+      if (val.length >= 13) {
+        const isValidLuhn = validateLuhn(val);
+        if (isValidLuhn) {
+          if (cardValidIndicator) {
+            cardValidIndicator.textContent = '✓ Luhn Verified';
+            cardValidIndicator.className = 'absolute right-3 top-2.5 text-xs font-bold text-emerald-600';
+            cardValidIndicator.classList.remove('hidden');
+          }
+          if (cardErrorMsg) cardErrorMsg.classList.add('hidden');
+          cardNumberInput.classList.remove('border-rose-400');
+          cardNumberInput.classList.add('border-emerald-500');
+        } else if (val.length >= 16) {
+          if (cardValidIndicator) cardValidIndicator.classList.add('hidden');
+          if (cardErrorMsg) {
+            cardErrorMsg.textContent = '⚠️ Invalid card checksum according to Luhn MOD 10 algorithm.';
+            cardErrorMsg.classList.remove('hidden');
+          }
+          cardNumberInput.classList.remove('border-emerald-500');
+          cardNumberInput.classList.add('border-rose-400');
+        }
+      } else {
+        if (cardValidIndicator) cardValidIndicator.classList.add('hidden');
+        if (cardErrorMsg) cardErrorMsg.classList.add('hidden');
+        cardNumberInput.classList.remove('border-emerald-500', 'border-rose-400');
+      }
+    });
+  }
+
+  // 5. Card Expiry Formatter (MM/YY)
+  const cardExpiryInput = document.getElementById('card-expiry');
+  if (cardExpiryInput) {
+    cardExpiryInput.addEventListener('input', (e) => {
+      let val = e.target.value.replace(/\D/g, '').substring(0, 4);
+      if (val.length >= 2) {
+        val = val.substring(0, 2) + '/' + val.substring(2);
+      }
+      cardExpiryInput.value = val;
+    });
+  }
+
+  // Initial Summary Render
+  renderCheckoutSummary(cart, initialDestination);
+
   const checkoutForm = document.getElementById('checkout-form');
   if (checkoutForm) {
-    checkoutForm.addEventListener('submit', handleCheckoutSubmit);
+    checkoutForm.onsubmit = handleCheckoutSubmit;
   }
 }
 
 /**
  * Renders mini items list, automated fulfillment branch calculation, distance shipping fees
+ * Handles DYNAMIC promotional free shipping rules
  */
-export function renderCheckoutSummary(cart, customerCity = 'Colombo') {
+export function renderCheckoutSummary(cart, customerDestination = 'Colombo') {
   validateCartBundles();
   const currentCart = getCart();
 
@@ -476,12 +640,14 @@ export function renderCheckoutSummary(cart, customerCity = 'Colombo') {
   if (!itemsContainer) return;
 
   let subtotal = 0;
+  const hasFreeShipping = currentCart.some(i => i.isFreeShipping);
 
   itemsContainer.innerHTML = currentCart.map(item => {
     const itemTotal = item.price * item.quantity;
     subtotal += itemTotal;
 
     const isBundle = !!item.isBundleItem;
+    const isPromoFree = !!item.isFreeShipping;
 
     return `
       <div class="flex items-center justify-between text-xs py-2.5 border-b border-[#e2e8f0] last:border-0">
@@ -491,10 +657,15 @@ export function renderCheckoutSummary(cart, customerCity = 'Colombo') {
           </div>
           <div>
             <p class="font-bold text-[#0f172a] line-clamp-1">${item.name}</p>
-            <div class="flex items-center space-x-1.5 mt-0.5">
+            <div class="flex flex-wrap items-center gap-1.5 mt-0.5">
               ${isBundle ? `
                 <span class="text-[9px] font-bold bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded font-mono">
                   [Bundle: ${item.bundleTitle}]
+                </span>
+              ` : ''}
+              ${isPromoFree ? `
+                <span class="text-[9px] font-bold bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded font-mono">
+                  🚚 Free Shipping Promo
                 </span>
               ` : ''}
               <span class="text-[#64748b] font-mono text-[10px]">Qty: ${item.quantity} × Rs. ${item.price.toLocaleString()}</span>
@@ -506,17 +677,30 @@ export function renderCheckoutSummary(cart, customerCity = 'Colombo') {
     `;
   }).join('');
 
-  // Run automated fulfillment branch selection
+  // Run automated fulfillment branch selection with Geodesic Haversine calculation
   const productsList = getStoredProducts();
-  const fulfillment = autoSelectFulfillmentBranch(currentCart, customerCity, productsList);
+  const fulfillment = autoSelectFulfillmentBranch(currentCart, customerDestination, productsList);
 
   const tax = subtotal * 0.08;
-  const shipping = subtotal > 150000 ? 0 : (fulfillment ? fulfillment.shippingFee : 450);
+  // DYNAMIC FREE SHIPPING: Waived if cart has any promotional free-shipping bundle/deal
+  const shipping = hasFreeShipping ? 0 : (fulfillment ? fulfillment.shippingFee : 450);
   const grandTotal = subtotal + tax + shipping;
 
   if (subtotalEl) subtotalEl.textContent = `Rs. ${subtotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   if (taxEl) taxEl.textContent = `Rs. ${tax.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-  if (shippingEl) shippingEl.textContent = shipping === 0 ? 'FREE' : `Rs. ${shipping.toFixed(2)}`;
+
+  if (shippingEl) {
+    if (hasFreeShipping) {
+      shippingEl.innerHTML = `
+        <span class="text-emerald-600 font-extrabold font-mono">FREE</span>
+        <span class="ml-1 text-[9px] font-mono font-bold bg-emerald-50 text-emerald-700 px-1.5 py-0.5 rounded border border-emerald-200 uppercase">PROMO APPLIED</span>
+      `;
+    } else {
+      shippingEl.textContent = `Rs. ${shipping.toFixed(2)}`;
+      shippingEl.className = 'font-bold text-[#0f172a] font-mono';
+    }
+  }
+
   if (totalEl) totalEl.textContent = `Rs. ${grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
   if (branchInfoEl && fulfillment) {
@@ -524,16 +708,16 @@ export function renderCheckoutSummary(cart, customerCity = 'Colombo') {
       <div class="p-2.5 bg-blue-50 border border-blue-200 rounded-md text-xs space-y-1">
         <div class="flex items-center justify-between font-bold text-blue-700">
           <span>Dispatch Hub: ${fulfillment.branch.name}</span>
-          <span class="text-[10px] font-mono bg-blue-100 px-2 py-0.5 rounded text-blue-800">${fulfillment.distanceKm} km</span>
+          <span class="text-[10px] font-mono bg-blue-100 px-2 py-0.5 rounded text-blue-800">${fulfillment.distanceKm} km (Geodesic)</span>
         </div>
-        <p class="text-[10px] text-[#64748b]">Auto-selected closest warehouse with stock for your destination.</p>
+        <p class="text-[10px] text-[#64748b]">Real-time nearest fulfillment warehouse with sufficient inventory for your destination.</p>
       </div>
     `;
   }
 }
 
 /**
- * Handles checkout form submission, saves order with itemized products & bundle notice, and deducts branch stock
+ * Handles checkout form submission, Luhn card check, PayHere Sandbox launch, and backend order persistence
  */
 export function handleCheckoutSubmit(e) {
   e.preventDefault();
@@ -547,94 +731,335 @@ export function handleCheckoutSubmit(e) {
   const fullName = document.getElementById('full-name')?.value.trim();
   const email = document.getElementById('email')?.value.trim();
   const address = document.getElementById('address')?.value.trim();
-  const city = document.getElementById('city')?.value.trim() || 'Colombo';
+  const district = document.getElementById('district')?.value || 'Colombo';
+  const city = document.getElementById('city')?.value.trim() || district;
   const phone = document.getElementById('phone')?.value.trim() || '';
 
-  if (!fullName || !email || !address || !city) {
-    etechAlert.warning('Incomplete Shipping Information', 'Please fill out all required delivery and contact details before placing your order.');
+  if (!fullName || !email || !address || !phone) {
+    etechAlert.warning('Incomplete Shipping Information', 'Please fill out all required delivery and contact details, including your Phone Number, before placing your order.');
     return;
   }
 
   const cart = getCart();
   if (!cart.length) return;
 
+  const paymentMethodRadio = document.querySelector('input[name="payment-method"]:checked');
+  const isCardPayment = paymentMethodRadio ? paymentMethodRadio.value === 'card' : true;
+
+  // Luhn & Card validation if card payment selected
+  if (isCardPayment) {
+    const cardNumber = document.getElementById('card-number')?.value.replace(/\s+/g, '');
+    const cardExpiry = document.getElementById('card-expiry')?.value.trim();
+    const cardCvv = document.getElementById('card-cvv')?.value.trim();
+
+    if (!cardNumber || !validateLuhn(cardNumber)) {
+      etechAlert.warning(
+        'Invalid Card Number',
+        'Please enter a valid credit or debit card number. The number entered failed the Luhn (MOD 10) checksum verification.'
+      );
+      return;
+    }
+
+    if (!cardExpiry || !/^(0[1-9]|1[0-2])\/\d{2}$/.test(cardExpiry)) {
+      etechAlert.warning('Invalid Expiry Date', 'Please enter a valid expiration date in MM/YY format (e.g. 12/28).');
+      return;
+    }
+
+    if (!cardCvv || cardCvv.length < 3) {
+      etechAlert.warning('Invalid CVV', 'Please enter your 3 or 4 digit card verification value (CVV).');
+      return;
+    }
+  }
+
+  const destination = currentCheckoutLocation || district || city;
   const productsList = getStoredProducts();
-  const fulfillment = autoSelectFulfillmentBranch(cart, city, productsList);
+  const fulfillment = autoSelectFulfillmentBranch(cart, destination, productsList);
 
   const subtotal = cart.reduce((sum, i) => sum + (i.price * i.quantity), 0);
   const tax = subtotal * 0.08;
-  const shipping = subtotal > 150000 ? 0 : (fulfillment ? fulfillment.shippingFee : 450);
+  const hasFreeShipping = cart.some(i => i.isFreeShipping);
+  const shipping = hasFreeShipping ? 0 : (fulfillment ? fulfillment.shippingFee : 450);
   const grandTotal = subtotal + tax + shipping;
 
   const orderId = '#ETC-' + Math.floor(100000 + Math.random() * 900000);
 
-  // Transform cart line items for individual product order entry with bundle notation
-  const orderItems = cart.map(item => ({
-    id: item.productId || item.id,
-    name: item.isBundleItem ? `${item.name} [Bundle: ${item.bundleTitle}]` : item.name,
-    price: item.price,
-    quantity: item.quantity,
-    image: item.image,
-    isBundleItem: !!item.isBundleItem,
-    bundleId: item.bundleId || null,
-    bundleTitle: item.bundleTitle || null
-  }));
+  function executeOrderFinalization(paymentMethodTitle, transactionRef = null) {
+    // Transform cart line items for individual product order entry with bundle notation
+    const orderItems = cart.map(item => ({
+      id: item.productId || item.id,
+      productId: item.productId || item.id,
+      name: item.isBundleItem ? `${item.name} [Bundle: ${item.bundleTitle}]` : item.name,
+      productName: item.name,
+      price: item.price,
+      unitPrice: item.price,
+      quantity: item.quantity,
+      image: item.image,
+      isBundleItem: !!item.isBundleItem,
+      bundleId: item.bundleId || null,
+      bundleTitle: item.bundleTitle || null
+    }));
 
-  // Save order
-  const savedOrder = saveOrder({
-    orderId: orderId,
-    customerName: fullName,
-    email: email,
-    phone: phone,
-    city: city,
-    address: address,
-    fulfillmentBranch: fulfillment ? fulfillment.branch.name : 'Colombo Main Hub',
-    fulfillmentBranchId: fulfillment ? fulfillment.branch.id : 'BR-COL',
-    distanceKm: fulfillment ? fulfillment.distanceKm : 5,
-    items: orderItems,
-    subtotal: `Rs. ${subtotal.toFixed(2)}`,
-    tax: `Rs. ${tax.toFixed(2)}`,
-    shipping: shipping === 0 ? 'FREE' : `Rs. ${shipping.toFixed(2)}`,
-    totalAmount: `Rs. ${grandTotal.toFixed(2)}`,
-    paymentMethod: 'card'
-  });
+    // Save order through controller (which syncs to backend API)
+    const savedOrder = saveOrder({
+      orderId: orderId,
+      customerName: fullName,
+      customerEmail: email,
+      email: email,
+      customerPhone: phone,
+      phone: phone,
+      shippingAddress: address,
+      address: address,
+      city: `${district}, ${city}`,
+      fulfillmentBranch: fulfillment ? fulfillment.branch.name : 'Colombo Main Hub',
+      fulfillmentBranchId: fulfillment ? fulfillment.branch.id : 'BR-COL',
+      distanceKm: fulfillment ? fulfillment.distanceKm : 5,
+      items: orderItems,
+      subtotal: `Rs. ${subtotal.toFixed(2)}`,
+      tax: `Rs. ${tax.toFixed(2)}`,
+      shipping: shipping === 0 ? 'FREE' : `Rs. ${shipping.toFixed(2)}`,
+      totalAmount: `Rs. ${grandTotal.toFixed(2)}`,
+      paymentMethod: paymentMethodTitle
+    });
 
-  // Deduct inventory stock from assigned branch & record bundle sales
-  const branchId = fulfillment ? fulfillment.branch.id : 'BR-COL';
-  const recordedBundles = new Set();
+    // Deduct inventory stock from assigned branch & record bundle sales
+    const branchId = fulfillment ? fulfillment.branch.id : 'BR-COL';
+    const recordedBundles = new Set();
 
-  cart.forEach(item => {
-    const targetProductId = item.productId || item.id;
-    deductBranchStock(targetProductId, branchId, item.quantity);
+    cart.forEach(item => {
+      const targetProductId = item.productId || item.id;
+      deductBranchStock(targetProductId, branchId, item.quantity);
 
-    if (item.isBundleItem && item.bundleId && !recordedBundles.has(item.bundleGroupId)) {
-      recordedBundles.add(item.bundleGroupId);
-      const bundleMultiplier = item.bundleQtyMultiplier || 1;
-      const bundleCount = Math.max(1, Math.round(item.quantity / bundleMultiplier));
-      recordBundleSale(item.bundleId, bundleCount);
+      if (item.isBundleItem && item.bundleId && !recordedBundles.has(item.bundleGroupId)) {
+        recordedBundles.add(item.bundleGroupId);
+        const bundleMultiplier = item.bundleQtyMultiplier || 1;
+        const bundleCount = Math.max(1, Math.round(item.quantity / bundleMultiplier));
+        recordBundleSale(item.bundleId, bundleCount);
+      }
+    });
+
+    // Clear cart
+    saveCart([]);
+
+    // Populate Success Modal
+    const modalOrderId = document.getElementById('modal-order-id');
+    const modalCustomerName = document.getElementById('modal-customer-name');
+    const modalTotalPaid = document.getElementById('modal-total-paid') || document.getElementById('modal-order-total');
+    const modalOrderEmail = document.getElementById('modal-order-email');
+    const modalOrderBranch = document.getElementById('modal-order-branch');
+
+    if (modalOrderId) modalOrderId.textContent = orderId;
+    if (modalCustomerName) modalCustomerName.textContent = fullName || 'Valued Customer';
+    if (modalTotalPaid) modalTotalPaid.textContent = `Rs. ${grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    if (modalOrderEmail) modalOrderEmail.textContent = email;
+    if (modalOrderBranch) modalOrderBranch.textContent = fulfillment ? `${fulfillment.branch.name} (${fulfillment.distanceKm} km delivery)` : 'Colombo Main Hub';
+
+    // Show Modal
+    const successModal = document.getElementById('order-success-modal');
+    if (successModal) {
+      successModal.classList.remove('hidden');
     }
-  });
 
-  // Clear cart
-  saveCart([]);
-
-  // Populate modal
-  const modalOrderId = document.getElementById('modal-order-id');
-  const modalOrderEmail = document.getElementById('modal-order-email');
-  const modalOrderBranch = document.getElementById('modal-order-branch');
-  const modalOrderTotal = document.getElementById('modal-order-total');
-
-  if (modalOrderId) modalOrderId.textContent = orderId;
-  if (modalOrderEmail) modalOrderEmail.textContent = email;
-  if (modalOrderBranch) modalOrderBranch.textContent = fulfillment ? `${fulfillment.branch.name} (${fulfillment.distanceKm} km delivery)` : 'Colombo Main Hub';
-  if (modalOrderTotal) modalOrderTotal.textContent = `Rs. ${grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-
-  // Show Modal
-  const successModal = document.getElementById('order-success-modal');
-  if (successModal) {
-    successModal.classList.remove('hidden');
+    // Refresh badges & triggers
+    window.dispatchEvent(new Event('productsUpdated'));
   }
 
-  // Refresh badges & triggers
-  window.dispatchEvent(new Event('productsUpdated'));
+  /**
+   * In-App Interactive Sandboxed Payment Gateway Modal
+   * Simulates PayHere / LankaPay 3D Secure bank authorization with realistic OTP and verification
+   */
+  function openSandboxPaymentModal({ orderId, grandTotal, cardBrand, maskedCard, customerName, onSuccess, onCancel }) {
+    let modalEl = document.getElementById('etech-sandbox-payment-modal');
+    if (!modalEl) {
+      modalEl = document.createElement('div');
+      modalEl.id = 'etech-sandbox-payment-modal';
+      document.body.appendChild(modalEl);
+    }
+
+    modalEl.className = 'fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 overflow-y-auto';
+    modalEl.innerHTML = `
+    <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 relative my-8 animate-in fade-in zoom-in-95 duration-200">
+      
+      <!-- Gateway Header -->
+      <div class="flex items-center justify-between pb-3 border-b border-slate-200 mb-4">
+        <div class="flex items-center space-x-2.5">
+          <div class="w-8 h-8 rounded-lg bg-emerald-600 text-white font-black flex items-center justify-center text-xs shadow-sm">
+            🔒
+          </div>
+          <div>
+            <div class="flex items-center space-x-1.5">
+              <span class="text-xs font-extrabold text-[#0f172a]">PayHere Sandbox Gateway</span>
+              <span class="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold bg-amber-100 text-amber-900 border border-amber-300">TEST MODE</span>
+            </div>
+            <p class="text-[10px] text-[#64748b]">Central Bank of Sri Lanka approved simulator</p>
+          </div>
+        </div>
+        <button type="button" id="sandbox-modal-close-btn" class="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 flex items-center justify-center transition-colors cursor-pointer text-xs font-bold">
+          ✕
+        </button>
+      </div>
+
+      <!-- Order & Merchant Summary -->
+      <div class="bg-[#f8fafc] border border-[#e2e8f0] rounded-xl p-3.5 mb-4 space-y-2 text-xs">
+        <div class="flex justify-between items-center text-[#64748b]">
+          <span>Merchant</span>
+          <span class="font-bold text-[#0f172a]">ETech Computers (Pvt) Ltd</span>
+        </div>
+        <div class="flex justify-between items-center text-[#64748b]">
+          <span>Sandbox Merchant ID</span>
+          <span class="font-mono font-bold text-slate-700">1211149-SANDBOX</span>
+        </div>
+        <div class="flex justify-between items-center text-[#64748b]">
+          <span>Order Reference</span>
+          <span class="font-mono font-bold text-blue-600">${orderId}</span>
+        </div>
+        <div class="flex justify-between items-center pt-2 border-t border-[#e2e8f0]">
+          <span class="font-bold text-[#0f172a]">Amount to Authorize</span>
+          <span class="font-mono font-extrabold text-blue-600 text-base">Rs. ${grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+        </div>
+      </div>
+
+      <!-- Payment Method Simulation -->
+      <div class="p-3 bg-blue-50/60 border border-blue-200 rounded-xl mb-4 flex items-center justify-between text-xs">
+        <div class="flex items-center space-x-2.5">
+          <span class="px-2 py-1 rounded font-mono font-bold text-[10px] bg-white border border-blue-200 text-blue-700 shadow-xs">${cardBrand}</span>
+          <div>
+            <span class="font-mono font-bold text-[#0f172a] block">${maskedCard}</span>
+            <span class="text-[10px] text-[#64748b]">${customerName}</span>
+          </div>
+        </div>
+        <span class="text-[10px] font-mono font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">LUHN OK</span>
+      </div>
+
+      <!-- 3D Secure / OTP Simulation Box -->
+      <div class="space-y-3 mb-5">
+        <div class="flex items-center space-x-1.5">
+          <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+          <label class="block text-xs font-bold text-[#0f172a]">3D Secure 2.0 / Bank SMS OTP Verification</label>
+        </div>
+        <p class="text-[11px] text-[#64748b]">
+          In real transactions, an SMS OTP is sent to your phone. For this sandbox test, use test code <code class="bg-slate-100 px-1.5 py-0.5 rounded text-blue-700 font-mono font-bold">123456</code>.
+        </p>
+        <div class="relative">
+          <input type="text" id="sandbox-otp-input" value="123456" maxlength="6"
+            class="w-full px-3.5 py-2.5 rounded-lg bg-white border border-[#cbd5e1] text-center font-mono font-extrabold text-base tracking-widest text-[#0f172a] focus:border-blue-600 focus:outline-none">
+        </div>
+        <p id="sandbox-error-msg" class="text-[11px] text-rose-600 font-medium hidden"></p>
+      </div>
+
+      <!-- Processing Progress Feedback (hidden by default) -->
+      <div id="sandbox-processing-box" class="hidden py-4 text-center space-y-2.5">
+        <div class="w-8 h-8 border-3 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
+        <p id="sandbox-step-text" class="text-xs font-bold text-[#0f172a]">Connecting to LankaPay Network...</p>
+        <span class="text-[10px] text-[#64748b] font-mono">Securing transaction payload</span>
+      </div>
+
+      <!-- Action Buttons -->
+      <div id="sandbox-actions-box" class="space-y-2">
+        <button type="button" id="sandbox-approve-btn"
+          class="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-md transition-all flex items-center justify-center space-x-2 cursor-pointer">
+          <span>✓ 1-Click Sandbox Approve (Rs. ${grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })})</span>
+        </button>
+
+        <div class="flex items-center justify-between pt-1">
+          <button type="button" id="sandbox-decline-btn" class="text-[11px] font-bold text-rose-600 hover:text-rose-700 hover:underline cursor-pointer">
+            Simulate Card Decline
+          </button>
+          <button type="button" id="sandbox-cancel-btn" class="text-[11px] font-bold text-slate-500 hover:text-slate-800 cursor-pointer">
+            Cancel Payment
+          </button>
+        </div>
+      </div>
+
+      <div class="mt-4 pt-3 border-t border-slate-100 text-center">
+        <span class="text-[10px] text-[#94a3b8]">256-Bit SSL Encrypted Sandbox Gateway Simulation</span>
+      </div>
+
+    </div>
+  `;
+
+    const closeBtn = document.getElementById('sandbox-modal-close-btn');
+    const cancelBtn = document.getElementById('sandbox-cancel-btn');
+    const approveBtn = document.getElementById('sandbox-approve-btn');
+    const declineBtn = document.getElementById('sandbox-decline-btn');
+    const errorMsg = document.getElementById('sandbox-error-msg');
+    const otpInput = document.getElementById('sandbox-otp-input');
+    const processingBox = document.getElementById('sandbox-processing-box');
+    const actionsBox = document.getElementById('sandbox-actions-box');
+    const stepText = document.getElementById('sandbox-step-text');
+
+    function closeModal() {
+      if (modalEl) modalEl.remove();
+    }
+
+    if (closeBtn) closeBtn.onclick = () => { closeModal(); if (onCancel) onCancel(); };
+    if (cancelBtn) cancelBtn.onclick = () => { closeModal(); if (onCancel) onCancel(); };
+
+    if (declineBtn) {
+      declineBtn.onclick = () => {
+        if (errorMsg) {
+          errorMsg.textContent = '❌ Transaction Declined by Bank: [51] Insufficient Funds. Your card was not charged.';
+          errorMsg.classList.remove('hidden');
+        }
+      };
+    }
+
+    if (approveBtn) {
+      approveBtn.onclick = () => {
+        const otpVal = otpInput ? otpInput.value.trim() : '123456';
+        if (otpVal !== '123456') {
+          if (errorMsg) {
+            errorMsg.textContent = '⚠️ Invalid OTP. Enter standard sandbox code 123456.';
+            errorMsg.classList.remove('hidden');
+          }
+          return;
+        }
+
+        // Step animation
+        if (actionsBox) actionsBox.classList.add('hidden');
+        if (processingBox) processingBox.classList.remove('hidden');
+
+        setTimeout(() => {
+          if (stepText) stepText.textContent = 'Authorizing transaction with Bank LankaPay Network...';
+        }, 350);
+
+        setTimeout(() => {
+          if (stepText) stepText.textContent = '✓ Sandbox Payment Approved! Generating Receipt...';
+        }, 750);
+
+        setTimeout(() => {
+          closeModal();
+          const txnId = 'TXN-PAYHERE-SANDBOX-' + Math.floor(10000000 + Math.random() * 90000000);
+          if (typeof onSuccess === 'function') {
+            onSuccess(txnId);
+          }
+        }, 1100);
+      };
+    }
+  }
+
+  // Payment Execution
+  if (isCardPayment) {
+    const cardNumber = document.getElementById('card-number')?.value.replace(/\s+/g, '');
+    const brand = detectCardBrand(cardNumber).label;
+    const masked = cardNumber ? `•••• •••• •••• ${cardNumber.slice(-4)}` : '•••• •••• •••• 8892';
+
+    openSandboxPaymentModal({
+      orderId: orderId,
+      grandTotal: grandTotal,
+      cardBrand: brand,
+      maskedCard: masked,
+      customerName: fullName,
+      onSuccess: (txnId) => {
+        showToast(`🎉 Sandbox Payment Approved! (${txnId})`, 'success');
+        executeOrderFinalization(`Credit / Debit Card (Sandbox: ${txnId})`);
+      },
+      onCancel: () => {
+        showToast('Payment authorization was cancelled.', 'warning');
+      }
+    });
+  } else {
+    // Cash on Delivery
+    executeOrderFinalization('Cash on Delivery');
+  }
 }
+

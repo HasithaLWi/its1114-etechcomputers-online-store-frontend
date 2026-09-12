@@ -242,6 +242,20 @@ export function deductBranchStock(productId, branchId, quantity) {
 }
 
 /**
+ * Restore stock back to a specific branch when an order is cancelled or refunded
+ */
+export function restoreBranchStock(productId, branchId, quantity) {
+    const product = memoryProducts.find(p => p.id === parseInt(productId));
+    if (product) {
+        if (!product.branchStock) product.branchStock = { "BR-COL": 0, "BR-GAL": 0, "BR-MAT": 0, "BR-KAN": 0 };
+        const current = parseInt(product.branchStock[branchId] || 0);
+        product.branchStock[branchId] = current + parseInt(quantity || 0);
+        product.totalStock = Object.values(product.branchStock).reduce((a, b) => a + parseInt(b || 0), 0);
+        product.inStock = product.totalStock > 0;
+    }
+}
+
+/**
  * Update stock alert configuration for a specific product
  */
 export async function updateProductStockSettings(productId, { alertEnabled, lowStockMargin }) {

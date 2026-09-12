@@ -151,6 +151,7 @@ export function normalizeBundle(b, productsList = null, branchesList = null) {
     timerUpdatedAt: b.timerUpdatedAt || new Date().toISOString(),
     active: isActive,
     isActive: isActive,
+    isFreeShipping: Boolean(b.isFreeShipping),
     componentsBreakdown: (inv.componentsBreakdown && inv.componentsBreakdown.length > 0) ? inv.componentsBreakdown : (b.componentsBreakdown || []),
     branchAssembly: inv.branchAssembly || {},
     totalReadyToShip: inv.totalReadyToShip || 0
@@ -200,6 +201,7 @@ export function normalizeHotDeal(d, productsList = null) {
     soldCount: Number(d.soldCount) || 0,
     active: isActive,
     isActive: isActive,
+    isFreeShipping: Boolean(d.isFreeShipping),
     product: product
   };
 }

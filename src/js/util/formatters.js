@@ -41,6 +41,21 @@ export function formatLKR(amount, options = {}) {
 }
 
 /**
+ * Parses a currency string or number into a clean float value
+ * Handles "Rs. 120,000.00", "120,000.00", "Rs. 0.00", or raw numbers
+ * @param {number|string} amount
+ * @returns {number}
+ */
+export function parseLKR(amount) {
+  if (amount === null || amount === undefined || amount === '') return 0;
+  if (typeof amount === 'number') return isNaN(amount) ? 0 : amount;
+  let s = String(amount).replace(/Rs\.?|LKR/gi, '').trim();
+  s = s.replace(/,/g, '');
+  const num = parseFloat(s);
+  return isNaN(num) ? 0 : num;
+}
+
+/**
  * Formats a number with comma separators
  * Example: formatNumber(12500) => "12,500"
  * 

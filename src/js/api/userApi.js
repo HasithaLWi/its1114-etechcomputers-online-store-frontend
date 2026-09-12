@@ -48,10 +48,11 @@ export const AuthApi = {
    */
   async getCurrentUser() {
     console.log('[UserAPI] AuthApi.getCurrentUser() -> verifying active session');
-    return ajaxRequest({
+    const res = await ajaxRequest({
       endpoint: '/auth/me',
       method: 'GET'
     });
+    return (res && res.body !== undefined && res.body !== null) ? res.body : res;
   }
 };
 
@@ -67,11 +68,12 @@ export const UserApi = {
     if (params.search) query.search = params.search;
 
     console.log('[UserAPI] UserApi.getUsers() -> query filters:', query);
-    return ajaxRequest({
+    const res = await ajaxRequest({
       endpoint: '/users',
       method: 'GET',
       data: query
     });
+    return (res && res.body !== undefined && res.body !== null) ? res.body : res;
   },
 
   /**
@@ -80,10 +82,11 @@ export const UserApi = {
    */
   async getUserById(id) {
     console.log('[UserAPI] UserApi.getUserById() -> user ID:', id);
-    return ajaxRequest({
+    const res = await ajaxRequest({
       endpoint: `/users/${encodeURIComponent(id)}`,
       method: 'GET'
     });
+    return (res && res.body !== undefined && res.body !== null) ? res.body : res;
   },
 
   /**
@@ -206,7 +209,7 @@ export const UserApi = {
       email: (email || '').trim().toLowerCase()
     });
 
-    return ajaxRequest({
+    const res = await ajaxRequest({
       endpoint: '/users/me/profile',
       method: 'PUT',
       data: {
@@ -215,6 +218,7 @@ export const UserApi = {
         email: (email || '').trim().toLowerCase()
       }
     });
+    return (res && res.body !== undefined && res.body !== null) ? res.body : res;
   },
 
   /**

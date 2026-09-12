@@ -1,23 +1,98 @@
 import { getCurrentUser } from './login_controller.js';
 import { OrdersApi } from '../api/ordersApi.js';
+import { restoreBranchStock, deductBranchStock } from '../models/data.js';
 import { iconCheck, iconClose } from '../util/icons.js';
 import { etechAlert } from '../util/index.js';
+import { parseLKR, formatLKR } from '../util/formatters.js';
 
 export const DEFAULT_ORDERS = [];
 
 // Pure in-memory reactive state
 let memoryOrders = [];
 
+export { parseLKR as parseCurrencyAmount };
+
+/**
+ * Normalizes backend OrderResponseDTO into frontend order model
+ */
+export function normalizeOrderFromApi(dto) {
+  if (!dto) return null;
+  const rawCode = dto.orderCode || dto.orderId || (dto.id ? `#ETC-${dto.id}` : '#ETC-100000');
+  const formattedCode = String(rawCode).startsWith('#') ? rawCode : `#${rawCode}`;
+
+  const numSubtotal = typeof dto.subtotal === 'number' ? dto.subtotal : parseLKR(dto.subtotal);
+  const numTax = typeof dto.taxAmount === 'number' ? dto.taxAmount : (typeof dto.tax === 'number' ? dto.tax : parseLKR(dto.tax || dto.taxAmount));
+  const numShipping = typeof dto.shippingFee === 'number' ? dto.shippingFee : parseLKR(dto.shippingFee || dto.shipping);
+  const numTotal = typeof dto.totalAmount === 'number' ? dto.totalAmount : parseLKR(dto.totalAmount);
+
+  return {
+    id: dto.id,
+    orderId: formattedCode,
+    orderCode: dto.orderCode || formattedCode,
+    userId: dto.userId,
+    customerName: dto.customerName || 'Valued Customer',
+    customerEmail: dto.customerEmail || dto.email || '',
+    email: dto.customerEmail || dto.email || '',
+    customerPhone: dto.customerPhone || dto.phone || '',
+    phone: dto.customerPhone || dto.phone || '',
+    shippingAddress: dto.shippingAddress || dto.address || '',
+    address: dto.shippingAddress || dto.address || '',
+    city: dto.city || 'Colombo',
+    fulfillmentBranch: dto.fulfillmentBranchName || dto.fulfillmentBranch || 'Colombo Main Hub',
+    fulfillmentBranchName: dto.fulfillmentBranchName || dto.fulfillmentBranch || 'Colombo Main Hub',
+    fulfillmentBranchId: dto.fulfillmentBranchId || 'BR-COL',
+    distanceKm: dto.distanceKm || 5,
+    items: Array.isArray(dto.items) ? dto.items.map(item => ({
+      id: item.productId || item.id,
+      productId: item.productId || item.id,
+      name: item.productName || item.name || 'Hardware Component',
+      productName: item.productName || item.name || 'Hardware Component',
+      price: typeof item.unitPrice === 'number' ? item.unitPrice : parseLKR(item.unitPrice || item.price),
+      unitPrice: typeof item.unitPrice === 'number' ? item.unitPrice : parseLKR(item.unitPrice || item.price),
+      quantity: Number(item.quantity) || 1,
+      image: item.productImage || item.image || 'https://images.unsplash.com/photo-1587202372775-e229f172b9d7?auto=format&fit=crop&w=600&q=80',
+      isBundleItem: !!item.bundleId,
+      bundleId: item.bundleId || null
+    })) : [],
+    subtotal: formatLKR(numSubtotal),
+    tax: formatLKR(numTax),
+    shipping: (numShipping === 0 || dto.shipping === 'FREE') ? 'FREE' : formatLKR(numShipping),
+    totalAmount: formatLKR(numTotal),
+    subtotalAmount: numSubtotal,
+    taxAmount: numTax,
+    shippingAmount: numShipping,
+    total: numTotal,
+    paymentMethod: dto.paymentMethod || 'Credit / Debit Card',
+    status: dto.status || 'Pending',
+    date: dto.orderDate ? new Date(dto.orderDate).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : (dto.date || new Date().toLocaleDateString('en-US'))
+  };
+}
+
 /**
  * Sync orders from backend API into memory
+ * Uses getMyOrders for customers to prevent 403 authorization failures
  */
 export async function syncOrdersFromApi() {
   try {
-    const data = await OrdersApi.getAll();
+    const currentUser = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
+    let data;
+    if (currentUser && currentUser.role === 'CUSTOMER') {
+      data = await OrdersApi.getMyOrders();
+    } else {
+      data = await OrdersApi.getAll();
+    }
+
+    let rawList = [];
     if (Array.isArray(data)) {
-      memoryOrders = data;
+      rawList = data;
     } else if (data && Array.isArray(data.content)) {
-      memoryOrders = data.content;
+      rawList = data.content;
+    } else if (data && Array.isArray(data.body)) {
+      rawList = data.body;
+    }
+
+    if (rawList.length > 0) {
+      memoryOrders = rawList.map(normalizeOrderFromApi).filter(Boolean);
     }
   } catch (err) {
     console.warn('[OrdersController] Live order sync fallback to in-memory store:', err.message || err);
@@ -56,37 +131,78 @@ export function getOrderById(orderId) {
 export function saveOrder(orderData) {
   const currentUser = getCurrentUser();
 
+  const numSubtotal = typeof orderData.subtotal === 'number' ? orderData.subtotal : parseLKR(orderData.subtotal);
+  const numTax = typeof orderData.tax === 'number' ? orderData.tax : parseLKR(orderData.tax);
+  const numShipping = typeof orderData.shipping === 'number' ? orderData.shipping : parseLKR(orderData.shipping);
+  const numTotal = typeof orderData.totalAmount === 'number' ? orderData.totalAmount : parseLKR(orderData.totalAmount);
+
+  const customerEmail = (orderData.customerEmail || orderData.email || (currentUser ? currentUser.email : '') || '').trim().toLowerCase();
+  const customerPhone = (orderData.customerPhone || orderData.phone || (currentUser ? currentUser.phone : '') || '').trim();
+  const shippingAddress = (orderData.shippingAddress || orderData.address || '').trim();
+  const customerName = orderData.customerName || (currentUser ? (currentUser.name || currentUser.username) : 'Valued Customer');
+
   const sanitizedOrder = {
     orderId: orderData.orderId,
     userId: orderData.userId || (currentUser ? currentUser.id : null),
     date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
-    customerName: orderData.customerName,
-    email: (orderData.email || '').trim().toLowerCase(),
-    phone: orderData.phone || '',
+    customerName: customerName,
+    customerEmail: customerEmail,
+    email: customerEmail,
+    customerPhone: customerPhone,
+    phone: customerPhone,
+    shippingAddress: shippingAddress,
+    address: shippingAddress,
     city: orderData.city || 'Colombo',
-    address: orderData.address || '',
     fulfillmentBranch: orderData.fulfillmentBranch || 'Colombo Main Hub',
     fulfillmentBranchId: orderData.fulfillmentBranchId || 'BR-COL',
     distanceKm: orderData.distanceKm || 5,
     items: (orderData.items || []).map(item => ({
-      id: item.id,
+      id: item.productId || item.id,
+      productId: item.productId || item.id,
       name: item.name,
-      price: item.price,
-      quantity: item.quantity,
+      productName: item.name,
+      price: typeof item.price === 'number' ? item.price : parseLKR(item.price || item.unitPrice),
+      unitPrice: typeof item.price === 'number' ? item.price : parseLKR(item.price || item.unitPrice),
+      quantity: Number(item.quantity) || 1,
       image: item.image || 'https://images.unsplash.com/photo-1587202372775-e229f172b9d7?auto=format&fit=crop&w=600&q=80'
     })),
-    subtotal: orderData.subtotal,
-    tax: orderData.tax || 0,
-    shipping: orderData.shipping || 0,
-    totalAmount: orderData.totalAmount,
+    subtotal: formatLKR(numSubtotal),
+    tax: formatLKR(numTax),
+    shipping: (numShipping === 0 || orderData.shipping === 'FREE') ? 'FREE' : formatLKR(numShipping),
+    totalAmount: formatLKR(numTotal),
+    subtotalAmount: numSubtotal,
+    taxAmount: numTax,
+    shippingAmount: numShipping,
+    total: numTotal,
     paymentMethod: orderData.paymentMethod === 'card' ? 'Credit / Debit Card' : 'Cash on Delivery',
     status: 'Pending'
   };
 
   memoryOrders.unshift(sanitizedOrder);
 
-  // Sync to backend asynchronously
-  OrdersApi.placeOrder(sanitizedOrder).catch(err => {
+  // Sync to backend asynchronously and reconcile real server ID/amounts
+  OrdersApi.placeOrder(sanitizedOrder).then(backendOrder => {
+    if (backendOrder) {
+      if (backendOrder.orderCode) {
+        sanitizedOrder.orderCode = backendOrder.orderCode;
+        sanitizedOrder.orderId = backendOrder.orderCode.startsWith('#') ? backendOrder.orderCode : `#${backendOrder.orderCode}`;
+      }
+      if (backendOrder.id) sanitizedOrder.backendId = backendOrder.id;
+      if (typeof backendOrder.totalAmount === 'number') {
+        sanitizedOrder.totalAmount = formatLKR(backendOrder.totalAmount);
+        sanitizedOrder.total = backendOrder.totalAmount;
+      }
+      if (typeof backendOrder.subtotal === 'number') {
+        sanitizedOrder.subtotal = formatLKR(backendOrder.subtotal);
+        sanitizedOrder.subtotalAmount = backendOrder.subtotal;
+      }
+      if (typeof backendOrder.shippingFee === 'number') {
+        sanitizedOrder.shipping = backendOrder.shippingFee === 0 ? 'FREE' : formatLKR(backendOrder.shippingFee);
+        sanitizedOrder.shippingAmount = backendOrder.shippingFee;
+      }
+      window.dispatchEvent(new CustomEvent('ordersUpdated', { detail: { order: sanitizedOrder } }));
+    }
+  }).catch(err => {
     console.warn('[OrdersController] Live order backend dispatch fallback:', err.message || err);
   });
 
@@ -101,7 +217,34 @@ export function updateOrderStatus(orderId, newStatus) {
   const order = memoryOrders.find(o => String(o.orderId).trim().replace(/^#/, '').toLowerCase() === cleanId.toLowerCase());
   if (!order) return { success: false, message: 'Order not found.' };
 
+  const prevStatus = (order.status || '').toLowerCase();
+  const nextStatus = (newStatus || '').toLowerCase();
+
   order.status = newStatus;
+
+  // Restore inventory if status changed to Cancelled
+  if (prevStatus !== 'cancelled' && nextStatus === 'cancelled') {
+    if (Array.isArray(order.items)) {
+      const branchId = order.fulfillmentBranchId || 'BR-COL';
+      order.items.forEach(item => {
+        const pId = item.productId || item.id;
+        if (pId && item.quantity) {
+          restoreBranchStock(pId, branchId, item.quantity);
+        }
+      });
+    }
+  } else if (prevStatus === 'cancelled' && nextStatus !== 'cancelled') {
+    // Re-deduct inventory if uncancelled
+    if (Array.isArray(order.items)) {
+      const branchId = order.fulfillmentBranchId || 'BR-COL';
+      order.items.forEach(item => {
+        const pId = item.productId || item.id;
+        if (pId && item.quantity) {
+          deductBranchStock(pId, branchId, item.quantity);
+        }
+      });
+    }
+  }
 
   // Sync with backend API
   OrdersApi.updateStatus(orderId, newStatus).catch(err => {
@@ -132,6 +275,17 @@ export function cancelCustomerOrder(orderId, reason = 'Cancelled by customer req
   order.status = 'Cancelled';
   order.cancellationReason = reason || 'Customer requested cancellation';
   order.cancelledAt = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+  // Return quantities back to warehouse branch stock
+  if (Array.isArray(order.items)) {
+    const branchId = order.fulfillmentBranchId || 'BR-COL';
+    order.items.forEach(item => {
+      const pId = item.productId || item.id;
+      if (pId && item.quantity) {
+        restoreBranchStock(pId, branchId, item.quantity);
+      }
+    });
+  }
 
   // Sync with backend API
   OrdersApi.updateStatus(orderId, 'Cancelled').catch(err => {
@@ -247,7 +401,7 @@ export function handleCustomerCancelOrder(orderId) {
         <div class="bg-[#f8fafc] p-3 rounded-lg border border-[#e2e8f0] text-xs space-y-1.5">
           <div class="flex justify-between">
             <span class="text-[#64748b]">Order Total:</span>
-            <span class="font-mono font-bold text-[#0f172a]">Rs. ${parseFloat((order.totalAmount || 0).toString().replace(/[^0-9.]/g, '')).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+            <span class="font-mono font-bold text-[#0f172a]">${formatLKR(parseLKR(order.totalAmount || order.total))}</span>
           </div>
           <div class="flex justify-between">
             <span class="text-[#64748b]">Fulfillment Hub:</span>
@@ -357,10 +511,10 @@ export function renderCustomerOrderDetailPage(orderId) {
   else if (isShipped) currentStep = 2;
   else if (isDelivered) currentStep = 3;
 
-  const totalNum = parseFloat((order.totalAmount || 0).toString().replace(/[^0-9.]/g, '')) || 0;
-  const subtotalNum = parseFloat((order.subtotal || totalNum).toString().replace(/[^0-9.]/g, '')) || totalNum;
-  const shippingNum = parseFloat((order.shipping || 0).toString().replace(/[^0-9.]/g, '')) || 0;
-  const taxNum = parseFloat((order.tax || 0).toString().replace(/[^0-9.]/g, '')) || 0;
+  const totalNum = parseLKR(order.totalAmount || order.total);
+  const subtotalNum = parseLKR(order.subtotal || order.subtotalAmount) || totalNum;
+  const shippingNum = parseLKR(order.shipping || order.shippingAmount);
+  const taxNum = parseLKR(order.tax || order.taxAmount);
 
   container.innerHTML = `
     <!-- Top Breadcrumb & Back Navigation -->
@@ -672,7 +826,7 @@ export function renderOrdersTab() {
           <p class="text-[10px] text-[#64748b]">Dest: <strong class="text-blue-600">${o.city}</strong> (${o.distanceKm || 5} km)</p>
         </td>
         <td class="py-3 px-3.5 font-bold text-[#0f172a] font-mono text-xs">
-          Rs. ${parseFloat((o.totalAmount || 0).toString().replace(/[^0-9.]/g, '')).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          ${formatLKR(parseLKR(o.totalAmount || o.total))}
         </td>
         <td class="py-3 px-3.5">
           <span class="px-2 py-0.5 rounded text-[9px] font-bold ${getStatusStyle(o.status)}">

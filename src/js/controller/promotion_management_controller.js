@@ -508,6 +508,11 @@ function renderHotBundlesManager(bundles) {
     }">
                   ${bundle.badge}
                 </span>
+                ${bundle.isFreeShipping ? `
+                  <span class="px-2 py-0.5 rounded text-[9px] font-extrabold uppercase bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center space-x-1">
+                    <span>🚚 FREE SHIPPING</span>
+                  </span>
+                ` : ''}
               </div>
               <button onclick="toggleBundleActiveStatus(${bundle.id})" 
                 class="px-2.5 py-1 rounded text-[10px] font-bold cursor-pointer ${bundle.active
@@ -703,9 +708,16 @@ function renderHotDealsManager(hotDeals) {
                         <span class="px-2 py-0.5 rounded font-mono font-black text-[10px] bg-rose-50 text-rose-700 border border-rose-200">
                           Save Rs. ${d.savingAmount.toLocaleString()} (${d.discountPercent}%)
                         </span>
-                        <span class="px-2 py-0.5 rounded text-[9px] font-extrabold uppercase bg-amber-100 text-amber-900 border border-amber-300">
-                          ${d.badge}
-                        </span>
+                        <div class="flex items-center space-x-1">
+                          <span class="px-2 py-0.5 rounded text-[9px] font-extrabold uppercase bg-amber-100 text-amber-900 border border-amber-300">
+                            ${d.badge}
+                          </span>
+                          ${d.isFreeShipping ? `
+                            <span class="px-2 py-0.5 rounded text-[9px] font-extrabold uppercase bg-emerald-100 text-emerald-800 border border-emerald-300">
+                              🚚 FREE SHIPPING
+                            </span>
+                          ` : ''}
+                        </div>
                       </div>
                     </td>
 
@@ -914,6 +926,18 @@ export function openHotDealModal(dealId = null) {
           </div>
         </div>
 
+        <!-- Free Shipping Promotional Toggle -->
+        <div class="p-3 bg-emerald-50/70 border border-emerald-200 rounded-xl flex items-center justify-between">
+          <div class="flex items-center space-x-2.5">
+            <input type="checkbox" id="hdm-free-shipping" ${deal && deal.isFreeShipping ? 'checked' : ''} class="w-4 h-4 text-emerald-600 rounded cursor-pointer">
+            <div>
+              <label for="hdm-free-shipping" class="text-xs font-bold text-emerald-950 cursor-pointer block">🚚 Free Delivery For This Deal</label>
+              <span class="text-[10px] text-emerald-700">Orders containing this promotional deal qualify for Rs. 0 shipping fee</span>
+            </div>
+          </div>
+          <span class="text-[10px] px-2 py-0.5 rounded font-extrabold bg-emerald-100 text-emerald-800 border border-emerald-300 uppercase">PROMO</span>
+        </div>
+
         <!-- Submit & Cancel -->
         <div class="pt-3 border-t border-slate-200 flex items-center justify-end space-x-2.5">
           <button type="button" onclick="closeHotDealModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold transition-all cursor-pointer">Cancel</button>
@@ -1009,6 +1033,7 @@ export async function handleSaveHotDealSubmit(event, dealId = null) {
     durationSecs,
     targetQuota,
     active,
+    isFreeShipping: Boolean(document.getElementById('hdm-free-shipping')?.checked),
     resetTimer: true
   };
 
@@ -1336,6 +1361,20 @@ export function openBundleFormPage(bundleId = null) {
                     placeholder="289999"
                     class="w-full px-3.5 py-2.5 rounded-xl bg-[#f8fafc] border border-[#e2e8f0] text-slate-500 font-bold font-mono text-sm focus:border-blue-600 focus:outline-none">
                 </div>
+              </div>
+
+              <!-- Promotional Benefit: Free Shipping Toggle -->
+              <div class="pt-3 border-t border-[#e2e8f0]">
+                <label class="relative flex items-center p-3 rounded-xl bg-emerald-50/60 border border-emerald-200 cursor-pointer space-x-3 hover:bg-emerald-50 transition-colors">
+                  <input type="checkbox" id="bf-free-shipping" ${bundle && bundle.isFreeShipping ? 'checked' : ''} onchange="updateBundleLivePreview()" class="w-4 h-4 text-emerald-600 rounded border-emerald-300 focus:ring-emerald-500 cursor-pointer">
+                  <div class="flex-1">
+                    <div class="flex items-center space-x-2">
+                      <span class="text-xs font-extrabold text-emerald-950">🚚 Free Islandwide Shipping</span>
+                      <span class="px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-emerald-100 text-emerald-800 border border-emerald-300 uppercase">Promo Benefit</span>
+                    </div>
+                    <p class="text-[11px] text-emerald-700 mt-0.5">Orders containing this promotional bundle automatically receive Rs. 0 delivery fee at checkout.</p>
+                  </div>
+                </label>
               </div>
             </div>
 
@@ -1853,10 +1892,17 @@ export function updateBundleLivePreview() {
 
       <!-- Top Row: Badge & Status -->
       <div class="flex items-center justify-between mb-3 relative z-10">
-        <span class="px-2.5 py-0.5 rounded-full ${badge === 'BEST DEAL' ? 'bg-rose-600' : 'bg-blue-600'
+        <div class="flex items-center space-x-2">
+          <span class="px-2.5 py-0.5 rounded-full ${badge === 'BEST DEAL' ? 'bg-rose-600' : 'bg-blue-600'
     } text-white font-extrabold text-[9px] uppercase tracking-wider shadow-sm">
-          ${badge}
-        </span>
+            ${badge}
+          </span>
+          ${document.getElementById('bf-free-shipping')?.checked ? `
+            <span class="px-2 py-0.5 rounded-full bg-emerald-500 text-white font-extrabold text-[9px] uppercase tracking-wider shadow-sm flex items-center space-x-1">
+              <span>🚚 FREE SHIPPING</span>
+            </span>
+          ` : ''}
+        </div>
         <span class="text-[10px] font-mono font-bold ${isActive ? 'text-emerald-300 bg-emerald-500/20' : 'text-slate-300 bg-white/10'} px-2 py-0.5 rounded-full border border-white/15">
           ${isActive ? '● Live Slide' : '○ Draft'}
         </span>
@@ -2015,6 +2061,7 @@ export async function handleSaveBundleFormPage(event) {
     durationMins: Number(document.getElementById('bf-mins').value) || 30,
     durationSecs: Number(document.getElementById('bf-secs').value) || 0,
     productId: Number(document.getElementById('bf-product-id').value) || (bundleItems[0] ? bundleItems[0].productId : 1),
+    isFreeShipping: Boolean(document.getElementById('bf-free-shipping')?.checked),
     active: document.getElementById('bf-active').checked
   };
 

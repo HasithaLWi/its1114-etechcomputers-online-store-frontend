@@ -41,6 +41,7 @@ import {
 import { renderBrandsTab } from './brand_management_controller.js';
 import { renderTrashBinTab, getTrashTotalCount } from './trash_bin_controller.js';
 import { renderNewsletterTab } from './newsletter_management_controller.js';
+import { parseLKR } from '../util/formatters.js';
 
 let activeTab = 'overview';
 let activeUser = null;
@@ -351,7 +352,7 @@ function renderAdminOverview(container) {
 
   // Dynamic Metrics Calculation
   const totalRevenue = orders.reduce((sum, o) => {
-    const val = parseFloat((o.totalAmount || "0").toString().replace(/[^0-9.]/g, '')) || 0;
+    const val = parseLKR(o.totalAmount || o.total);
     return sum + val;
   }, 0);
 
@@ -1000,7 +1001,7 @@ export function initSalesOrdersChart(range = '30D') {
 
   const ctx = canvas.getContext('2d');
   const orders = getAllOrders();
-  const totalRevenue = orders.reduce((sum, o) => sum + (parseFloat((o.totalAmount || "0").toString().replace(/[^0-9.]/g, '')) || 0), 0);
+  const totalRevenue = orders.reduce((sum, o) => sum + parseLKR(o.totalAmount || o.total), 0);
 
   // Multi-range datasets dynamically scaled to match project order amounts
   const rangeConfigs = {
@@ -1445,7 +1446,7 @@ function renderStaffOverview(container) {
                 </div>
                 <h4 class="text-sm font-bold text-[#0f172a] mt-0.5">Customer: ${o.customerName || 'Customer'} &bull; ${o.city || branchCity}</h4>
                 <p class="text-xs text-amber-700 font-semibold mt-0.5">
-                  Status: ${o.status} &bull; Total: Rs. ${parseFloat((o.totalAmount || 0).toString().replace(/[^0-9.]/g, '')).toLocaleString()}
+                  Status: ${o.status} &bull; Total: ${formatLKR(parseLKR(o.totalAmount || o.total))}
                 </p>
               </div>
             </div>
