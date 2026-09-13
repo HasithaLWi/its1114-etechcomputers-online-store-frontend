@@ -20,6 +20,138 @@ import {
 
 
 let cachedUsers = [];
+let userTypeFilter = 'all'; // 'all' | 'employees' | 'customers'
+
+const EMPLOYEE_ROLES = ['SUPERADMIN', 'SUPER_ADMIN', 'ADMIN', 'STAFF'];
+
+/**
+ * Filter users by type toggle (All / Employees / Customers)
+ */
+export function filterUsersByType(type) {
+  userTypeFilter = type || 'all';
+
+  // Update toggle button styles
+  const allBtn = document.getElementById('user-filter-all');
+  const empBtn = document.getElementById('user-filter-employees');
+  const custBtn = document.getElementById('user-filter-customers');
+
+  const activeClass = 'bg-white text-[#0f172a] shadow-sm border border-[#e2e8f0]';
+  const inactiveClass = 'text-[#64748b] hover:text-[#0f172a]';
+
+  [allBtn, empBtn, custBtn].forEach(btn => {
+    if (btn) {
+      btn.className = btn.className.replace(/bg-white|text-\[#0f172a\]|shadow-sm|border|border-\[#e2e8f0\]|text-\[#64748b\]|hover:text-\[#0f172a\]/g, '').trim();
+      btn.classList.add('px-4', 'py-1.5', 'text-xs', 'font-bold', 'rounded-md', 'transition-all');
+    }
+  });
+
+  const activeBtn = type === 'employees' ? empBtn : (type === 'customers' ? custBtn : allBtn);
+  const inactiveBtns = [allBtn, empBtn, custBtn].filter(b => b !== activeBtn);
+
+  if (activeBtn) activeClass.split(' ').forEach(c => activeBtn.classList.add(c));
+  inactiveBtns.forEach(btn => { if (btn) inactiveClass.split(' ').forEach(c => btn.classList.add(c)); });
+
+  // Filter and re-render tbody
+  reRenderUsersTableBody();
+}
+
+/**
+ * Re-render users table body based on current filter
+ */
+function reRenderUsersTableBody() {
+  const tbody = document.getElementById('users-tbody');
+  if (!tbody || cachedUsers.length === 0) return;
+
+  const activeUser = (typeof getCurrentUser === 'function') ? getCurrentUser() : null;
+  if (!activeUser) return;
+
+  let filtered = cachedUsers;
+  if (userTypeFilter === 'employees') {
+    filtered = cachedUsers.filter(u => EMPLOYEE_ROLES.includes((u.role || '').toUpperCase()));
+  } else if (userTypeFilter === 'customers') {
+    filtered = cachedUsers.filter(u => (u.role || '').toUpperCase() === 'CUSTOMER');
+  }
+
+  const branches = getBranches();
+
+  if (filtered.length === 0) {
+    const label = userTypeFilter === 'employees' ? 'employee' : (userTypeFilter === 'customers' ? 'customer' : 'user');
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="6" class="py-8 text-center text-xs text-[#64748b]">
+          No ${label} accounts found.
+        </td>
+      </tr>
+    `;
+    return;
+  }
+
+  tbody.innerHTML = filtered.map(u => renderUserRow(u, activeUser, branches)).join('');
+}
+
+/**
+ * Render a single user table row
+ */
+function renderUserRow(u, activeUser, branches) {
+  const isSelf = activeUser.id === u.id;
+  const formattedDate = u.createdAt
+    ? (isNaN(new Date(u.createdAt).getTime()) ? u.createdAt : new Date(u.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }))
+    : '-';
+
+  const branchDisplay = u.assignedBranch
+    ? (branches.find(b => b.id === u.assignedBranch)?.name || u.assignedBranch)
+    : '<span class="text-[#94a3b8]">-</span>';
+
+  const userStatus = (u.status || 'ACTIVE').toUpperCase();
+  const isStatusActive = userStatus === 'ACTIVE';
+
+  const isSuper = Boolean(u.isSuperAdmin?.() || u.role === 'SUPERADMIN' || u.role === 'SUPER_ADMIN');
+  const avatarClass = isStatusActive
+    ? (isSuper ? 'bg-purple-50 text-purple-600 border-purple-200' : 'bg-blue-50 text-blue-600 border-blue-200')
+    : 'bg-slate-100 text-slate-400 border-slate-200 opacity-60';
+
+  return `
+    <tr class="hover:bg-[#f8fafc] transition-colors">
+      <td class="py-3 px-3.5">
+        <div class="flex items-center space-x-2.5">
+          <div class="w-7 h-7 rounded font-bold text-xs flex items-center justify-center border shadow-sm ${avatarClass}">
+            ${u.getInitial()}
+          </div>
+          <div>
+            <p class="font-bold text-[#0f172a] text-xs flex items-center gap-1.5">
+              <span>${u.name || 'Unnamed'}</span>
+              ${!isStatusActive ? `<span class="text-[9px] font-bold text-rose-600 bg-rose-50 border border-rose-200 px-1 rounded">INACTIVE</span>` : ''}
+            </p>
+            <p class="text-[10px] text-blue-600 font-mono">@${u.username || u.id}</p>
+          </div>
+        </div>
+      </td>
+      <td class="py-3 px-3.5 font-mono text-[#475569] text-xs">${u.email || '-'}</td>
+      <td class="py-3 px-3.5">
+        ${getRoleBadge(u.role)}
+      </td>
+      <td class="py-3 px-3.5 text-xs text-[#475569]">
+        ${branchDisplay}
+      </td>
+      <td class="py-3 px-3.5 text-[#64748b] text-xs">${formattedDate}</td>
+      <td class="py-3 px-3.5 text-right">
+        <div class="flex items-center justify-end space-x-1.5">
+          <button onclick="openUserModal('${u.id}')" class="p-1.5 bg-[#f8fafc] hover:bg-[#f1f5f9] text-blue-600 rounded border border-[#e2e8f0] transition-colors shadow-sm" title="Edit User Details & Role">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+          </button>
+          <select onchange="changeUserStatus('${u.id}', this.value)" class="bg-[#f8fafc] border ${isStatusActive ? 'border-emerald-300 text-emerald-700 bg-emerald-50/60' : 'border-rose-300 text-rose-700 bg-rose-50/60'} rounded px-2 py-1 text-xs font-mono font-bold focus:border-blue-600 cursor-pointer shadow-sm" title="Change Account Status">
+            <option value="ACTIVE" ${isStatusActive ? 'selected' : ''}>ACTIVE</option>
+            <option value="INACTIVE" ${!isStatusActive ? 'selected' : ''}>INACTIVE</option>
+          </select>
+          <button onclick="confirmDeleteUser('${u.id}')" ${isSelf ? 'disabled' : ''} title="${isSelf ? 'Cannot delete active account' : 'Delete User Account'}"
+            class="p-1.5 ${isSelf ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed' : 'bg-rose-50 hover:bg-rose-100 text-rose-700 border-rose-200'} rounded border transition-colors shadow-sm">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+          </button>
+        </div>
+      </td>
+    </tr>
+  `;
+}
 
 /**
  * Renders the User Directory Table inside Admin Dashboard
@@ -51,7 +183,6 @@ export async function renderUsersTab() {
     const res = await UserApi.getUsers();
     const userList = Array.isArray(res) ? res : (res?.body || res?.data || []);
     cachedUsers = (Array.isArray(userList) ? userList : []).map(u => u instanceof User ? u : new User(u));
-    const branches = getBranches();
 
     if (cachedUsers.length === 0) {
       tbody.innerHTML = `
@@ -64,67 +195,8 @@ export async function renderUsersTab() {
       return;
     }
 
-    tbody.innerHTML = cachedUsers.map(u => {
-      const isSelf = activeUser.id === u.id;
-      const formattedDate = u.createdAt 
-        ? (isNaN(new Date(u.createdAt).getTime()) ? u.createdAt : new Date(u.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }))
-        : '-';
-
-      // Branch display
-      const branchDisplay = u.assignedBranch 
-        ? (branches.find(b => b.id === u.assignedBranch)?.name || u.assignedBranch) 
-        : '<span class="text-[#94a3b8]">-</span>';
-
-      const userStatus = (u.status || 'ACTIVE').toUpperCase();
-      const isStatusActive = userStatus === 'ACTIVE';
-
-      const isSuper = Boolean(u.isSuperAdmin?.() || u.role === 'SUPERADMIN' || u.role === 'SUPER_ADMIN');
-      const avatarClass = isStatusActive
-        ? (isSuper ? 'bg-purple-50 text-purple-600 border-purple-200' : 'bg-blue-50 text-blue-600 border-blue-200')
-        : 'bg-slate-100 text-slate-400 border-slate-200 opacity-60';
-
-      return `
-        <tr class="hover:bg-[#f8fafc] transition-colors">
-          <td class="py-3 px-3.5">
-            <div class="flex items-center space-x-2.5">
-              <div class="w-7 h-7 rounded font-bold text-xs flex items-center justify-center border shadow-sm ${avatarClass}">
-                ${u.getInitial()}
-              </div>
-              <div>
-                <p class="font-bold text-[#0f172a] text-xs flex items-center gap-1.5">
-                  <span>${u.name || 'Unnamed'}</span>
-                  ${!isStatusActive ? `<span class="text-[9px] font-bold text-rose-600 bg-rose-50 border border-rose-200 px-1 rounded">INACTIVE</span>` : ''}
-                </p>
-                <p class="text-[10px] text-blue-600 font-mono">@${u.username || u.id}</p>
-              </div>
-            </div>
-          </td>
-          <td class="py-3 px-3.5 font-mono text-[#475569] text-xs">${u.email || '-'}</td>
-          <td class="py-3 px-3.5">
-            ${getRoleBadge(u.role)}
-          </td>
-          <td class="py-3 px-3.5 text-xs text-[#475569]">
-            ${branchDisplay}
-          </td>
-          <td class="py-3 px-3.5 text-[#64748b] text-xs">${formattedDate}</td>
-          <td class="py-3 px-3.5 text-right">
-            <div class="flex items-center justify-end space-x-1.5">
-              <button onclick="openUserModal('${u.id}')" class="p-1.5 bg-[#f8fafc] hover:bg-[#f1f5f9] text-blue-600 rounded border border-[#e2e8f0] transition-colors shadow-sm" title="Edit User Details & Role">
-                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
-              </button>
-              <select onchange="changeUserStatus('${u.id}', this.value)" class="bg-[#f8fafc] border ${isStatusActive ? 'border-emerald-300 text-emerald-700 bg-emerald-50/60' : 'border-rose-300 text-rose-700 bg-rose-50/60'} rounded px-2 py-1 text-xs font-mono font-bold focus:border-blue-600 cursor-pointer shadow-sm" title="Change Account Status">
-                <option value="ACTIVE" ${isStatusActive ? 'selected' : ''}>ACTIVE</option>
-                <option value="INACTIVE" ${!isStatusActive ? 'selected' : ''}>INACTIVE</option>
-              </select>
-              <button onclick="confirmDeleteUser('${u.id}')" ${isSelf ? 'disabled' : ''} title="${isSelf ? 'Cannot delete active account' : 'Delete User Account'}"
-                class="p-1.5 ${isSelf ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed' : 'bg-rose-50 hover:bg-rose-100 text-rose-700 border-rose-200'} rounded border transition-colors shadow-sm">
-                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-              </button>
-            </div>
-          </td>
-        </tr>
-      `;
-    }).join('');
+    // Apply current filter and render using shared row renderer
+    reRenderUsersTableBody();
   } catch (err) {
     console.error('[UserController] Failed to fetch users:', err);
     etechAlert.error('Connection Error', 'Unable to load users. Please try again.');

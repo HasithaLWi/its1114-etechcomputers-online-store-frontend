@@ -97,7 +97,9 @@ export async function syncBranchesFromApi(activeOnly = false) {
         address: b.address || '',
         phone: b.phone || b.hotline || '',
         email: b.email || '',
-        baseShippingFee: parseFloat(b.baseShippingFee || b.baseShippingRate || b.baseRate || 300),
+        latitude: (b.latitude !== undefined && b.latitude !== null && !isNaN(b.latitude)) ? parseFloat(b.latitude) : null,
+        longitude: (b.longitude !== undefined && b.longitude !== null && !isNaN(b.longitude)) ? parseFloat(b.longitude) : null,
+        baseShippingFee: parseFloat(b.baseShippingFee || b.baseShippingRate || b.baseRate || 350),
         perKmFee: parseFloat(b.perKmFee || 25),
         status: b.status || (b.active !== false ? 'Active' : 'Inactive')
       }));
@@ -138,27 +140,54 @@ export async function saveBranch(branchData) {
   const branches = memoryBranches;
   const index = branches.findIndex(b => b.id === branchData.id);
   
+  const lat = (branchData.latitude !== undefined && branchData.latitude !== null && !isNaN(branchData.latitude))
+    ? parseFloat(branchData.latitude)
+    : 6.9271;
+  const lng = (branchData.longitude !== undefined && branchData.longitude !== null && !isNaN(branchData.longitude))
+    ? parseFloat(branchData.longitude)
+    : 79.8612;
+  const baseRate = parseFloat(branchData.baseShippingFee || branchData.baseShippingRate || 350);
+  const kmRate = parseFloat(branchData.perKmFee || 25);
+  const isActive = branchData.status === 'Active' || branchData.active === true;
+
+  const payload = {
+    id: branchData.id,
+    name: branchData.name.trim(),
+    city: branchData.city.trim(),
+    address: (branchData.address || '').trim(),
+    phone: (branchData.phone || '').trim(),
+    email: (branchData.email || `${branchData.city.toLowerCase().replace(/\s+/g, '')}@etechcomputers.lk`).trim(),
+    latitude: lat,
+    longitude: lng,
+    baseShippingRate: baseRate,
+    baseShippingFee: baseRate,
+    perKmFee: kmRate,
+    active: isActive,
+    status: isActive ? 'Active' : 'Inactive'
+  };
+
   if (index > -1) {
-    branches[index] = { ...branches[index], ...branchData };
-    await BranchesApi.update(branches[index].id, branches[index]);
+    branches[index] = { ...branches[index], ...payload };
+    try {
+      await BranchesApi.update(branches[index].id, payload);
+    } catch (err) {
+      console.warn('[BranchController] Backend update fallback:', err);
+    }
   } else {
-    const newBranch = {
-      id: branchData.id || 'BR-' + Math.floor(100 + Math.random() * 900),
-      name: branchData.name,
-      city: branchData.city,
-      address: branchData.address || '',
-      phone: branchData.phone || '',
-      email: branchData.email || '',
-      baseShippingFee: parseFloat(branchData.baseShippingFee) || 300,
-      perKmFee: parseFloat(branchData.perKmFee) || 25,
-      status: branchData.status || 'Active'
-    };
-    branches.push(newBranch);
-    await BranchesApi.create(newBranch);
+    if (!payload.id || !payload.id.trim()) {
+      const cityPrefix = (payload.city || 'HUB').substring(0, 3).toUpperCase();
+      payload.id = 'BR-' + cityPrefix;
+    }
+    branches.push(payload);
+    try {
+      await BranchesApi.create(payload);
+    } catch (err) {
+      console.warn('[BranchController] Backend create fallback:', err);
+    }
   }
   
   saveBranches(branches);
-  return true;
+  return payload;
 }
 
 /**
@@ -166,24 +195,45 @@ export async function saveBranch(branchData) {
  */
 export async function deleteBranch(branchId) {
   memoryBranches = memoryBranches.filter(b => b.id !== branchId);
-  await BranchesApi.delete(branchId);
+  try {
+    await BranchesApi.delete(branchId);
+  } catch (err) {
+    console.warn('[BranchController] Backend delete fallback:', err);
+  }
   return true;
 }
 
 /**
  * Resolves GPS Coordinates for a Branch
+ * Prioritizes real stored latitude and longitude so live branch configuration feeds into checkout
  */
 export function getBranchCoords(branch) {
-  if (!branch) return { lat: 6.9271, lng: 79.8612 };
+  if (!branch) return { lat: 6.9271, lng: 79.8612, name: 'Colombo Main Hub', city: 'Colombo' };
+  
+  // 1. Check real saved coordinates on branch object
+  if (branch.latitude !== undefined && branch.latitude !== null && !isNaN(branch.latitude) &&
+      branch.longitude !== undefined && branch.longitude !== null && !isNaN(branch.longitude)) {
+    return {
+      lat: parseFloat(branch.latitude),
+      lng: parseFloat(branch.longitude),
+      name: branch.name,
+      city: branch.city
+    };
+  }
+
+  // 2. Fallback to warehouse dictionary
   if (BRANCH_WAREHOUSE_COORDS[branch.id]) {
     return BRANCH_WAREHOUSE_COORDS[branch.id];
   }
+
+  // 3. Fallback to district centroid
   const cityKey = (branch.city || '').trim();
   const matchedCity = Object.keys(SRI_LANKA_DISTRICTS_COORDS).find(k => k.toLowerCase() === cityKey.toLowerCase());
   if (matchedCity) {
-    return SRI_LANKA_DISTRICTS_COORDS[matchedCity];
+    return { ...SRI_LANKA_DISTRICTS_COORDS[matchedCity], name: branch.name, city: branch.city };
   }
-  return { lat: 6.9271, lng: 79.8612 };
+
+  return { lat: 6.9271, lng: 79.8612, name: branch.name, city: branch.city };
 }
 
 /**
@@ -482,21 +532,79 @@ export function initCheckoutMap(containerId = 'checkout-delivery-map', onLocatio
     }
   }
 
+  let currentCustomerDeliveryCoords = { lat: initialCustomerCoords.lat, lng: initialCustomerCoords.lng };
+  let isDeliveryLocationExplicitlyPinned = false;
+
+  function updateDeliveryRoute(lat, lng, locationName, explicitlyPinned = false) {
+    currentCustomerDeliveryCoords = { lat, lng };
+    if (explicitlyPinned) {
+      isDeliveryLocationExplicitlyPinned = true;
+      updateMapLocationBadge(true, lat, lng);
+    }
+
+    const branches = getBranches().filter(b => (b.status || 'Active').toLowerCase() === 'active');
+    let nearestBranch = branches[0] || { name: 'Colombo Main Hub', city: 'Colombo' };
+    let minDistance = Infinity;
+
+    branches.forEach(b => {
+      const bCoords = getBranchCoords(b);
+      const d = calculateHaversineDistanceKm(bCoords.lat, bCoords.lng, lat, lng);
+      if (d < minDistance) {
+        minDistance = d;
+        nearestBranch = b;
+      }
+    });
+
+    const bCoords = getBranchCoords(nearestBranch);
+
+    // Update or create dashed route polyline
+    if (routePolyline) {
+      checkoutLeafletMap.removeLayer(routePolyline);
+    }
+    routePolyline = L.polyline([[bCoords.lat, bCoords.lng], [lat, lng]], {
+      color: '#2563eb',
+      weight: 3,
+      dashArray: '6, 8',
+      opacity: 0.85
+    }).addTo(checkoutLeafletMap);
+
+    // Update UI Badges
+    const badge = document.getElementById('map-distance-badge');
+    const hubName = document.getElementById('nearest-hub-name');
+    const hubDist = document.getElementById('nearest-hub-distance');
+
+    if (badge) badge.textContent = `${minDistance} km dispatch route`;
+    if (hubName) hubName.textContent = nearestBranch.name;
+    if (hubDist) hubDist.textContent = `${minDistance} km (${nearestBranch.city} → destination)`;
+
+    if (typeof onLocationChanged === 'function') {
+      onLocationChanged({
+        branch: nearestBranch,
+        distanceKm: minDistance,
+        lat,
+        lng,
+        locationName,
+        isPinned: isDeliveryLocationExplicitlyPinned
+      });
+    }
+  }
+
   // Handle marker drag
   customerMarker.on('dragend', function (e) {
     const pos = e.target.getLatLng();
-    updateDeliveryRoute(pos.lat, pos.lng, 'Pinned Location');
+    updateDeliveryRoute(pos.lat, pos.lng, 'Doorstep Delivery Pin', true);
   });
 
   // Handle map click
   checkoutLeafletMap.on('click', function (e) {
     const { lat, lng } = e.latlng;
     customerMarker.setLatLng([lat, lng]);
-    updateDeliveryRoute(lat, lng, 'Pinned Location');
+    updateDeliveryRoute(lat, lng, 'Doorstep Delivery Pin', true);
   });
 
-  // Initial Route calculation
-  updateDeliveryRoute(initialCustomerCoords.lat, initialCustomerCoords.lng, 'Colombo');
+  // Initial Route calculation (default initial state is not explicitly pinned by user yet)
+  updateDeliveryRoute(initialCustomerCoords.lat, initialCustomerCoords.lng, 'Colombo', false);
+  updateMapLocationBadge(false);
 
   setTimeout(() => {
     if (checkoutLeafletMap) checkoutLeafletMap.invalidateSize();
@@ -505,6 +613,137 @@ export function initCheckoutMap(containerId = 'checkout-delivery-map', onLocatio
   mapInitialized = true;
   window._etechCheckoutMap = checkoutLeafletMap;
   return checkoutLeafletMap;
+}
+
+/**
+ * UI Badge updater for checkout location status
+ */
+export function updateMapLocationBadge(isPinned, lat = null, lng = null) {
+  const badgeEl = document.getElementById('map-location-status-badge');
+  if (!badgeEl) return;
+
+  if (isPinned && lat !== null && lng !== null) {
+    badgeEl.innerHTML = `
+      <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-300 shadow-xs">
+        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5 animate-pulse"></span>
+        📍 Delivery Pin Confirmed (${lat.toFixed(4)}, ${lng.toFixed(4)})
+      </span>
+    `;
+  } else {
+    badgeEl.innerHTML = `
+      <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-300">
+        <span class="w-1.5 h-1.5 rounded-full bg-amber-500 mr-1.5"></span>
+        ⚠️ Choose / Pin Location on Map (Required)
+      </span>
+    `;
+  }
+}
+
+/**
+ * Get current checkout delivery location & pin verification status
+ */
+export function getCheckoutDeliveryLocation() {
+  if (customerMarker) {
+    const pos = customerMarker.getLatLng();
+    return {
+      lat: pos.lat,
+      lng: pos.lng,
+      isPinned: !!window._etechCustomerLocationExplicitlyPinned
+    };
+  }
+  return {
+    lat: 6.9271,
+    lng: 79.8612,
+    isPinned: false
+  };
+}
+
+/**
+ * Mark checkout location as explicitly confirmed
+ */
+export function markCheckoutLocationPinned(lat = null, lng = null) {
+  window._etechCustomerLocationExplicitlyPinned = true;
+  if (lat !== null && lng !== null && customerMarker && checkoutLeafletMap) {
+    customerMarker.setLatLng([lat, lng]);
+    checkoutLeafletMap.panTo([lat, lng], { animate: true });
+    updateMapLocationBadge(true, lat, lng);
+  } else if (customerMarker) {
+    const pos = customerMarker.getLatLng();
+    updateMapLocationBadge(true, pos.lat, pos.lng);
+  }
+}
+
+/**
+ * Reset checkout delivery location state
+ */
+export function resetCheckoutDeliveryLocation() {
+  window._etechCustomerLocationExplicitlyPinned = false;
+  const colomboCoords = resolveLocationCoords('Colombo');
+  if (customerMarker && checkoutLeafletMap) {
+    customerMarker.setLatLng([colomboCoords.lat, colomboCoords.lng]);
+    checkoutLeafletMap.setView([colomboCoords.lat, colomboCoords.lng], 7);
+  }
+  updateMapLocationBadge(false);
+}
+
+/**
+ * Trigger HTML5 Geolocation to automatically pin the customer's current GPS location
+ */
+export function useCustomerCurrentGeolocation(onLocationChanged) {
+  if (!navigator.geolocation) {
+    alert('Geolocation is not supported by your browser.');
+    return;
+  }
+
+  const btn = document.getElementById('btn-checkout-use-gps');
+  const originalText = btn ? btn.innerHTML : '';
+  if (btn) btn.innerHTML = '<span>⏳ Locating GPS...</span>';
+
+  navigator.geolocation.getCurrentPosition(
+    (position) => {
+      const lat = position.coords.latitude;
+      const lng = position.coords.longitude;
+
+      if (customerMarker && checkoutLeafletMap) {
+        customerMarker.setLatLng([lat, lng]);
+        checkoutLeafletMap.setView([lat, lng], 13);
+      }
+
+      markCheckoutLocationPinned(lat, lng);
+
+      if (typeof onLocationChanged === 'function') {
+        const branches = getBranches().filter(b => (b.status || 'Active').toLowerCase() === 'active');
+        let nearestBranch = branches[0] || { name: 'Colombo Main Hub' };
+        let minDistance = Infinity;
+
+        branches.forEach(b => {
+          const bCoords = getBranchCoords(b);
+          const d = calculateHaversineDistanceKm(bCoords.lat, bCoords.lng, lat, lng);
+          if (d < minDistance) {
+            minDistance = d;
+            nearestBranch = b;
+          }
+        });
+
+        onLocationChanged({
+          branch: nearestBranch,
+          distanceKm: minDistance,
+          lat,
+          lng,
+          locationName: 'My GPS Location',
+          isPinned: true
+        });
+      }
+
+      if (btn) btn.innerHTML = originalText;
+    },
+    (err) => {
+      console.warn('Geolocation failed:', err.message);
+      alert('Unable to retrieve your location. Please click or drag the pin on the map to set your delivery doorstep.');
+      if (btn) btn.innerHTML = originalText;
+    },
+    { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+  );
 }
 
 /**
@@ -517,6 +756,7 @@ export function setCheckoutMapDestination(districtOrCityName, onLocationChanged)
   if (customerMarker && checkoutLeafletMap) {
     customerMarker.setLatLng([coords.lat, coords.lng]);
     checkoutLeafletMap.panTo([coords.lat, coords.lng], { animate: true, duration: 0.6 });
+    markCheckoutLocationPinned(coords.lat, coords.lng);
 
     const branches = getBranches().filter(b => (b.status || 'Active').toLowerCase() === 'active');
     let nearestBranch = branches[0] || { name: 'Colombo Main Hub' };
@@ -556,7 +796,8 @@ export function setCheckoutMapDestination(districtOrCityName, onLocationChanged)
         distanceKm: minDistance,
         lat: coords.lat,
         lng: coords.lng,
-        locationName: coords.name || districtOrCityName
+        locationName: coords.name || districtOrCityName,
+        isPinned: true
       });
     }
   }

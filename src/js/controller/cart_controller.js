@@ -1,6 +1,6 @@
 // ETech Computers - Shopping Cart & Order Checkout System
 import { products, getStoredProducts, deductBranchStock } from '../models/data.js';
-import { autoSelectFulfillmentBranch, initCheckoutMap, setCheckoutMapDestination, resolveLocationCoords } from './branch_controller.js';
+import { autoSelectFulfillmentBranch, initCheckoutMap, setCheckoutMapDestination, resolveLocationCoords, getCheckoutDeliveryLocation, resetCheckoutDeliveryLocation } from './branch_controller.js';
 import { saveOrder } from './order_management_controller.js';
 import { getCurrentUser } from './login_controller.js';
 import { recordBundleSale, getDealBundles, getHotDealByProductId, isBundleAvailable } from '../models/deals_data.js';
@@ -719,7 +719,7 @@ export function renderCheckoutSummary(cart, customerDestination = 'Colombo') {
 /**
  * Handles checkout form submission, Luhn card check, PayHere Sandbox launch, and backend order persistence
  */
-export function handleCheckoutSubmit(e) {
+export async function handleCheckoutSubmit(e) {
   e.preventDefault();
 
   if (validateCartBundles()) {
@@ -737,6 +737,22 @@ export function handleCheckoutSubmit(e) {
 
   if (!fullName || !email || !address || !phone) {
     etechAlert.warning('Incomplete Shipping Information', 'Please fill out all required delivery and contact details, including your Phone Number, before placing your order.');
+    return;
+  }
+
+  // Mandatory Map Doorstep Pin Validation
+  const locState = getCheckoutDeliveryLocation();
+  if (!locState.isPinned) {
+    etechAlert.warning(
+      'Delivery Location Required',
+      'Please click on the map or drag the 📍 green pin to your exact delivery doorstep (or click "Confirm Pin") before completing your order.'
+    );
+    const mapEl = document.getElementById('checkout-delivery-map');
+    if (mapEl) {
+      mapEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      mapEl.classList.add('ring-4', 'ring-amber-400');
+      setTimeout(() => mapEl.classList.remove('ring-4', 'ring-amber-400'), 2500);
+    }
     return;
   }
 
@@ -781,6 +797,21 @@ export function handleCheckoutSubmit(e) {
   const shipping = hasFreeShipping ? 0 : (fulfillment ? fulfillment.shippingFee : 450);
   const grandTotal = subtotal + tax + shipping;
 
+  const deliveryLat = locState.lat;
+  const deliveryLng = locState.lng;
+
+  // Confirmation Prompt before final payment authorization
+  const isOrderConfirmed = await etechAlert.confirm({
+    title: 'Confirm Order & Delivery Destination',
+    message: 'Please review and confirm your delivery details before placing your order:',
+    details: `📍 Destination: ${address}, ${city} (${district}) | GPS Pin: ${deliveryLat.toFixed(4)}, ${deliveryLng.toFixed(4)} | Dispatch Hub: ${fulfillment ? fulfillment.branch.name : 'Colombo Main Hub'} (${fulfillment ? fulfillment.distanceKm : 5} km) | Order Total: Rs. ${grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
+    type: 'update',
+    confirmText: 'Confirm & Place Order',
+    cancelText: 'Review Details'
+  });
+
+  if (!isOrderConfirmed) return;
+
   const orderId = '#ETC-' + Math.floor(100000 + Math.random() * 900000);
 
   async function executeOrderFinalization(paymentMethodTitle, transactionRef = null) {
@@ -814,6 +845,8 @@ export function handleCheckoutSubmit(e) {
         fulfillmentBranch: fulfillment ? fulfillment.branch.name : 'Colombo Main Hub',
         fulfillmentBranchId: fulfillment ? fulfillment.branch.id : 'BR-COL',
         distanceKm: fulfillment ? fulfillment.distanceKm : 5,
+        deliveryLatitude: deliveryLat,
+        deliveryLongitude: deliveryLng,
         items: orderItems,
         subtotal: `Rs. ${subtotal.toFixed(2)}`,
         tax: `Rs. ${tax.toFixed(2)}`,
@@ -840,6 +873,9 @@ export function handleCheckoutSubmit(e) {
 
       // Clear cart
       saveCart([]);
+
+      // Clear all checkout input fields and reset map pin
+      clearCheckoutFields();
 
       // Populate Success Modal
       const modalOrderId = document.getElementById('modal-order-id');
@@ -1065,5 +1101,39 @@ export function handleCheckoutSubmit(e) {
     // Cash on Delivery
     executeOrderFinalization('Cash on Delivery');
   }
+}
+
+/**
+ * Clear all checkout input fields, reset delivery pin, and restore default state
+ */
+export function clearCheckoutFields() {
+  const fields = [
+    'full-name', 'email', 'phone', 'address', 'city', 'postal-code',
+    'card-number', 'card-expiry', 'card-cvv'
+  ];
+  fields.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+
+  const districtSelect = document.getElementById('district');
+  if (districtSelect) districtSelect.selectedIndex = 0;
+
+  const payCardRadio = document.getElementById('pay-method-card');
+  if (payCardRadio) payCardRadio.checked = true;
+
+  const labelCard = document.getElementById('label-pay-card');
+  const labelCod = document.getElementById('label-pay-cod');
+  if (labelCard) {
+    labelCard.classList.add('border-blue-600');
+    labelCard.classList.remove('border-[#e2e8f0]');
+  }
+  if (labelCod) {
+    labelCod.classList.remove('border-blue-600');
+    labelCod.classList.add('border-[#e2e8f0]');
+  }
+
+  // Reset checkout location pin state & map marker
+  resetCheckoutDeliveryLocation();
 }
 

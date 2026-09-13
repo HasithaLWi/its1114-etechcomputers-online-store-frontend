@@ -31,7 +31,7 @@ import { getBranches, calculateShippingFee, autoSelectFulfillmentBranch } from '
 import {
     getCart, saveCart, updateCartBadge, addToCart, addBundleToCart, showToast,
     initCartLogic, initCheckoutLogic, validateCartBundles,
-    updateItemQuantity, removeItemFromCart
+    updateItemQuantity, removeItemFromCart, clearCheckoutFields
 } from './src/js/controller/cart_controller.js';
 import {
     viewProductDetails, renderProductDetailsPage,
@@ -136,20 +136,28 @@ import {
     saveOrder, getAllOrders, getUserOrders, updateOrderStatus,
     getOrderById, cancelCustomerOrder, renderCustomerOrderDetailPage,
     openOrderSupportEmail, handleCustomerCancelOrder, closeCancelOrderModal,
-    confirmCancelOrder
+    confirmCancelOrder, renderAdminOrderDetailView, backToOrdersList,
+    handleAdminOrderStatusUpdate
 } from './src/js/controller/order_management_controller.js';
 import { handleUserOrderSearch, handleUserOrderStatusFilter } from './src/js/app/app.js';
 
 // Branch Management Controller Imports
 import {
     renderBranchesTab, confirmDeleteBranch, openBranchModal,
-    editBranch, handleSaveBranchSubmit
+    editBranch, handleSaveBranchSubmit, openBranchFormPage, closeBranchFormPage,
+    filterBranchesTab, handleBranchCityChange, useBranchCurrentGPSLocation,
+    handleManualBranchCoordChange
 } from './src/js/controller/branch_management_controller.js';
+import {
+    useCustomerCurrentGeolocation, markCheckoutLocationPinned, getCheckoutDeliveryLocation,
+    resetCheckoutDeliveryLocation
+} from './src/js/controller/branch_controller.js';
 
 // User Management Controller Imports
 import {
     renderUsersTab, changeUserRole, changeUserStatus, confirmDeleteUser,
-    openUserModal, handleSaveUserSubmit, handleUserModalRoleChange
+    openUserModal, handleSaveUserSubmit, handleUserModalRoleChange,
+    filterUsersByType
 } from './src/js/controller/user_management_controller.js';
 
 // Analytics and Reports Controller Imports
@@ -274,7 +282,7 @@ Object.assign(window, {
     // Cart & Checkout
     getCart, saveCart, updateCartBadge, addToCart, showToast,
     initCartLogic, initCheckoutLogic,
-    updateItemQuantity, removeItemFromCart,
+    updateItemQuantity, removeItemFromCart, clearCheckoutFields,
 
     // Product Details, Ratings & Reviews
     viewProductDetails, renderProductDetailsPage,
@@ -331,15 +339,20 @@ Object.assign(window, {
     renderOrdersTab, changeOrderStatus, saveOrder, getAllOrders, getUserOrders, updateOrderStatus,
     getOrderById, cancelCustomerOrder, renderCustomerOrderDetailPage, openOrderSupportEmail,
     handleCustomerCancelOrder, closeCancelOrderModal, confirmCancelOrder,
+    renderAdminOrderDetailView, backToOrdersList, handleAdminOrderStatusUpdate,
     handleUserOrderSearch, handleUserOrderStatusFilter,
 
     // Branch Management
     renderBranchesTab, confirmDeleteBranch, openBranchModal,
-    editBranch, handleSaveBranchSubmit,
+    editBranch, handleSaveBranchSubmit, openBranchFormPage, closeBranchFormPage,
+    filterBranchesTab, handleBranchCityChange, useBranchCurrentGPSLocation,
+    handleManualBranchCoordChange, useCustomerCurrentGeolocation, markCheckoutLocationPinned,
+    getCheckoutDeliveryLocation, resetCheckoutDeliveryLocation,
 
     // User Management
     renderUsersTab, changeUserRole, changeUserStatus, confirmDeleteUser,
     openUserModal, handleSaveUserSubmit, handleUserModalRoleChange,
+    filterUsersByType,
 
     // Dynamic Page Generators (SPA)
     renderLoginPage, initLoginPage,
