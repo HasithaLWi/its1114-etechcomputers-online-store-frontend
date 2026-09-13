@@ -197,9 +197,6 @@ export function ajaxRequest({ endpoint, method = 'GET', data = null, headers = {
                 errorMessage = `${xhr.responseJSON.message}: ${details}`;
               }
             }
-            if (errorMessage.toLowerCase().includes('token expired') || errorMessage.toLowerCase().includes('token invalid') || errorMessage.toLowerCase().includes('jwt expired')) {
-              handleSessionExpired(errorMessage);
-            }
           } else if (xhr.responseJSON.body && typeof xhr.responseJSON.body === 'object') {
             errorMessage = Object.values(xhr.responseJSON.body).filter(Boolean).join(', ');
           }
@@ -207,12 +204,18 @@ export function ajaxRequest({ endpoint, method = 'GET', data = null, headers = {
           try {
             const parsed = JSON.parse(xhr.responseText);
             errorMessage = parsed.message || errorMessage;
-            if (errorMessage.toLowerCase().includes('token expired') || errorMessage.toLowerCase().includes('token invalid') || errorMessage.toLowerCase().includes('jwt expired')) {
-              handleSessionExpired(errorMessage);
-            }
           } catch (e) {
             errorMessage = xhr.statusText || errorMessage;
           }
+        }
+
+        // Global Sanitization: Never leak technical internals, database, URLs, or 500 details to UI/alerts
+        if (xhr.status >= 500 || /exception|hibernate|entity|sql|syntax|org\.|incompatible type|cannot be cast|assignable to|database|http:\/\/|localhost|backend server/i.test(errorMessage)) {
+          errorMessage = 'A server error occurred. Please try again later.';
+        }
+
+        if (errorMessage.toLowerCase().includes('token expired') || errorMessage.toLowerCase().includes('token invalid') || errorMessage.toLowerCase().includes('jwt expired')) {
+          handleSessionExpired(errorMessage);
         }
 
         console.error(`%c[API Error ${xhr.status || 0}] ${httpMethod} ${endpoint} (${duration}ms)`, 'color: #dc2626; font-weight: bold;', {

@@ -783,7 +783,7 @@ export function handleCheckoutSubmit(e) {
 
   const orderId = '#ETC-' + Math.floor(100000 + Math.random() * 900000);
 
-  function executeOrderFinalization(paymentMethodTitle, transactionRef = null) {
+  async function executeOrderFinalization(paymentMethodTitle, transactionRef = null) {
     // Transform cart line items for individual product order entry with bundle notation
     const orderItems = cart.map(item => ({
       id: item.productId || item.id,
@@ -799,68 +799,72 @@ export function handleCheckoutSubmit(e) {
       bundleTitle: item.bundleTitle || null
     }));
 
-    // Save order through controller (which syncs to backend API)
-    const savedOrder = saveOrder({
-      orderId: orderId,
-      customerName: fullName,
-      customerEmail: email,
-      email: email,
-      customerPhone: phone,
-      phone: phone,
-      shippingAddress: address,
-      address: address,
-      city: `${district}, ${city}`,
-      fulfillmentBranch: fulfillment ? fulfillment.branch.name : 'Colombo Main Hub',
-      fulfillmentBranchId: fulfillment ? fulfillment.branch.id : 'BR-COL',
-      distanceKm: fulfillment ? fulfillment.distanceKm : 5,
-      items: orderItems,
-      subtotal: `Rs. ${subtotal.toFixed(2)}`,
-      tax: `Rs. ${tax.toFixed(2)}`,
-      shipping: shipping === 0 ? 'FREE' : `Rs. ${shipping.toFixed(2)}`,
-      totalAmount: `Rs. ${grandTotal.toFixed(2)}`,
-      paymentMethod: paymentMethodTitle
-    });
+    try {
+      // Save order through controller (which syncs to backend API)
+      const savedOrder = await saveOrder({
+        orderId: orderId,
+        customerName: fullName,
+        customerEmail: email,
+        email: email,
+        customerPhone: phone,
+        phone: phone,
+        shippingAddress: address,
+        address: address,
+        city: `${district}, ${city}`,
+        fulfillmentBranch: fulfillment ? fulfillment.branch.name : 'Colombo Main Hub',
+        fulfillmentBranchId: fulfillment ? fulfillment.branch.id : 'BR-COL',
+        distanceKm: fulfillment ? fulfillment.distanceKm : 5,
+        items: orderItems,
+        subtotal: `Rs. ${subtotal.toFixed(2)}`,
+        tax: `Rs. ${tax.toFixed(2)}`,
+        shipping: shipping === 0 ? 'FREE' : `Rs. ${shipping.toFixed(2)}`,
+        totalAmount: `Rs. ${grandTotal.toFixed(2)}`,
+        paymentMethod: paymentMethodTitle
+      });
 
-    // Deduct inventory stock from assigned branch & record bundle sales
-    const branchId = fulfillment ? fulfillment.branch.id : 'BR-COL';
-    const recordedBundles = new Set();
+      // Deduct inventory stock from assigned branch & record bundle sales
+      const branchId = fulfillment ? fulfillment.branch.id : 'BR-COL';
+      const recordedBundles = new Set();
 
-    cart.forEach(item => {
-      const targetProductId = item.productId || item.id;
-      deductBranchStock(targetProductId, branchId, item.quantity);
+      cart.forEach(item => {
+        const targetProductId = item.productId || item.id;
+        deductBranchStock(targetProductId, branchId, item.quantity);
 
-      if (item.isBundleItem && item.bundleId && !recordedBundles.has(item.bundleGroupId)) {
-        recordedBundles.add(item.bundleGroupId);
-        const bundleMultiplier = item.bundleQtyMultiplier || 1;
-        const bundleCount = Math.max(1, Math.round(item.quantity / bundleMultiplier));
-        recordBundleSale(item.bundleId, bundleCount);
+        if (item.isBundleItem && item.bundleId && !recordedBundles.has(item.bundleGroupId)) {
+          recordedBundles.add(item.bundleGroupId);
+          const bundleMultiplier = item.bundleQtyMultiplier || 1;
+          const bundleCount = Math.max(1, Math.round(item.quantity / bundleMultiplier));
+          recordBundleSale(item.bundleId, bundleCount);
+        }
+      });
+
+      // Clear cart
+      saveCart([]);
+
+      // Populate Success Modal
+      const modalOrderId = document.getElementById('modal-order-id');
+      const modalCustomerName = document.getElementById('modal-customer-name');
+      const modalTotalPaid = document.getElementById('modal-total-paid') || document.getElementById('modal-order-total');
+      const modalOrderEmail = document.getElementById('modal-order-email');
+      const modalOrderBranch = document.getElementById('modal-order-branch');
+
+      if (modalOrderId) modalOrderId.textContent = (savedOrder && savedOrder.orderId) ? savedOrder.orderId : orderId;
+      if (modalCustomerName) modalCustomerName.textContent = fullName || 'Valued Customer';
+      if (modalTotalPaid) modalTotalPaid.textContent = `Rs. ${grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+      if (modalOrderEmail) modalOrderEmail.textContent = email;
+      if (modalOrderBranch) modalOrderBranch.textContent = fulfillment ? `${fulfillment.branch.name} (${fulfillment.distanceKm} km delivery)` : 'Colombo Main Hub';
+
+      // Show Modal
+      const successModal = document.getElementById('order-success-modal');
+      if (successModal) {
+        successModal.classList.remove('hidden');
       }
-    });
 
-    // Clear cart
-    saveCart([]);
-
-    // Populate Success Modal
-    const modalOrderId = document.getElementById('modal-order-id');
-    const modalCustomerName = document.getElementById('modal-customer-name');
-    const modalTotalPaid = document.getElementById('modal-total-paid') || document.getElementById('modal-order-total');
-    const modalOrderEmail = document.getElementById('modal-order-email');
-    const modalOrderBranch = document.getElementById('modal-order-branch');
-
-    if (modalOrderId) modalOrderId.textContent = orderId;
-    if (modalCustomerName) modalCustomerName.textContent = fullName || 'Valued Customer';
-    if (modalTotalPaid) modalTotalPaid.textContent = `Rs. ${grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-    if (modalOrderEmail) modalOrderEmail.textContent = email;
-    if (modalOrderBranch) modalOrderBranch.textContent = fulfillment ? `${fulfillment.branch.name} (${fulfillment.distanceKm} km delivery)` : 'Colombo Main Hub';
-
-    // Show Modal
-    const successModal = document.getElementById('order-success-modal');
-    if (successModal) {
-      successModal.classList.remove('hidden');
+      // Refresh badges & triggers
+      window.dispatchEvent(new Event('productsUpdated'));
+    } catch (err) {
+      etechAlert.error('Order Submission Failed', 'Unable to complete your order. Please check your connection and try again.');
     }
-
-    // Refresh badges & triggers
-    window.dispatchEvent(new Event('productsUpdated'));
   }
 
   /**

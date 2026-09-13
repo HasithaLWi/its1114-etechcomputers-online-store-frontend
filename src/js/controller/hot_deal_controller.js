@@ -23,7 +23,6 @@ import {
 
 
 import { NewsletterApi } from '../api/newsletterApi.js';
-import { NEWSLETTER_SOURCE } from '../models/newsletter_model.js';
 
 export const HOT_DEALS_DATA = [];
 
@@ -658,9 +657,7 @@ export async function handleDealsNewsletter(event) {
 
   try {
     const res = await NewsletterApi.subscribe({
-      email,
-      source: NEWSLETTER_SOURCE.DEALS_PAGE,
-      tags: ['Deals Page', 'VIP Deal Alerts']
+      email
     });
 
     if (res.alreadySubscribed) {

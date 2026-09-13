@@ -16,23 +16,22 @@ let memoryTransfers = [];
  * Sync transfers from backend API
  */
 export async function syncTransfersFromApi() {
-  try {
-    const res = await TransfersApi.getAll();
-    let apiList = [];
-    if (Array.isArray(res)) {
-      apiList = res;
-    } else if (res && Array.isArray(res.body)) {
-      apiList = res.body;
-    } else if (res && Array.isArray(res.data)) {
-      apiList = res.data;
-    }
-
-    if (apiList.length > 0) {
-      memoryTransfers = apiList.map(t => ({ ...t }));
-    }
-  } catch (err) {
-    console.warn('[TransfersModel] Transfers sync notice:', err.message);
+  const res = await TransfersApi.getAll();
+  let apiList = [];
+  if (Array.isArray(res)) {
+    apiList = res;
+  } else if (res && Array.isArray(res.body)) {
+    apiList = res.body;
+  } else if (res && Array.isArray(res.data)) {
+    apiList = res.data;
   }
+
+  if (apiList.length > 0) {
+    memoryTransfers = apiList.map(t => ({ ...t }));
+  } else {
+    memoryTransfers = [];
+  }
+  return memoryTransfers;
 }
 
 /**
@@ -123,11 +122,8 @@ export async function createStockTransfer(transferData) {
 
   list.unshift(newTransfer);
 
-  try {
-    await TransfersApi.initiate(newTransfer);
-  } catch (e) {
-    console.warn('[TransfersModel] Initiate transfer API notice:', e.message);
-  }
+  // Single-Mode: Send to backend API directly
+  await TransfersApi.initiate(newTransfer);
 
   window.dispatchEvent(new Event('productsUpdated'));
   return { success: true, transfer: newTransfer };
@@ -157,18 +153,15 @@ export async function dispatchStockTransfer(transferId, dispatchedBy = 'Branch D
     };
   }
 
+  // Single-Mode: Update status on backend API first
+  await TransfersApi.updateStatus(transfer.id, 'IN_TRANSIT');
+
   product.branchStock[transfer.fromBranchId] = Math.max(0, availableAtSource - transfer.quantity);
   product.totalStock = Object.values(product.branchStock).reduce((a, b) => a + b, 0);
 
   transfer.status = 'In Transit';
   transfer.dispatchedAt = new Date().toISOString();
   transfer.dispatchedBy = dispatchedBy;
-
-  try {
-    await TransfersApi.updateStatus(transfer.id, 'IN_TRANSIT');
-  } catch (e) {
-    console.warn('[TransfersModel] Dispatch transfer API notice:', e.message);
-  }
 
   window.dispatchEvent(new Event('productsUpdated'));
   return { success: true, transfer };
@@ -192,6 +185,9 @@ export async function receiveStockTransfer(transferId, receivedBy = 'Staff Verif
     return { success: false, message: 'Transfer has not yet been approved & dispatched by the source branch.' };
   }
 
+  // Single-Mode: Update status on backend API first
+  await TransfersApi.updateStatus(transfer.id, 'RECEIVED');
+
   const products = getStoredProducts();
   const product = products.find(p => p.id === Number(transfer.productId));
   if (product) {
@@ -203,12 +199,6 @@ export async function receiveStockTransfer(transferId, receivedBy = 'Staff Verif
   transfer.status = 'Received';
   transfer.receivedAt = new Date().toISOString();
   transfer.receivedBy = receivedBy;
-
-  try {
-    await TransfersApi.updateStatus(transfer.id, 'RECEIVED');
-  } catch (e) {
-    console.warn('[TransfersModel] Receive transfer API notice:', e.message);
-  }
 
   window.dispatchEvent(new Event('productsUpdated'));
   return { success: true, transfer };
@@ -229,6 +219,9 @@ export async function cancelStockTransfer(transferId, reason = 'Cancelled', canc
     return { success: false, message: 'Transfer is already cancelled.' };
   }
 
+  // Single-Mode: Update status on backend API first
+  await TransfersApi.updateStatus(transfer.id, 'CANCELLED');
+
   if (transfer.status === 'In Transit') {
     const products = getStoredProducts();
     const product = products.find(p => p.id === Number(transfer.productId));
@@ -242,12 +235,6 @@ export async function cancelStockTransfer(transferId, reason = 'Cancelled', canc
   transfer.cancellationReason = reason;
   transfer.cancelledAt = new Date().toISOString();
   transfer.cancelledBy = cancelledBy;
-
-  try {
-    await TransfersApi.updateStatus(transfer.id, 'CANCELLED');
-  } catch (e) {
-    console.warn('[TransfersModel] Cancel transfer API notice:', e.message);
-  }
 
   window.dispatchEvent(new Event('productsUpdated'));
   return { success: true, transfer };

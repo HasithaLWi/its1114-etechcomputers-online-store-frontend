@@ -46,7 +46,7 @@ export default function renderProductDetails(productId) {
           <span>/</span>
           <a href="#shop" class="hover:text-blue-600 transition-colors">Shop Catalog</a>
           <span>/</span>
-          <a href="#shop?cat=${product.category}" class="hover:text-blue-600 uppercase text-[10px] font-mono transition-colors text-blue-600">${product.category}</a>
+          <a href="#shop?cat=${product.categoryId || product.category}" class="hover:text-blue-600 uppercase text-[10px] font-mono transition-colors text-blue-600">${product.categoryName || product.category}</a>
           <span>/</span>
           <span class="text-[#0f172a] font-bold truncate max-w-[200px] sm:max-w-[300px]">${product.name}</span>
         </nav>
@@ -97,7 +97,7 @@ export default function renderProductDetails(productId) {
               </div>
               <div class="bg-[#f8fafc] p-2.5 rounded-md border border-[#e2e8f0] space-y-0.5">
                 <span class="text-[#64748b] uppercase font-bold text-[9px] tracking-wider block">Brand</span>
-                <a href="#shop?brand=${(product.brand || '').toLowerCase()}" class="text-indigo-600 font-bold text-xs truncate block hover:underline" title="View all ${product.brand || 'Hardware'} products">
+                <a href="#shop?brand=${product.brandId || (product.brand || '').toLowerCase()}" class="text-indigo-600 font-bold text-xs truncate block hover:underline" title="View all ${product.brand || 'Hardware'} products">
                   ${product.brand || 'Authentic Partner'}
                 </a>
               </div>
@@ -118,7 +118,7 @@ export default function renderProductDetails(productId) {
                   ${product.category}
                 </span>
                 ${product.brand ? `
-                  <a href="#shop?brand=${product.brand.toLowerCase()}" class="px-2.5 py-0.5 rounded-md bg-slate-900 text-white font-mono font-bold text-[10px] tracking-wider flex items-center space-x-1.5 hover:bg-blue-600 transition-colors shadow-sm" title="View all ${product.brand} products">
+                  <a href="#shop?brand=${product.brandId || product.brand.toLowerCase()}" class="px-2.5 py-0.5 rounded-md bg-slate-900 text-white font-mono font-bold text-[10px] tracking-wider flex items-center space-x-1.5 hover:bg-blue-600 transition-colors shadow-sm" title="View all ${product.brand} products">
                     <svg class="w-3 h-3 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
                     <span>${product.brand}</span>
                     <span class="text-blue-300">↗</span>
@@ -357,7 +357,7 @@ export default function renderProductDetails(productId) {
               <h3 class="text-lg font-bold text-[#0f172a] tracking-tight">Related ${product.category.toUpperCase()} Hardware</h3>
               <p class="text-xs text-[#64748b] mt-0.5">Explore similar high-performance equipment in our catalog</p>
             </div>
-            <a href="#shop?cat=${product.category}" class="text-xs font-bold text-blue-600 hover:text-blue-700 flex items-center space-x-1">
+            <a href="#shop?cat=${product.categoryId || product.category}" class="text-xs font-bold text-blue-600 hover:text-blue-700 flex items-center space-x-1">
               <span>View All</span>
               <span>→</span>
             </a>

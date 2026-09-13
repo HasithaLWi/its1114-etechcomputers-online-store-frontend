@@ -59,17 +59,11 @@ export async function syncBrandsFromApi(options = {}) {
     }
     return getBrands(options);
   } catch (err) {
-    console.warn('[BrandModel] Brands API sync notice:', err.message);
-    return getBrands(options);
+    console.error('[BrandModel] Brands API sync error:', err.message);
+    throw err;
   }
 }
 
-/**
- * Retrieve only deleted brands for SuperADMIN Trash Bin
- */
-export function getDeletedBrands() {
-  return memoryBrands.filter(b => (b.status || '').toUpperCase() === 'DELETED');
-}
 
 /**
  * Save the entire brands array to in-memory state
@@ -146,12 +140,7 @@ export async function saveBrand(brandData, isEdit = false) {
         slug: slug || brands[index].slug
       };
 
-      try {
-        await BrandsApi.update(brands[index].id, brands[index]);
-      } catch (err) {
-        console.warn('[BrandModel] Backend brand update notice:', err.message);
-      }
-
+      await BrandsApi.update(brands[index].id, brands[index]);
       return brands[index];
     }
   }
@@ -172,13 +161,7 @@ export async function saveBrand(brandData, isEdit = false) {
   };
 
   brands.push(newBrand);
-
-  try {
-    await BrandsApi.create(newBrand);
-  } catch (err) {
-    console.warn('[BrandModel] Backend brand create notice:', err.message);
-  }
-
+  await BrandsApi.create(newBrand);
   return newBrand;
 }
 

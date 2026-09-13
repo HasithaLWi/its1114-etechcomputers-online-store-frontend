@@ -85,10 +85,13 @@ import {
     removeClauseSection, confirmResetPolicies
 } from './src/js/controller/policy_management_controller.js';
 
+// AI Chatbot API Import
+import { ChatApi } from './src/js/api/chatApi.js';
+
 // Newsletter & Email Marketing Imports
 import { NewsletterApi } from './src/js/api/newsletterApi.js';
 import {
-    Subscriber, NEWSLETTER_STATUS, NEWSLETTER_SOURCE,
+    Subscriber, NEWSLETTER_STATUS,
     getNewsletterSubscribers, saveNewsletterSubscribers,
     getNewsletterCampaigns, saveNewsletterCampaigns,
     getNewsletterAnalytics, isValidEmail
@@ -96,7 +99,7 @@ import {
 import {
     renderNewsletterTab, setNewsletterSubTab,
     handleNewsletterSearch, handleNewsletterStatusFilter,
-    handleNewsletterSourceFilter, handleNewsletterSort,
+    handleNewsletterSort,
     changeNewsletterPage, toggleSelectSubscriber,
     toggleSelectAllSubscribers, clearSelectedSubscribers,
     bulkUnsubscribeSelected, bulkResubscribeSelected,
@@ -172,7 +175,6 @@ import {
 import {
     getCategories, saveCategory, deleteCategory, getCategoryBySlug,
     getBadges, saveBadge, deleteBadge, getBadgeById, getBadgeThresholdSummary,
-    getProductBehaviorHistory, recordProductBehaviorEvent, getProductHistory, clearProductBehaviorHistory,
     runAutoBadgeAssignment
 } from './src/js/models/taxonomy_data.js';
 
@@ -361,24 +363,26 @@ Object.assign(window, {
     // Analytics & Reports
     renderAnalyticsTab,
 
-    // Taxonomy, Badges & Product Behavior History
+    // Taxonomy & Badges
     renderTaxonomyTab, runAutoBadgeAssigner,
     openCategoryModal, handleSaveCategorySubmit, confirmDeleteCategory,
     openBadgeModal, updateBadgeThresholdsUI, handleSaveBadgeSubmit, confirmDeleteBadge,
     getCategories, saveCategory, deleteCategory, getCategoryBySlug,
     getBadges, saveBadge, deleteBadge, getBadgeById, getBadgeThresholdSummary,
-    getProductBehaviorHistory, recordProductBehaviorEvent, getProductHistory, clearProductBehaviorHistory,
     runAutoBadgeAssignment,
+
+    // AI Chatbot
+    ChatApi,
 
     // Newsletter & Email Marketing
     NewsletterApi,
-    Subscriber, NEWSLETTER_STATUS, NEWSLETTER_SOURCE,
+    Subscriber, NEWSLETTER_STATUS,
     getNewsletterSubscribers, saveNewsletterSubscribers,
     getNewsletterCampaigns, saveNewsletterCampaigns,
     getNewsletterAnalytics, isValidEmail,
     renderNewsletterTab, setNewsletterSubTab,
     handleNewsletterSearch, handleNewsletterStatusFilter,
-    handleNewsletterSourceFilter, handleNewsletterSort,
+    handleNewsletterSort,
     changeNewsletterPage, toggleSelectSubscriber,
     toggleSelectAllSubscribers, clearSelectedSubscribers,
     bulkUnsubscribeSelected, bulkResubscribeSelected,

@@ -97,132 +97,42 @@
     };
   }
 
-  // ── Gemini API Call & Smart Fallback Engine ────────────────
-  async function callGemini(userMessage) {
-    const cfg = getCfg();
-    const key = cfg.API_KEY ? cfg.API_KEY.trim() : "";
+  // ── Single-Mode AI Chatbot Service Call ───────────────────
+  async function callChatService(userMessage) {
+    const formattedHistory = state.history.slice(-8).map(h => ({
+      role: h.role === "user" ? "USER" : "BOT",
+      content: h.text,
+      timestamp: new Date().toISOString()
+    }));
 
-    const { productData, cartData, currentPage } = buildContext();
+    const endpoint = (window.ET_API_BASE_URL || 'http://localhost:8080/api/v1') + '/chat/message';
 
-    const systemPromptText = `${cfg.SYSTEM_PROMPT}
-
-═══ LIVE PRODUCT CATALOG (${productData.length} items) ═══
-${JSON.stringify(productData, null, 2)}
-
-═══ USER'S CURRENT CART ═══
-${cartData.length === 0 ? "Cart is empty." : JSON.stringify(cartData, null, 2)}
-
-═══ CURRENT PAGE ═══
-User is currently viewing: ${currentPage}
-`;
-
-    const contents = [];
-    const recentHistory = state.history.slice(-6);
-    for (const msg of recentHistory) {
-      const role = msg.role === "user" ? "user" : "model";
-      if (contents.length > 0 && contents[contents.length - 1].role === role) {
-        contents[contents.length - 1].parts[0].text += "\n" + msg.text;
-      } else {
-        contents.push({ role, parts: [{ text: msg.text }] });
-      }
-    }
-
-    if (contents.length > 0 && contents[contents.length - 1].role === "user") {
-      contents[contents.length - 1].parts[0].text += "\n" + userMessage;
+    let resData = null;
+    if (window.ChatApi && typeof window.ChatApi.sendMessage === 'function') {
+      resData = await window.ChatApi.sendMessage({ message: userMessage, history: formattedHistory });
     } else {
-      contents.push({ role: "user", parts: [{ text: userMessage }] });
-    }
-
-    const targetModels = cfg.MODEL || "gemini-3-flash-preview";
-
-    if (key) {
-      console.log(`%c🤖 [E-T AI] Calling Gemini Live API...`, 'color: #3b82f6; font-weight: bold; font-size: 12px;');
-
-      try {
-        console.log(`%c⏳ Sending request to Model: [${targetModels}]...`, 'color: #64748b;');
-
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/${targetModels}:generateContent?key=${encodeURIComponent(key)}`;
-        const response = await fetch(url, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "x-goog-api-key": key
-          },
-          body: JSON.stringify({
-            systemInstruction: { parts: [{ text: systemPromptText }] },
-            contents: contents,
-            generationConfig: {
-              temperature: 0.7,
-              topP: 0.9,
-              maxOutputTokens: 1024
-            }
-          })
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          const replyText = data.candidates?.[0]?.content?.parts?.[0]?.text;
-          if (replyText) {
-            console.log(`%c✅ [E-T AI] GEMINI API SUCCESS! Model: ${targetModels}`, 'color: #22c55e; font-weight: bold; font-size: 12px;');
-            return replyText;
-          }
-        } else {
-          const errBody = await response.text();
-          console.warn(`%c❌ [E-T AI] API Error for [${targetModels}] (${response.status}):`, 'color: #ef4444; font-weight: bold;', errBody);
-        }
-      } catch (e) {
-        console.warn(`%c❌ [E-T AI] Fetch Exception for [${targetModels}]:`, 'color: #ef4444;', e);
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: userMessage, history: formattedHistory })
+      });
+      if (!response.ok) {
+        throw new Error(`Server returned HTTP ${response.status}`);
       }
-    } else {
-      console.warn(`%c⚠️ [E-T AI] No API key configured in et-training.js.`, 'color: #f59e0b;');
+      const json = await response.json();
+      resData = json.body || json.data || json;
     }
 
-    console.info(`%c💡 [E-T AI] Switched to Local Smart Engine (Offline/Fallback Mode)`, 'color: #a855f7; font-weight: bold;');
-    return generateSmartFallback(userMessage, productData, cartData);
-  }
-
-  function generateSmartFallback(query, productData, cartData) {
-    const q = query.toLowerCase().trim();
-
-    if (['hi', 'hello', 'hey', 'greetings', 'who are you', 'help'].some(w => q === w || q.startsWith(w + ' '))) {
-      return `Hey there! 👋 I'm **E-T**, your ETech Computers AI Assistant!\n\nI can help you find hardware, check your shopping cart, give PC build advice, or answer questions about our store policies.\n\nWhat can I help you find today?`;
+    if (!resData || !resData.reply) {
+      throw new Error("Invalid response from AI chatbot server.");
     }
 
-    if (q.includes('cart') || q.includes('basket') || q.includes('my item')) {
-      if (!cartData || cartData.length === 0) {
-        return `Your shopping cart is currently **empty**. 🛒\n\nExplore our Shop Catalog to add gaming laptops, OLED monitors, or custom PC components!\n[ACTION:NAVIGATE#shop]`;
-      }
-      const total = cartData.reduce((s, i) => s + (i.price * i.quantity), 0);
-      const itemsList = cartData.map(i => `• **${i.name}** (Qty: ${i.quantity}) — Rs. ${(i.price * i.quantity).toLocaleString()}`).join('\n');
-      return `🛒 **Your Active Shopping Cart (${cartData.length} items):**\n\n${itemsList}\n\n**Total:** Rs. ${total.toLocaleString()}\n\nWould you like to proceed to checkout?\n[ACTION:NAVIGATE#cart]`;
+    let finalReply = resData.reply;
+    if (Array.isArray(resData.suggestedProducts) && resData.suggestedProducts.length > 0) {
+      const productActions = resData.suggestedProducts.map(id => `[ACTION:SHOW_PRODUCT:${id}]`).join("\n");
+      finalReply += `\n\n${productActions}`;
     }
-
-    if (q.includes('warranty') || q.includes('policy') || q.includes('guarantee') || q.includes('return')) {
-      return `🛡️ **ETech Computers Guarantee & Warranty:**\n\n• **1-Year Store Warranty:** Covers hardware defects & free tech support.\n• **Manufacturer Warranty:** Up to 10 years on modular PSUs and GPUs.\n• **30-Day Money-Back Guarantee:** Full refund for unopened items within 30 days.`;
-    }
-
-    if (q.includes('ship') || q.includes('delivery') || q.includes('track')) {
-      return `🚚 **Shipping & Delivery Info:**\n\n• **Free Standard Shipping:** On all orders over $50 nationwide (3 - 5 business days).\n• **Express Shipping:** 1 - 2 business days ($14.99).\n• **Tracking:** Live order tracking available on your Account dashboard.`;
-    }
-
-    const stopWords = new Set(['what', 'your', 'you', 'can', 'does', 'do', 'how', 'why', 'who', 'when', 'where', 'is', 'are', 'the', 'a', 'an', 'and', 'or', 'in', 'on', 'at', 'to', 'for', 'with', 'by', 'about', 'like', 'from', 'show', 'find', 'get']);
-    const words = q.split(/\s+/).filter(w => w.length > 2 && !stopWords.has(w));
-
-    const matches = productData.filter(p => {
-      const name = p.name.toLowerCase();
-      const cat = p.category.toLowerCase();
-      const desc = p.description.toLowerCase();
-      return words.some(w => name.includes(w) || cat.includes(w) || desc.includes(w));
-    }).slice(0, 3);
-
-    if (matches.length > 0) {
-      const actions = matches.map(p => `[ACTION:SHOW_PRODUCT:${p.id}]`).join('\n');
-      return `Here are top matches for "**${query}**" from our store inventory:\n\n${actions}`;
-    }
-
-    const featured = productData.slice(0, 2);
-    const actions = featured.map(p => `[ACTION:SHOW_PRODUCT:${p.id}]`).join('\n');
-    return `I searched our ETech store for "**${query}**". Here are top recommended items:\n\n${actions}\n\nNeed specific recommendations or PC build advice? Let me know!`;
+    return finalReply;
   }
 
   // ── Action Parser ─────────────────────────────────────────
@@ -397,7 +307,7 @@ User is currently viewing: ${currentPage}
     showTyping();
 
     try {
-      const reply = await callGemini(trimmed);
+      const reply = await callChatService(trimmed);
       hideTyping();
       appendBotBubble(reply);
 
@@ -406,8 +316,11 @@ User is currently viewing: ${currentPage}
       saveSession();
     } catch (err) {
       hideTyping();
-      console.error("E-T error:", err);
-      appendBotBubble("Sorry, I'm having trouble connecting right now. Please try again in a moment! 🔧");
+      console.error("[Chatbot] Backend chat error:", err);
+      if (window.etechAlert) {
+        window.etechAlert.error('Service Unavailable', 'Unable to connect to the chat assistant. Please try again later.');
+      }
+      appendBotBubble("⚠️ **Service Unavailable**: Unable to connect to the chat assistant. Please check your connection and try again.");
     }
 
     state.isProcessing = false;

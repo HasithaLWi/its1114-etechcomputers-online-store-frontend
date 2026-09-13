@@ -73,29 +73,27 @@ export function normalizeOrderFromApi(dto) {
  * Uses getMyOrders for customers to prevent 403 authorization failures
  */
 export async function syncOrdersFromApi() {
-  try {
-    const currentUser = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
-    let data;
-    if (currentUser && currentUser.role === 'CUSTOMER') {
-      data = await OrdersApi.getMyOrders();
-    } else {
-      data = await OrdersApi.getAll();
-    }
+  const currentUser = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
+  let data;
+  if (currentUser && currentUser.role === 'CUSTOMER') {
+    data = await OrdersApi.getMyOrders();
+  } else {
+    data = await OrdersApi.getAll();
+  }
 
-    let rawList = [];
-    if (Array.isArray(data)) {
-      rawList = data;
-    } else if (data && Array.isArray(data.content)) {
-      rawList = data.content;
-    } else if (data && Array.isArray(data.body)) {
-      rawList = data.body;
-    }
+  let rawList = [];
+  if (Array.isArray(data)) {
+    rawList = data;
+  } else if (data && Array.isArray(data.content)) {
+    rawList = data.content;
+  } else if (data && Array.isArray(data.body)) {
+    rawList = data.body;
+  }
 
-    if (rawList.length > 0) {
-      memoryOrders = rawList.map(normalizeOrderFromApi).filter(Boolean);
-    }
-  } catch (err) {
-    console.warn('[OrdersController] Live order sync fallback to in-memory store:', err.message || err);
+  if (rawList.length > 0) {
+    memoryOrders = rawList.map(normalizeOrderFromApi).filter(Boolean);
+  } else {
+    memoryOrders = [];
   }
   return memoryOrders;
 }
@@ -128,7 +126,7 @@ export function getOrderById(orderId) {
 /**
  * Save order details to order database & API
  */
-export function saveOrder(orderData) {
+export async function saveOrder(orderData) {
   const currentUser = getCurrentUser();
 
   const numSubtotal = typeof orderData.subtotal === 'number' ? orderData.subtotal : parseLKR(orderData.subtotal);
@@ -178,44 +176,43 @@ export function saveOrder(orderData) {
     status: 'Pending'
   };
 
-  memoryOrders.unshift(sanitizedOrder);
-
-  // Sync to backend asynchronously and reconcile real server ID/amounts
-  OrdersApi.placeOrder(sanitizedOrder).then(backendOrder => {
-    if (backendOrder) {
-      if (backendOrder.orderCode) {
-        sanitizedOrder.orderCode = backendOrder.orderCode;
-        sanitizedOrder.orderId = backendOrder.orderCode.startsWith('#') ? backendOrder.orderCode : `#${backendOrder.orderCode}`;
-      }
-      if (backendOrder.id) sanitizedOrder.backendId = backendOrder.id;
-      if (typeof backendOrder.totalAmount === 'number') {
-        sanitizedOrder.totalAmount = formatLKR(backendOrder.totalAmount);
-        sanitizedOrder.total = backendOrder.totalAmount;
-      }
-      if (typeof backendOrder.subtotal === 'number') {
-        sanitizedOrder.subtotal = formatLKR(backendOrder.subtotal);
-        sanitizedOrder.subtotalAmount = backendOrder.subtotal;
-      }
-      if (typeof backendOrder.shippingFee === 'number') {
-        sanitizedOrder.shipping = backendOrder.shippingFee === 0 ? 'FREE' : formatLKR(backendOrder.shippingFee);
-        sanitizedOrder.shippingAmount = backendOrder.shippingFee;
-      }
-      window.dispatchEvent(new CustomEvent('ordersUpdated', { detail: { order: sanitizedOrder } }));
+  // Single-Mode: Sync to backend directly and reconcile real server ID/amounts
+  const backendOrder = await OrdersApi.placeOrder(sanitizedOrder);
+  if (backendOrder) {
+    if (backendOrder.orderCode) {
+      sanitizedOrder.orderCode = backendOrder.orderCode;
+      sanitizedOrder.orderId = backendOrder.orderCode.startsWith('#') ? backendOrder.orderCode : `#${backendOrder.orderCode}`;
     }
-  }).catch(err => {
-    console.warn('[OrdersController] Live order backend dispatch fallback:', err.message || err);
-  });
+    if (backendOrder.id) sanitizedOrder.backendId = backendOrder.id;
+    if (typeof backendOrder.totalAmount === 'number') {
+      sanitizedOrder.totalAmount = formatLKR(backendOrder.totalAmount);
+      sanitizedOrder.total = backendOrder.totalAmount;
+    }
+    if (typeof backendOrder.subtotal === 'number') {
+      sanitizedOrder.subtotal = formatLKR(backendOrder.subtotal);
+      sanitizedOrder.subtotalAmount = backendOrder.subtotal;
+    }
+    if (typeof backendOrder.shippingFee === 'number') {
+      sanitizedOrder.shipping = backendOrder.shippingFee === 0 ? 'FREE' : formatLKR(backendOrder.shippingFee);
+      sanitizedOrder.shippingAmount = backendOrder.shippingFee;
+    }
+  }
 
+  memoryOrders.unshift(sanitizedOrder);
+  window.dispatchEvent(new CustomEvent('ordersUpdated', { detail: { order: sanitizedOrder } }));
   return sanitizedOrder;
 }
 
 /**
  * Update order status (Pending -> Processing -> Shipped -> Delivered -> Cancelled)
  */
-export function updateOrderStatus(orderId, newStatus) {
+export async function updateOrderStatus(orderId, newStatus) {
   const cleanId = String(orderId).trim().replace(/^#/, '');
   const order = memoryOrders.find(o => String(o.orderId).trim().replace(/^#/, '').toLowerCase() === cleanId.toLowerCase());
   if (!order) return { success: false, message: 'Order not found.' };
+
+  // Single-Mode: Sync with backend API FIRST - fail fast if server error or offline!
+  await OrdersApi.updateStatus(orderId, newStatus);
 
   const prevStatus = (order.status || '').toLowerCase();
   const nextStatus = (newStatus || '').toLowerCase();
@@ -246,11 +243,6 @@ export function updateOrderStatus(orderId, newStatus) {
     }
   }
 
-  // Sync with backend API
-  OrdersApi.updateStatus(orderId, newStatus).catch(err => {
-    console.warn('[OrdersController] Status update backend API fallback:', err.message || err);
-  });
-
   return { success: true, message: `Order #${order.orderId} status updated to ${newStatus}` };
 }
 
@@ -260,7 +252,7 @@ export function updateOrderStatus(orderId, newStatus) {
  * @param {string} reason 
  * @returns {object}
  */
-export function cancelCustomerOrder(orderId, reason = 'Cancelled by customer request') {
+export async function cancelCustomerOrder(orderId, reason = 'Cancelled by customer request') {
   const cleanId = String(orderId).trim().replace(/^#/, '');
   const order = memoryOrders.find(o => String(o.orderId).trim().replace(/^#/, '').toLowerCase() === cleanId.toLowerCase());
   if (!order) return { success: false, message: 'Order not found.' };
@@ -271,6 +263,9 @@ export function cancelCustomerOrder(orderId, reason = 'Cancelled by customer req
   if (order.status === 'Cancelled') {
     return { success: false, message: `Order #${order.orderId} is already cancelled.` };
   }
+
+  // Single-Mode: Call backend API directly
+  await OrdersApi.updateStatus(orderId, 'Cancelled');
 
   order.status = 'Cancelled';
   order.cancellationReason = reason || 'Customer requested cancellation';
@@ -286,11 +281,6 @@ export function cancelCustomerOrder(orderId, reason = 'Cancelled by customer req
       }
     });
   }
-
-  // Sync with backend API
-  OrdersApi.updateStatus(orderId, 'Cancelled').catch(err => {
-    console.warn('[OrdersController] Cancel order backend API fallback:', err.message || err);
-  });
 
   return { success: true, message: `Order #${order.orderId} has been cancelled successfully.` };
 }
@@ -443,29 +433,34 @@ export function closeCancelOrderModal() {
   if (container) container.innerHTML = '';
 }
 
-export function confirmCancelOrder(orderId) {
+export async function confirmCancelOrder(orderId) {
   const select = document.getElementById('cancel-order-reason-select');
   const reason = select ? select.value : 'Customer requested cancellation';
   
-  const res = cancelCustomerOrder(orderId, reason);
-  closeCancelOrderModal();
+  try {
+    const res = await cancelCustomerOrder(orderId, reason);
+    closeCancelOrderModal();
 
-  if (res.success) {
-    if (window.showToast) window.showToast(res.message, 'success');
-    
-    // If currently on order-details page, re-render
-    const hash = window.location.hash || '';
-    if (hash.includes('order-detail') || hash.includes('order-tracking')) {
-      renderCustomerOrderDetailPage(orderId);
-    } else {
-      // Re-render account page order history
-      const currentUser = getCurrentUser();
-      if (currentUser && typeof window.renderUserOrderHistory === 'function') {
-        window.renderUserOrderHistory(currentUser);
+    if (res.success) {
+      if (window.showToast) window.showToast(res.message, 'success');
+      
+      // If currently on order-details page, re-render
+      const hash = window.location.hash || '';
+      if (hash.includes('order-detail') || hash.includes('order-tracking')) {
+        await renderCustomerOrderDetailPage(orderId);
+      } else {
+        // Re-render account page order history
+        const currentUser = getCurrentUser();
+        if (currentUser && typeof window.renderUserOrderHistory === 'function') {
+          window.renderUserOrderHistory(currentUser);
+        }
       }
+    } else {
+      etechAlert.error('Cancellation Denied', res.message);
     }
-  } else {
-    if (window.showToast) window.showToast(res.message, 'error');
+  } catch (err) {
+    closeCancelOrderModal();
+    etechAlert.error('Cancellation Failed', err.message || 'Failed to cancel order. Please try again.');
   }
 }
 
@@ -474,12 +469,25 @@ export function confirmCancelOrder(orderId) {
  * DEDICATED CUSTOMER ORDER DETAILS & TRACKING PAGE
  * ============================================================
  */
-export function renderCustomerOrderDetailPage(orderId) {
+export async function renderCustomerOrderDetailPage(orderId) {
   const container = document.getElementById('order-details-container');
   if (!container) return;
 
   const currentUser = getCurrentUser();
-  const order = getOrderById(orderId);
+  let order = getOrderById(orderId);
+
+  // If not found in local memory, try fetching directly from backend
+  if (!order && orderId) {
+    try {
+      const dto = await OrdersApi.getByCode(orderId);
+      if (dto) {
+        order = normalizeOrderFromApi(dto);
+        if (order) memoryOrders.unshift(order);
+      }
+    } catch (err) {
+      console.warn('[OrdersController] Live order lookup notice:', err.message);
+    }
+  }
 
   if (!order) {
     container.innerHTML = `
@@ -692,7 +700,7 @@ export function renderCustomerOrderDetailPage(orderId) {
             <div class="flex items-start space-x-2.5 text-[#475569]">
               <span class="w-2 h-2 rounded-full bg-blue-600 mt-1.5 flex-shrink-0"></span>
               <div>
-                <p class="font-bold text-[#0f172a]">Order registered in database</p>
+                <p class="font-bold text-[#0f172a]">Order placed and confirmed</p>
                 <p class="text-[11px] text-[#64748b]">${order.date} &bull; Customer #${order.userId || 'Guest'}</p>
               </div>
             </div>
@@ -791,9 +799,17 @@ export function renderCustomerOrderDetailPage(orderId) {
  * TAB 3: ORDER MANAGEMENT (STAFF & ADMIN)
  * ============================================================
  */
-export function renderOrdersTab() {
+export async function renderOrdersTab() {
   const tbody = document.getElementById('orders-tbody');
   if (!tbody) return;
+
+  try {
+    await syncOrdersFromApi();
+  } catch (err) {
+    etechAlert.error('Connection Error', 'Unable to load live orders. Please try again.');
+    tbody.innerHTML = '<tr><td colspan="6" class="py-8 text-center text-xs text-rose-500 font-semibold">⚠️ Unable to load live orders. Please try again later.</td></tr>';
+    return;
+  }
 
   const activeUser = getCurrentUser();
   const allOrders = getAllOrders();
@@ -872,14 +888,22 @@ export async function changeOrderStatus(orderId, newStatus) {
     cancelText: 'Cancel'
   });
 
-  if (!confirmed) return;
+  if (!confirmed) {
+    await renderOrdersTab();
+    return;
+  }
 
-  const res = updateOrderStatus(orderId, newStatus);
-  if (res.success) {
-    if (window.showToast) window.showToast(res.message, 'success');
-    if (document.getElementById('orders-tbody')) {
-      renderOrdersTab();
+  try {
+    const res = await updateOrderStatus(orderId, newStatus);
+    if (res.success) {
+      if (window.showToast) window.showToast(res.message, 'success');
+    } else {
+      etechAlert.error('Status Update Failed', res.message);
     }
+    await renderOrdersTab();
+  } catch (err) {
+    etechAlert.error('Status Update Failed', err.message || 'Failed to update order status. Please try again.');
+    await renderOrdersTab();
   }
 }
 

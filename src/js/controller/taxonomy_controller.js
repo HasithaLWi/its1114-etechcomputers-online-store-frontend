@@ -4,12 +4,10 @@
 import { 
   getCategories, saveCategory, deleteCategory, getCategoryBySlug, updateCategoryStatus, syncCategoriesFromApi,
   getBadges, saveBadge, deleteBadge, getBadgeById, updateBadgeStatus, syncBadgesFromApi,
-  runAutoBadgeAssignment, getBadgeColorClass, getBadgeThresholdSummary,
-  getProductBehaviorHistory, recordProductBehaviorEvent
+  runAutoBadgeAssignment, getBadgeColorClass, getBadgeThresholdSummary
 } from '../models/taxonomy_data.js';
 import { getStoredProducts } from '../models/data.js';
 import { closeAdminModal } from './admin_dashboard_controller.js';
-import { updateTrashSidebarBadge } from './admin_dashboard_controller.js';
 import { showToast } from '../util/toast.js';
 import { etechAlert } from '../util/etech_alert.js';
 import {
@@ -46,14 +44,17 @@ export function renderTaxonomyTab(shouldSync = true) {
   if (shouldSync) {
     Promise.all([syncCategoriesFromApi(), syncBadgesFromApi()]).then(() => {
       renderTaxonomyTab(false);
-    }).catch(() => {});
+    }).catch(err => {
+      console.error('[TaxonomyController] Server sync error:', err);
+      etechAlert.error('Connection Error', 'Unable to load categories. Please try again.');
+      renderTaxonomyTab(false);
+    });
   }
 
   // By default, exclude soft-deleted categories & badges
   const categories = getCategories();
   const badges = getBadges();
   const products = getStoredProducts();
-  const history = getProductBehaviorHistory();
 
   // Metrics computation
   const totalCategories = categories.length;
@@ -180,6 +181,7 @@ export function renderTaxonomyTab(shouldSync = true) {
             <thead>
               <tr class="bg-[#f8fafc] border-b border-[#e2e8f0] text-[10px] uppercase font-bold text-[#64748b] tracking-wider">
                 <th class="py-3 px-4 min-w-[180px]">Category Name</th>
+                <th class="py-3 px-4 min-w-[140px]">Super Category</th>
                 <th class="py-3 px-4 min-w-[120px]">Slug / Key</th>
                 <th class="py-3 px-4 min-w-[180px]">Description</th>
                 <th class="py-3 px-4 text-center min-w-[130px] whitespace-nowrap">Featured Storefront</th>
@@ -193,6 +195,17 @@ export function renderTaxonomyTab(shouldSync = true) {
                 const count = categoryCounts[c.slug] || 0;
                 const status = (c.categoryStatus || c.status || 'ACTIVE').toUpperCase();
                 const isActive = status === 'ACTIVE';
+                const parentCat = c.superCategoryId ? categories.find(p => p.id === c.superCategoryId) : null;
+                const superCategoryBadge = parentCat
+                  ? `<div class="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-lg text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200">
+                      <span>${parentCat.icon || '📁'}</span>
+                      <span class="truncate max-w-[110px]">${parentCat.name}</span>
+                      <button onclick="handleRemoveSuperCategory('${c.slug}')" title="Remove parent supercategory" class="text-slate-400 hover:text-rose-600 font-bold ml-1 cursor-pointer">&times;</button>
+                     </div>`
+                  : `<span class="inline-flex items-center space-x-1 px-2.5 py-1 rounded-lg text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
+                      <span>★</span>
+                      <span>Top-Level</span>
+                     </span>`;
 
                 return `
                   <tr class="hover:bg-[#f8fafc] transition-colors">
@@ -203,6 +216,9 @@ export function renderTaxonomyTab(shouldSync = true) {
                         </div>
                         <span class="truncate">${c.name}</span>
                       </div>
+                    </td>
+                    <td class="py-3 px-4 whitespace-nowrap">
+                      ${superCategoryBadge}
                     </td>
                     <td class="py-3 px-4 font-mono text-[11px] text-blue-600 whitespace-nowrap">
                       ${c.slug}
@@ -230,7 +246,7 @@ export function renderTaxonomyTab(shouldSync = true) {
                         class="px-2.5 py-1 bg-[#f8fafc] hover:bg-[#f1f5f9] text-blue-600 hover:text-blue-800 rounded text-xs font-bold border border-[#e2e8f0] transition-colors shadow-sm cursor-pointer whitespace-nowrap">
                         Edit
                       </button>
-                      <button onclick="confirmDeleteCategory('${c.slug}')" title="Soft Delete (Move to Trash Bin)"
+                      <button onclick="confirmDeleteCategory('${c.slug}')" title="Delete Category"
                         class="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded text-xs font-bold border border-rose-200 transition-colors shadow-sm cursor-pointer whitespace-nowrap">
                         Delete
                       </button>
@@ -345,7 +361,7 @@ export function renderTaxonomyTab(shouldSync = true) {
                           class="px-2.5 py-1 bg-[#f8fafc] hover:bg-[#f1f5f9] text-blue-600 hover:text-blue-800 rounded text-xs font-bold border border-[#e2e8f0] transition-colors shadow-sm cursor-pointer whitespace-nowrap">
                           Edit
                         </button>
-                        <button onclick="confirmDeleteBadge('${b.id}')" title="Soft Delete (Move to Trash Bin)"
+                        <button onclick="confirmDeleteBadge('${b.id}')" title="Delete Badge"
                           class="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded text-xs font-bold border border-rose-200 transition-colors shadow-sm cursor-pointer whitespace-nowrap">
                           Delete
                         </button>
@@ -418,6 +434,9 @@ export function openCategoryModal(slug = null) {
 
   const category = slug ? getCategoryBySlug(slug) : null;
   const isEdit = Boolean(category);
+  const allCategories = getCategories({ includeDeleted: false });
+  // Exclude current category in edit mode so a category cannot be its own parent
+  const availableSuperCategories = allCategories.filter(c => !category || (c.id !== category.id && c.slug !== category.slug));
 
   modal.innerHTML = `
     <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#0f172a]/60 backdrop-blur-xs animate-fadeIn">
@@ -435,6 +454,20 @@ export function openCategoryModal(slug = null) {
             <input type="text" id="modal-cat-name" required value="${category ? category.name : ''}"
               placeholder="e.g. Mechanical Keyboards"
               class="w-full px-3 py-2 rounded-md bg-[#f8fafc] border border-[#e2e8f0] text-[#0f172a] focus:border-blue-600">
+          </div>
+
+          <!-- Super Category Selection -->
+          <div>
+            <label class="block text-[#475569] font-bold mb-1">Super Category (Parent Category)</label>
+            <select id="modal-cat-supercategory" class="w-full px-3 py-2 rounded-md bg-[#f8fafc] border border-[#e2e8f0] text-[#0f172a] focus:border-blue-600 font-medium">
+              <option value="">None (Top-Level Root Category)</option>
+              ${availableSuperCategories.map(sc => `
+                <option value="${sc.id}" ${category && category.superCategoryId === sc.id ? 'selected' : ''}>
+                  ${sc.icon || '📦'} ${sc.name} (${sc.id})
+                </option>
+              `).join('')}
+            </select>
+            <p class="text-[10px] text-[#64748b] mt-1">Select a parent supercategory to nest this category under, or choose 'None' for top-level.</p>
           </div>
 
           <div class="grid grid-cols-3 gap-3">
@@ -498,6 +531,7 @@ export async function handleSaveCategorySubmit(event, isEdit = false) {
 
   const id = document.getElementById('modal-cat-id').value;
   const name = document.getElementById('modal-cat-name').value.trim();
+  const superCategoryId = document.getElementById('modal-cat-supercategory')?.value?.trim() || null;
   const slug = document.getElementById('modal-cat-slug').value.trim();
   const icon = document.getElementById('modal-cat-icon').value.trim() || '📦';
   const description = document.getElementById('modal-cat-desc').value.trim();
@@ -515,21 +549,46 @@ export async function handleSaveCategorySubmit(event, isEdit = false) {
 
   if (!confirmed) return;
 
-  await saveCategory({
-    id: id || undefined,
-    name,
-    slug,
-    icon,
-    description,
-    featured,
-    categoryStatus: status,
-    status: status
-  }, isEdit);
+  try {
+    await saveCategory({
+      id: id || undefined,
+      superCategoryId: superCategoryId,
+      name,
+      slug,
+      icon,
+      description,
+      featured,
+      categoryStatus: status,
+      status: status
+    }, isEdit);
 
-  closeAdminModal();
-  renderTaxonomyTab();
-  showToast(`Category "${name}" saved successfully.`, 'success');
+    closeAdminModal();
+    renderTaxonomyTab();
+    showToast(`Category "${name}" saved successfully.`, 'success');
+  } catch (err) {
+    console.error('Error saving category to server:', err);
+    etechAlert.error('Save Failed', err.message || 'Unable to save category. Please try again.');
+  }
 }
+
+export async function handleRemoveSuperCategory(slugOrId) {
+  const cat = getCategoryBySlug(slugOrId);
+  if (!cat) return;
+  const confirmed = await etechAlert.confirmUpdate(`Remove parent category from "${cat.name}"?`, 'This category will become a top-level root category.');
+  if (!confirmed) return;
+  try {
+    await saveCategory({
+      ...cat,
+      superCategoryId: null
+    }, true);
+    renderTaxonomyTab();
+    showToast(`Category "${cat.name}" is now a top-level category.`, 'success');
+  } catch (err) {
+    console.error('Error removing supercategory:', err);
+    etechAlert.error('Update Failed', err.message || 'Unable to update category parent on server.');
+  }
+}
+window.handleRemoveSuperCategory = handleRemoveSuperCategory;
 
 export async function confirmDeleteCategory(slug) {
   const category = getCategoryBySlug(slug);
@@ -547,8 +606,7 @@ export async function confirmDeleteCategory(slug) {
 
   await deleteCategory(slug);
   renderTaxonomyTab();
-  updateTrashSidebarBadge();
-  showToast(`Category "${category.name}" moved to Trash Bin.`, 'success');
+  showToast(`Category "${category.name}" was deleted successfully.`, 'success');
 }
 
 /**
@@ -845,8 +903,7 @@ export async function confirmDeleteBadge(badgeId) {
   const success = await deleteBadge(badgeId);
   if (success) {
     renderTaxonomyTab();
-    updateTrashSidebarBadge();
-    showToast(`Badge "${badge.name}" moved to Trash Bin.`, 'success');
+    showToast(`Badge "${badge.name}" was deleted successfully.`, 'success');
   } else {
     etechAlert.error('Protected System Badge', 'Cannot delete system protected badge.');
   }

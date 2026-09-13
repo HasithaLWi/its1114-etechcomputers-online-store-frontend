@@ -8,6 +8,7 @@ import { viewProductDetails } from './product-details_controller.js';
 import { getCategories, syncCategoriesFromApi } from '../models/taxonomy_data.js';
 import { getBrands, getBrandBySlug, syncBrandsFromApi } from '../models/brand_data.js';
 import { isInWishlist, toggleWishlist } from './wishlist_controller.js';
+import { etechAlert } from '../util/etech_alert.js';
 import {
   iconFolder,
   iconBuilding,
@@ -20,9 +21,51 @@ import {
   formatLKR
 } from '../util/index.js';
 
-// Module-level state for multi-selected filters
-let selectedCategorySlugs = [];
-let selectedBrandSlugs = [];
+// Module-level state for multi-selected filters (IDs)
+let selectedCategoryIds = [];
+let selectedBrandIds = [];
+
+// Module-level state for server-side pagination
+let currentShopPage = 0;
+const SHOP_PAGE_SIZE = 12;
+let totalShopPages = 1;
+let totalShopElements = 0;
+
+// Backwards compatibility references
+export let selectedCategorySlugs = selectedCategoryIds;
+export let selectedBrandSlugs = selectedBrandIds;
+
+/**
+ * Resolves any category slug, name, or raw ID to its canonical backend database ID (e.g. 'cat-laptops')
+ */
+export function resolveCategoryId(input) {
+  if (!input) return '';
+  const norm = String(input).trim().toLowerCase();
+  const categories = getCategories({ includeDeleted: true });
+  const found = categories.find(c =>
+    (c.id && c.id.toLowerCase() === norm) ||
+    (c.slug && c.slug.toLowerCase() === norm) ||
+    (c.name && c.name.toLowerCase() === norm)
+  );
+  if (found) return found.id;
+  return norm.startsWith('cat-') ? norm : `cat-${norm}`;
+}
+
+/**
+ * Resolves any brand slug, name, or raw ID to its canonical backend database ID (e.g. 'brd-asus')
+ */
+export function resolveBrandId(input) {
+  if (!input) return '';
+  const norm = String(input).trim().toLowerCase();
+  const brands = getBrands({ includeDeleted: true });
+  const found = brands.find(b =>
+    (b.id && b.id.toLowerCase() === norm) ||
+    (b.slug && b.slug.toLowerCase() === norm) ||
+    (b.name && b.name.toLowerCase() === norm)
+  );
+  if (found) return found.id;
+  return norm.startsWith('brd-') ? norm : `brd-${norm}`;
+}
 
 /**
  * ============================================================
@@ -30,29 +73,29 @@ let selectedBrandSlugs = [];
  * ============================================================
  */
 export function getSelectedCategories() {
-  return [...selectedCategorySlugs];
+  return [...selectedCategoryIds];
 }
 
-export function addCategoryFilter(slug) {
-  if (!slug) return;
-  const normalizedSlug = slug.toLowerCase().trim();
-  if (!selectedCategorySlugs.includes(normalizedSlug)) {
-    selectedCategorySlugs.push(normalizedSlug);
+export function addCategoryFilter(idOrSlug) {
+  if (!idOrSlug) return;
+  const id = resolveCategoryId(idOrSlug);
+  if (!selectedCategoryIds.includes(id)) {
+    selectedCategoryIds.push(id);
   }
   renderCategoryCombobox();
   renderSelectedCategoryTags();
 }
 
-export function removeCategoryFilter(slug) {
-  if (!slug) return;
-  const normalizedSlug = slug.toLowerCase().trim();
-  selectedCategorySlugs = selectedCategorySlugs.filter(s => s !== normalizedSlug);
+export function removeCategoryFilter(idOrSlug) {
+  if (!idOrSlug) return;
+  const id = resolveCategoryId(idOrSlug);
+  selectedCategoryIds = selectedCategoryIds.filter(i => i !== id && i !== idOrSlug);
   renderCategoryCombobox();
   renderSelectedCategoryTags();
 }
 
 export function clearCategoryFilters() {
-  selectedCategorySlugs = [];
+  selectedCategoryIds = [];
   renderCategoryCombobox();
   renderSelectedCategoryTags();
 }
@@ -65,16 +108,15 @@ export function renderCategoryCombobox() {
   let optionsHtml = `<option value="" disabled selected>+ Select category...</option>`;
 
   categories.forEach(c => {
-    const isSelected = selectedCategorySlugs.some(s => 
-      s === c.slug.toLowerCase() || 
-      s === c.id.toLowerCase() || 
-      s === c.name.toLowerCase()
+    const isSelected = selectedCategoryIds.some(id => 
+      id.toLowerCase() === c.id.toLowerCase() || 
+      (c.slug && id.toLowerCase() === c.slug.toLowerCase())
     );
     const icon = c.icon ? `${c.icon} ` : '';
     if (isSelected) {
-      optionsHtml += `<option value="${c.slug}" disabled class="text-[#94a3b8] bg-[#f8fafc]">${icon}${c.name} ✓ (Selected)</option>`;
+      optionsHtml += `<option value="${c.id}" disabled class="text-[#94a3b8] bg-[#f8fafc]">${icon}${c.name} ✓ (Selected)</option>`;
     } else {
-      optionsHtml += `<option value="${c.slug}" class="text-[#0f172a] bg-white">${icon}${c.name}</option>`;
+      optionsHtml += `<option value="${c.id}" class="text-[#0f172a] bg-white">${icon}${c.name}</option>`;
     }
   });
 
@@ -89,7 +131,7 @@ export function renderSelectedCategoryTags() {
 
   const categories = getCategories({ activeOnly: true });
 
-  if (selectedCategorySlugs.length === 0) {
+  if (selectedCategoryIds.length === 0) {
     if (countBadge) {
       countBadge.classList.add('hidden');
       countBadge.textContent = '0 selected';
@@ -100,22 +142,22 @@ export function renderSelectedCategoryTags() {
 
   if (countBadge) {
     countBadge.classList.remove('hidden');
-    countBadge.textContent = `${selectedCategorySlugs.length} selected`;
+    countBadge.textContent = `${selectedCategoryIds.length} selected`;
   }
 
-  tagsContainer.innerHTML = selectedCategorySlugs.map(slug => {
+  tagsContainer.innerHTML = selectedCategoryIds.map(catId => {
     const cat = categories.find(c => 
-      c.slug.toLowerCase() === slug.toLowerCase() || 
-      c.id.toLowerCase() === slug.toLowerCase() || 
-      c.name.toLowerCase() === slug.toLowerCase()
+      c.id.toLowerCase() === catId.toLowerCase() || 
+      (c.slug && c.slug.toLowerCase() === catId.toLowerCase()) || 
+      (c.name && c.name.toLowerCase() === catId.toLowerCase())
     );
-    const name = cat ? cat.name : slug;
+    const name = cat ? cat.name : catId;
     const icon = cat && cat.icon ? `${cat.icon} ` : '🏷️ ';
 
     return `
       <span class="inline-flex items-center space-x-1.5 text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200 px-2.5 py-1 rounded-md shadow-sm transition-all hover:bg-blue-100 group">
         <span class="truncate max-w-[130px]" title="${name}">${icon}${name}</span>
-        <button type="button" onclick="removeCategoryFilter('${slug}')"
+        <button type="button" onclick="removeCategoryFilter('${catId}'); applyProductFilters();"
           class="text-blue-600 hover:text-blue-900 hover:bg-blue-200/60 rounded p-0.5 ml-0.5 transition-colors focus:outline-none flex items-center justify-center cursor-pointer"
           title="Remove ${name} filter">
           <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -133,29 +175,29 @@ export function renderSelectedCategoryTags() {
  * ============================================================
  */
 export function getSelectedBrands() {
-  return [...selectedBrandSlugs];
+  return [...selectedBrandIds];
 }
 
-export function addBrandFilter(slug) {
-  if (!slug) return;
-  const normalizedSlug = slug.toLowerCase().trim();
-  if (!selectedBrandSlugs.includes(normalizedSlug)) {
-    selectedBrandSlugs.push(normalizedSlug);
+export function addBrandFilter(idOrSlug) {
+  if (!idOrSlug) return;
+  const id = resolveBrandId(idOrSlug);
+  if (!selectedBrandIds.includes(id)) {
+    selectedBrandIds.push(id);
   }
   renderBrandCombobox();
   renderSelectedBrandTags();
 }
 
-export function removeBrandFilter(slug) {
-  if (!slug) return;
-  const normalizedSlug = slug.toLowerCase().trim();
-  selectedBrandSlugs = selectedBrandSlugs.filter(s => s !== normalizedSlug);
+export function removeBrandFilter(idOrSlug) {
+  if (!idOrSlug) return;
+  const id = resolveBrandId(idOrSlug);
+  selectedBrandIds = selectedBrandIds.filter(i => i !== id && i !== idOrSlug);
   renderBrandCombobox();
   renderSelectedBrandTags();
 }
 
 export function clearBrandFilters() {
-  selectedBrandSlugs = [];
+  selectedBrandIds = [];
   renderBrandCombobox();
   renderSelectedBrandTags();
 }
@@ -168,15 +210,15 @@ export function renderBrandCombobox() {
   let optionsHtml = `<option value="" disabled selected>+ Select brand...</option>`;
 
   brands.forEach(b => {
-    const isSelected = selectedBrandSlugs.some(s => 
-      s === b.slug.toLowerCase() || 
-      s === b.name.toLowerCase() || 
-      s === b.id.toLowerCase()
+    const isSelected = selectedBrandIds.some(id => 
+      id.toLowerCase() === b.id.toLowerCase() || 
+      (b.slug && id.toLowerCase() === b.slug.toLowerCase()) || 
+      (b.name && id.toLowerCase() === b.name.toLowerCase())
     );
     if (isSelected) {
-      optionsHtml += `<option value="${b.slug}" disabled class="text-[#94a3b8] bg-[#f8fafc]">${b.name} ✓ (Selected)</option>`;
+      optionsHtml += `<option value="${b.id}" disabled class="text-[#94a3b8] bg-[#f8fafc]">${b.name} ✓ (Selected)</option>`;
     } else {
-      optionsHtml += `<option value="${b.slug}" class="text-[#0f172a] bg-white">${b.name}</option>`;
+      optionsHtml += `<option value="${b.id}" class="text-[#0f172a] bg-white">${b.name}</option>`;
     }
   });
 
@@ -191,7 +233,7 @@ export function renderSelectedBrandTags() {
 
   const brands = getBrands({ activeOnly: true });
 
-  if (selectedBrandSlugs.length === 0) {
+  if (selectedBrandIds.length === 0) {
     if (countBadge) {
       countBadge.classList.add('hidden');
       countBadge.textContent = '0 selected';
@@ -202,21 +244,21 @@ export function renderSelectedBrandTags() {
 
   if (countBadge) {
     countBadge.classList.remove('hidden');
-    countBadge.textContent = `${selectedBrandSlugs.length} selected`;
+    countBadge.textContent = `${selectedBrandIds.length} selected`;
   }
 
-  tagsContainer.innerHTML = selectedBrandSlugs.map(slug => {
+  tagsContainer.innerHTML = selectedBrandIds.map(brandId => {
     const brand = brands.find(b => 
-      b.slug.toLowerCase() === slug.toLowerCase() || 
-      b.name.toLowerCase() === slug.toLowerCase() || 
-      b.id.toLowerCase() === slug.toLowerCase()
+      b.id.toLowerCase() === brandId.toLowerCase() || 
+      (b.slug && b.slug.toLowerCase() === brandId.toLowerCase()) || 
+      (b.name && b.name.toLowerCase() === brandId.toLowerCase())
     );
-    const name = brand ? brand.name : slug;
+    const name = brand ? brand.name : brandId;
 
     return `
       <span class="inline-flex items-center space-x-1.5 text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200 px-2.5 py-1 rounded-md shadow-sm transition-all hover:bg-indigo-100 group">
         <span class="truncate max-w-[130px]" title="${name}">${name}</span>
-        <button type="button" onclick="removeBrandFilter('${slug}')"
+        <button type="button" onclick="removeBrandFilter('${brandId}'); applyProductFilters();"
           class="text-indigo-600 hover:text-indigo-900 hover:bg-indigo-200/60 rounded p-0.5 ml-0.5 transition-colors focus:outline-none flex items-center justify-center cursor-pointer"
           title="Remove ${name} filter">
           <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -233,7 +275,7 @@ export function renderSelectedBrandTags() {
  * SHOP INITIALIZATION & URL QUERY PARSING
  * ============================================================
  */
-export function initShopLogic(queryPart = '') {
+export async function initShopLogic(queryPart = '') {
   const searchInput = document.getElementById('search-input');
   const priceSlider = document.getElementById('price-slider');
   const priceValueDisplay = document.getElementById('price-value');
@@ -243,7 +285,21 @@ export function initShopLogic(queryPart = '') {
   const catCombobox = document.getElementById('shop-category-combobox');
   const brandCombobox = document.getElementById('shop-brand-combobox');
 
-  // Parse query string (e.g. cat=laptops&brand=asus&search=rtx or brand=corsair,razer)
+  // Ensure categories and brands are available from live API before resolving filters
+  const existingCats = getCategories({ activeOnly: true });
+  const existingBrands = getBrands({ activeOnly: true });
+  if (existingCats.length === 0 || existingBrands.length === 0) {
+    try {
+      await Promise.allSettled([
+        syncCategoriesFromApi({ activeOnly: true }),
+        syncBrandsFromApi({ activeOnly: true })
+      ]);
+    } catch (e) {
+      console.warn('[ShopController] Initial category/brand sync notice:', e);
+    }
+  }
+
+  // Parse query string (e.g. cat=cat-laptops or cat=laptops or brand=brd-asus or brand=asus)
   let initialCategory = '';
   let initialBrand = '';
   let initialSearch = '';
@@ -258,19 +314,19 @@ export function initShopLogic(queryPart = '') {
   }
 
   if (initialCategory) {
-    selectedCategorySlugs = initialCategory.split(',')
-      .map(s => s.trim().toLowerCase())
+    selectedCategoryIds = initialCategory.split(',')
+      .map(s => resolveCategoryId(s))
       .filter(Boolean);
   } else {
-    selectedCategorySlugs = [];
+    selectedCategoryIds = [];
   }
 
   if (initialBrand) {
-    selectedBrandSlugs = initialBrand.split(',')
-      .map(s => s.trim().toLowerCase())
+    selectedBrandIds = initialBrand.split(',')
+      .map(s => resolveBrandId(s))
       .filter(Boolean);
   } else {
-    selectedBrandSlugs = [];
+    selectedBrandIds = [];
   }
 
   if (searchInput) {
@@ -294,15 +350,15 @@ export function initShopLogic(queryPart = '') {
   // Event Listeners for Comboboxes (tags updated, filter applied when clicking Apply button)
   if (catCombobox) {
     catCombobox.onchange = (e) => {
-      const chosenSlug = e.target.value;
-      if (chosenSlug) addCategoryFilter(chosenSlug);
+      const chosenId = e.target.value;
+      if (chosenId) addCategoryFilter(chosenId);
     };
   }
 
   if (brandCombobox) {
     brandCombobox.onchange = (e) => {
-      const chosenSlug = e.target.value;
-      if (chosenSlug) addBrandFilter(chosenSlug);
+      const chosenId = e.target.value;
+      if (chosenId) addBrandFilter(chosenId);
     };
   }
 
@@ -352,9 +408,9 @@ export function initShopLogic(queryPart = '') {
   }
 
   // Initial load: Fetch live matching products directly from database
-  applyProductFilters();
+  await applyProductFilters();
 
-  // Background sync for categories & brands taxonomies
+  // Background refresh for categories & brands taxonomies
   Promise.all([
     syncCategoriesFromApi({ activeOnly: true }),
     syncBrandsFromApi({ activeOnly: true })
@@ -371,13 +427,19 @@ export function initShopLogic(queryPart = '') {
  * FILTER, SORT & RENDER CATALOG PRODUCTS DIRECTLY FROM DATABASE
  * ============================================================
  */
-export async function applyProductFilters() {
+export async function applyProductFilters(targetPage = 0) {
   const grid = document.getElementById('product-grid');
   const itemCountEl = document.getElementById('item-count');
   const noProductsMsg = document.getElementById('no-products-msg');
   const activeTagsContainer = document.getElementById('active-filter-tags');
 
   if (!grid) return;
+
+  if (typeof targetPage === 'number') {
+    currentShopPage = targetPage;
+  } else {
+    currentShopPage = 0;
+  }
 
   const searchInput = document.getElementById('search-input');
   const priceSlider = document.getElementById('price-slider');
@@ -391,7 +453,7 @@ export async function applyProductFilters() {
   grid.innerHTML = `
     <div class="col-span-full py-16 text-center space-y-3">
       <div class="inline-block w-8 h-8 border-3 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-      <p class="text-xs font-semibold text-slate-500">Querying live products from database...</p>
+      <p class="text-xs font-semibold text-slate-500">Loading products...</p>
     </div>
   `;
   if (noProductsMsg) noProductsMsg.classList.add('hidden');
@@ -418,8 +480,9 @@ export async function applyProductFilters() {
 
   // Build backend query parameters for GET /api/v1/products/filter
   const filterParams = {
-    page: 0,
-    size: 100,
+    status: 'ACTIVE',
+    page: currentShopPage,
+    size: SHOP_PAGE_SIZE,
     sortBy: sortBy,
     sortDir: sortDir
   };
@@ -432,22 +495,35 @@ export async function applyProductFilters() {
     filterParams.maxPrice = maxPrice;
   }
 
-  if (selectedCategorySlugs.length === 1) {
-    filterParams.category = selectedCategorySlugs[0];
+  if (selectedCategoryIds.length === 1) {
+    filterParams.category = selectedCategoryIds[0];
+  }
+
+  if (selectedBrandIds.length === 1) {
+    filterParams.brand = selectedBrandIds[0];
   }
 
   try {
     console.log('[ShopController] Fetching filtered products from DB API:', filterParams);
     const res = await ProductsApi.getFiltered(filterParams);
     let apiList = [];
-    if (Array.isArray(res)) {
+    if (res && Array.isArray(res.content)) {
+      apiList = res.content;
+      totalShopPages = res.totalPages !== undefined ? res.totalPages : 1;
+      totalShopElements = res.totalElements !== undefined ? res.totalElements : apiList.length;
+      currentShopPage = res.page !== undefined ? res.page : currentShopPage;
+    } else if (Array.isArray(res)) {
       apiList = res;
+      totalShopPages = Math.ceil(apiList.length / SHOP_PAGE_SIZE) || 1;
+      totalShopElements = apiList.length;
     } else if (res && Array.isArray(res.body)) {
       apiList = res.body;
-    } else if (res && Array.isArray(res.content)) {
-      apiList = res.content;
+      totalShopPages = Math.ceil(apiList.length / SHOP_PAGE_SIZE) || 1;
+      totalShopElements = apiList.length;
     } else if (res && Array.isArray(res.data)) {
       apiList = res.data;
+      totalShopPages = Math.ceil(apiList.length / SHOP_PAGE_SIZE) || 1;
+      totalShopElements = apiList.length;
     }
 
     const categoriesList = getCategories({ includeDeleted: true });
@@ -456,12 +532,12 @@ export async function applyProductFilters() {
     // Normalize products from DB response
     let productsList = apiList.map(p => {
       const brandObj = brandsList.find(b => 
-        (p.brandId && b.id === p.brandId) || 
+        (p.brandId && b.id.toLowerCase() === p.brandId.toLowerCase()) || 
         (b.slug && p.brand && b.slug.toLowerCase() === p.brand.toLowerCase()) || 
         (b.name && p.brand && b.name.toLowerCase() === p.brand.toLowerCase())
       );
       const catObj = categoriesList.find(c => 
-        (p.categoryId && c.id === p.categoryId) || 
+        (p.categoryId && c.id.toLowerCase() === p.categoryId.toLowerCase()) || 
         (c.slug && p.category && c.slug.toLowerCase() === p.category.toLowerCase()) || 
         (c.name && p.category && c.name.toLowerCase() === p.category.toLowerCase())
       );
@@ -500,55 +576,25 @@ export async function applyProductFilters() {
     });
 
     // Multi-category filtering in memory if >1 category selected
-    if (selectedCategorySlugs.length > 1) {
+    if (selectedCategoryIds.length > 1) {
       productsList = productsList.filter(product => {
-        const pCat = (product.category || '').toLowerCase().trim();
         const pCatId = (product.categoryId || '').toLowerCase().trim();
-        const pCatSlug = (product.categorySlug || '').toLowerCase().trim();
-        const pCatName = (product.categoryName || '').toLowerCase().trim();
-
-        return selectedCategorySlugs.some(sSlug => {
-          const normSlug = sSlug.toLowerCase().trim();
-          const catObj = categoriesList.find(c => 
-            c.slug.toLowerCase() === normSlug || c.id.toLowerCase() === normSlug || c.name.toLowerCase() === normSlug
-          );
-          const targetSlug = catObj ? catObj.slug.toLowerCase() : normSlug;
-          const targetId = catObj ? catObj.id.toLowerCase() : normSlug;
-          const targetName = catObj ? catObj.name.toLowerCase() : normSlug;
-
-          return (
-            pCat === normSlug || pCat === targetSlug || pCat === targetId || pCat === targetName ||
-            pCatId === normSlug || pCatId === targetSlug || pCatId === targetId ||
-            pCatSlug === normSlug || pCatSlug === targetSlug || pCatSlug === targetId ||
-            pCatName === normSlug || pCatName === targetSlug || pCatName === targetName
-          );
+        const pCatSlug = (product.categorySlug || product.category || '').toLowerCase().trim();
+        return selectedCategoryIds.some(targetId => {
+          const normTarget = targetId.toLowerCase().trim();
+          return pCatId === normTarget || pCatSlug === normTarget || normTarget.endsWith(pCatSlug);
         });
       });
     }
 
-    // Brand filtering in memory
-    if (selectedBrandSlugs.length > 0) {
+    // Multi-brand filtering in memory if >1 brand selected
+    if (selectedBrandIds.length > 1) {
       productsList = productsList.filter(product => {
-        const pBrand = (product.brand || '').toLowerCase().trim();
         const pBrandId = (product.brandId || '').toLowerCase().trim();
         const pBrandSlug = (product.brandSlug || '').toLowerCase().trim();
-
-        return selectedBrandSlugs.some(bSlug => {
-          const normSlug = bSlug.toLowerCase().trim();
-          const brandObj = brandsList.find(b => 
-            b.slug.toLowerCase() === normSlug || b.id.toLowerCase() === normSlug || b.name.toLowerCase() === normSlug
-          );
-          const targetSlug = brandObj ? brandObj.slug.toLowerCase() : normSlug;
-          const targetId = brandObj ? brandObj.id.toLowerCase() : normSlug;
-          const targetName = brandObj ? brandObj.name.toLowerCase() : normSlug;
-
-          return (
-            pBrand === normSlug || pBrand === targetSlug || pBrand === targetId || pBrand === targetName ||
-            pBrandId === normSlug || pBrandId === targetSlug || pBrandId === targetId ||
-            pBrandSlug === normSlug || pBrandSlug === targetSlug || pBrandSlug === targetId ||
-            (targetName.length >= 3 && pBrand.includes(targetName)) ||
-            (pBrand.length >= 3 && targetName.includes(pBrand))
-          );
+        return selectedBrandIds.some(targetId => {
+          const normTarget = targetId.toLowerCase().trim();
+          return pBrandId === normTarget || pBrandSlug === normTarget || normTarget.endsWith(pBrandSlug);
         });
       });
     }
@@ -577,30 +623,33 @@ export async function applyProductFilters() {
     }
 
     renderProductsGridUI(productsList, searchQuery, maxPrice);
+    renderShopPagination(currentShopPage, totalShopPages, totalShopElements);
 
   } catch (err) {
     console.error('[ShopController] DB filter request error:', err);
-    renderFilteredProductsFallback();
+    etechAlert.error('Connection Error', 'Unable to load products. Please check your connection and try again.');
+    const paginationContainer = document.getElementById('shop-pagination-container');
+    if (paginationContainer) paginationContainer.classList.add('hidden');
+    if (grid) {
+      grid.innerHTML = `
+        <div class="col-span-full py-16 text-center space-y-4">
+          <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-rose-50 text-rose-600 border border-rose-200 shadow-sm">
+            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+          </div>
+          <div>
+            <h3 class="text-base font-black text-slate-900">Unable to Load Products</h3>
+            <p class="text-xs text-slate-500 max-w-sm mx-auto mt-1">Unable to connect to the store service. Please check your connection and try again.</p>
+          </div>
+          <button onclick="applyProductFilters(0)" class="px-5 py-2.5 rounded-xl bg-blue-600 text-white text-xs font-bold shadow-md hover:bg-blue-500 transition-all cursor-pointer">
+            Retry Connection
+          </button>
+        </div>
+      `;
+    }
+    const itemCountEl = document.getElementById('item-count');
+    if (itemCountEl) itemCountEl.textContent = '0';
+    if (noProductsMsg) noProductsMsg.classList.add('hidden');
   }
-}
-
-/**
- * Fallback to in-memory rendering if database connection fails
- */
-function renderFilteredProductsFallback() {
-  const allProducts = getStoredProducts({ activeOnly: true }) || products || [];
-  const searchInput = document.getElementById('search-input');
-  const priceSlider = document.getElementById('price-slider');
-  const searchQuery = searchInput ? searchInput.value.toLowerCase().trim() : '';
-  const maxPrice = priceSlider ? parseFloat(priceSlider.value) : 1000000;
-
-  const filtered = allProducts.filter(p => {
-    const matchesSearch = !searchQuery || (p.name && p.name.toLowerCase().includes(searchQuery));
-    const matchesPrice = Number(p.price || 0) <= maxPrice;
-    return matchesSearch && matchesPrice;
-  });
-
-  renderProductsGridUI(filtered, searchQuery, maxPrice);
 }
 
 /**
@@ -619,15 +668,16 @@ export async function resetProductFilters() {
   }
   if (sortSelect) sortSelect.value = 'featured';
 
-  selectedCategorySlugs = [];
-  selectedBrandSlugs = [];
+  selectedCategoryIds = [];
+  selectedBrandIds = [];
+  currentShopPage = 0;
 
   renderCategoryCombobox();
   renderSelectedCategoryTags();
   renderBrandCombobox();
   renderSelectedBrandTags();
 
-  await applyProductFilters();
+  await applyProductFilters(0);
 }
 
 /**
@@ -644,13 +694,15 @@ function renderProductsGridUI(productsList, searchQuery = '', maxPrice = 1000000
   const categoriesList = getCategories({ includeDeleted: true });
   const brandsList = getBrands({ includeDeleted: true });
 
-  // Update item count UI
-  if (itemCountEl) itemCountEl.textContent = productsList.length;
+  // Update item count UI with total elements
+  if (itemCountEl) itemCountEl.textContent = totalShopElements !== undefined ? totalShopElements : productsList.length;
 
   // Toggle empty state message
   if (productsList.length === 0) {
     grid.innerHTML = '';
     if (noProductsMsg) noProductsMsg.classList.remove('hidden');
+    const paginationContainer = document.getElementById('shop-pagination-container');
+    if (paginationContainer) paginationContainer.classList.add('hidden');
   } else {
     if (noProductsMsg) noProductsMsg.classList.add('hidden');
   }
@@ -659,37 +711,37 @@ function renderProductsGridUI(productsList, searchQuery = '', maxPrice = 1000000
   if (activeTagsContainer) {
     let tagsHtml = '';
 
-    if (selectedCategorySlugs.length > 0) {
-      tagsHtml += selectedCategorySlugs.map(slug => {
+    if (selectedCategoryIds.length > 0) {
+      tagsHtml += selectedCategoryIds.map(catId => {
         const cat = categoriesList.find(c => 
-          c.slug.toLowerCase() === slug.toLowerCase() || 
-          c.id.toLowerCase() === slug.toLowerCase() || 
-          c.name.toLowerCase() === slug.toLowerCase()
+          c.id.toLowerCase() === catId.toLowerCase() || 
+          (c.slug && c.slug.toLowerCase() === catId.toLowerCase()) || 
+          (c.name && c.name.toLowerCase() === catId.toLowerCase())
         );
-        const name = cat ? cat.name : slug;
+        const name = cat ? cat.name : catId;
         return `
           <span class="inline-flex items-center space-x-1 text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded font-mono shadow-sm">
             ${iconFolder('w-3 h-3 flex-shrink-0')}
             <span>${name}</span>
-            <button type="button" onclick="removeCategoryFilter('${slug}')" class="text-blue-700 hover:text-red-600 ml-1 font-sans cursor-pointer flex items-center justify-center" title="Remove filter">${iconClose('w-2.5 h-2.5')}</button>
+            <button type="button" onclick="removeCategoryFilter('${catId}'); applyProductFilters();" class="text-blue-700 hover:text-red-600 ml-1 font-sans cursor-pointer flex items-center justify-center" title="Remove filter">${iconClose('w-2.5 h-2.5')}</button>
           </span>
         `;
       }).join('');
     }
 
-    if (selectedBrandSlugs.length > 0) {
-      tagsHtml += selectedBrandSlugs.map(slug => {
+    if (selectedBrandIds.length > 0) {
+      tagsHtml += selectedBrandIds.map(brandId => {
         const brandObj = brandsList.find(b => 
-          b.slug.toLowerCase() === slug.toLowerCase() || 
-          b.name.toLowerCase() === slug.toLowerCase() || 
-          b.id.toLowerCase() === slug.toLowerCase()
+          b.id.toLowerCase() === brandId.toLowerCase() || 
+          (b.slug && b.slug.toLowerCase() === brandId.toLowerCase()) || 
+          (b.name && b.name.toLowerCase() === brandId.toLowerCase())
         );
-        const name = brandObj ? brandObj.name : slug;
+        const name = brandObj ? brandObj.name : brandId;
         return `
           <span class="inline-flex items-center space-x-1 text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 px-2 py-0.5 rounded font-mono shadow-sm">
             ${iconBuilding('w-3 h-3 flex-shrink-0')}
             <span>${name}</span>
-            <button type="button" onclick="removeBrandFilter('${slug}')" class="text-indigo-700 hover:text-red-600 ml-1 font-sans cursor-pointer flex items-center justify-center" title="Remove filter">${iconClose('w-2.5 h-2.5')}</button>
+            <button type="button" onclick="removeBrandFilter('${brandId}'); applyProductFilters();" class="text-indigo-700 hover:text-red-600 ml-1 font-sans cursor-pointer flex items-center justify-center" title="Remove filter">${iconClose('w-2.5 h-2.5')}</button>
           </span>
         `;
       }).join('');
@@ -809,6 +861,121 @@ function renderProductsGridUI(productsList, searchQuery = '', maxPrice = 1000000
   }).join('');
 }
 
+/**
+ * Renders the pagination buttons and product count info
+ */
+export function renderShopPagination(page, totalPages, totalCount) {
+  const container = document.getElementById('shop-pagination-container');
+  const startEl = document.getElementById('pagination-start');
+  const endEl = document.getElementById('pagination-end');
+  const totalEl = document.getElementById('pagination-total');
+  const btnContainer = document.getElementById('pagination-buttons');
+
+  if (!container || !btnContainer) return;
+
+  if (totalCount <= 0 || totalPages <= 1) {
+    container.classList.add('hidden');
+    return;
+  }
+
+  container.classList.remove('hidden');
+
+  const startNum = page * SHOP_PAGE_SIZE + 1;
+  const endNum = Math.min((page + 1) * SHOP_PAGE_SIZE, totalCount);
+
+  if (startEl) startEl.textContent = startNum;
+  if (endEl) endEl.textContent = endNum;
+  if (totalEl) totalEl.textContent = totalCount;
+
+  let btnsHtml = '';
+
+  // Previous button
+  const prevDisabled = page <= 0;
+  btnsHtml += `
+    <button 
+      type="button"
+      onclick="goToShopPage(${page - 1})"
+      ${prevDisabled ? 'disabled' : ''}
+      class="px-3 py-1.5 rounded-lg border text-xs font-bold transition-all flex items-center space-x-1 ${
+        prevDisabled 
+          ? 'bg-slate-50 text-slate-300 border-slate-200 cursor-not-allowed' 
+          : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200 hover:border-slate-300 cursor-pointer shadow-2xs'
+      }">
+      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+      <span>Prev</span>
+    </button>
+  `;
+
+  // Numbered buttons
+  let pagesToShow = [];
+  if (totalPages <= 7) {
+    for (let i = 0; i < totalPages; i++) pagesToShow.push(i);
+  } else {
+    pagesToShow.push(0);
+    if (page > 2) pagesToShow.push('...');
+    const start = Math.max(1, page - 1);
+    const end = Math.min(totalPages - 2, page + 1);
+    for (let i = start; i <= end; i++) {
+      pagesToShow.push(i);
+    }
+    if (page < totalPages - 3) pagesToShow.push('...');
+    pagesToShow.push(totalPages - 1);
+  }
+
+  pagesToShow.forEach(p => {
+    if (p === '...') {
+      btnsHtml += `<span class="px-2 py-1 text-xs text-slate-400 font-bold">...</span>`;
+    } else {
+      const isCurrent = p === page;
+      btnsHtml += `
+        <button 
+          type="button"
+          onclick="goToShopPage(${p})"
+          class="w-8 h-8 rounded-lg text-xs font-bold transition-all flex items-center justify-center cursor-pointer ${
+            isCurrent
+              ? 'bg-blue-600 text-white shadow-sm ring-2 ring-blue-600/30'
+              : 'bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 hover:border-slate-300 shadow-2xs'
+          }">
+          ${p + 1}
+        </button>
+      `;
+    }
+  });
+
+  // Next button
+  const nextDisabled = page >= totalPages - 1;
+  btnsHtml += `
+    <button 
+      type="button"
+      onclick="goToShopPage(${page + 1})"
+      ${nextDisabled ? 'disabled' : ''}
+      class="px-3 py-1.5 rounded-lg border text-xs font-bold transition-all flex items-center space-x-1 ${
+        nextDisabled 
+          ? 'bg-slate-50 text-slate-300 border-slate-200 cursor-not-allowed' 
+          : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200 hover:border-slate-300 cursor-pointer shadow-2xs'
+      }">
+      <span>Next</span>
+      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+    </button>
+  `;
+
+  btnContainer.innerHTML = btnsHtml;
+}
+
+/**
+ * Navigate to a specific shop page
+ */
+export async function goToShopPage(targetPage) {
+  if (targetPage < 0 || targetPage >= totalShopPages || targetPage === currentShopPage) {
+    return;
+  }
+  await applyProductFilters(targetPage);
+  const catalogEl = document.getElementById('shop-page') || document.getElementById('product-grid');
+  if (catalogEl) {
+    catalogEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+}
+
 // Export renderFilteredProducts as an alias for applyProductFilters for backward compatibility
 export function renderFilteredProducts() {
   return applyProductFilters();
@@ -825,3 +992,5 @@ window.applyProductFilters = applyProductFilters;
 window.resetProductFilters = resetProductFilters;
 window.renderFilteredProducts = renderFilteredProducts;
 window.initShopLogic = initShopLogic;
+window.renderShopPagination = renderShopPagination;
+window.goToShopPage = goToShopPage;

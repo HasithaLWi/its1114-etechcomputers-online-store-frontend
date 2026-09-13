@@ -19,22 +19,18 @@ let memoryReviews = [];
  * Sync reviews from backend API for a product
  */
 export async function syncProductReviewsFromApi(productId) {
-  try {
-    const res = await ReviewsApi.getProductReviews(productId);
-    const body = res.body || res;
-    let list = [];
-    if (Array.isArray(body)) {
-      list = body;
-    } else if (body && Array.isArray(body.content)) {
-      list = body.content;
-    }
+  const res = await ReviewsApi.getProductReviews(productId);
+  const body = res.body || res;
+  let list = [];
+  if (Array.isArray(body)) {
+    list = body;
+  } else if (body && Array.isArray(body.content)) {
+    list = body.content;
+  }
 
-    if (list.length > 0) {
-      const otherReviews = memoryReviews.filter(r => Number(r.productId) !== Number(productId));
-      memoryReviews = [...list, ...otherReviews];
-    }
-  } catch (err) {
-    console.warn('[RatingModel] Reviews API sync notice:', err.message);
+  if (list.length > 0) {
+    const otherReviews = memoryReviews.filter(r => Number(r.productId) !== Number(productId));
+    memoryReviews = [...list, ...otherReviews];
   }
 }
 
@@ -108,7 +104,15 @@ export async function submitProductReview({ productId, userId, userName, userEma
   const oldRatingVal = isOverride ? allReviews[existingIndex].rating : null;
   const nowIso = new Date().toISOString();
 
-  let reviewRecord;
+  // Single-Mode: Sync with API first
+  try {
+    await ReviewsApi.submitReview(pId, {
+      rating: ratingNum,
+      comment: cleanComment
+    });
+  } catch (err) {
+    return { success: false, message: 'Review submission failed: ' + (err.message || 'Server offline') };
+  }
 
   if (isOverride) {
     allReviews[existingIndex] = {
@@ -136,16 +140,6 @@ export async function submitProductReview({ productId, userId, userName, userEma
   }
 
   saveAllReviews(allReviews);
-
-  // Sync with API
-  try {
-    await ReviewsApi.submitReview(pId, {
-      rating: ratingNum,
-      comment: cleanComment
-    });
-  } catch (err) {
-    console.warn('[RatingModel] Submit review API notice:', err.message);
-  }
 
   // Recalculate product aggregate rating & review count in inventory
   const products = getStoredProducts();

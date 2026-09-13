@@ -57,7 +57,7 @@ export async function renderUsersTab() {
       tbody.innerHTML = `
         <tr>
           <td colspan="6" class="py-8 text-center text-xs text-[#64748b]">
-            No user accounts found in database.
+            No user accounts found.
           </td>
         </tr>
       `;
@@ -126,10 +126,12 @@ export async function renderUsersTab() {
       `;
     }).join('');
   } catch (err) {
+    console.error('[UserController] Failed to fetch users:', err);
+    etechAlert.error('Connection Error', 'Unable to load users. Please try again.');
     tbody.innerHTML = `
       <tr>
         <td colspan="6" class="py-8 text-center text-xs text-rose-600">
-          Failed to load user directory: ${err.message || 'Server connection error.'}
+          Failed to load user directory. Please try again.
         </td>
       </tr>
     `;

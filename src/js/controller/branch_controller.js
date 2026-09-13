@@ -72,52 +72,7 @@ export const BRANCH_WAREHOUSE_COORDS = {
 };
 
 // Reactive In-Memory Store
-let memoryBranches = [
-  {
-    id: "BR-COL",
-    name: "Colombo Main Hub",
-    city: "Colombo",
-    address: "123 Galle Road, Colombo 03",
-    phone: "011-2345678",
-    email: "colombo@etech.lk",
-    baseShippingFee: 350,
-    perKmFee: 25,
-    status: "Active"
-  },
-  {
-    id: "BR-KAN",
-    name: "Kandy Tech Hub",
-    city: "Kandy",
-    address: "45 Peradeniya Road, Kandy",
-    phone: "081-2233445",
-    email: "kandy@etech.lk",
-    baseShippingFee: 300,
-    perKmFee: 25,
-    status: "Active"
-  },
-  {
-    id: "BR-GAL",
-    name: "Galle Coastal Center",
-    city: "Galle",
-    address: "88 Matara Road, Galle",
-    phone: "091-2244668",
-    email: "galle@etech.lk",
-    baseShippingFee: 300,
-    perKmFee: 25,
-    status: "Active"
-  },
-  {
-    id: "BR-MAT",
-    name: "Matara Express Depot",
-    city: "Matara",
-    address: "12 Anagarika Dharmapala Mw, Matara",
-    phone: "041-2223344",
-    email: "matara@etech.lk",
-    baseShippingFee: 300,
-    perKmFee: 25,
-    status: "Active"
-  }
-];
+let memoryBranches = [];
 
 /**
  * Sync branches from backend API
@@ -148,7 +103,8 @@ export async function syncBranchesFromApi(activeOnly = false) {
       }));
     }
   } catch (err) {
-    console.warn('[BranchController] Branches sync notice:', err.message);
+    console.error('[BranchController] Branches sync error:', err.message);
+    throw err;
   }
 }
 
@@ -184,11 +140,7 @@ export async function saveBranch(branchData) {
   
   if (index > -1) {
     branches[index] = { ...branches[index], ...branchData };
-    try {
-      await BranchesApi.update(branches[index].id, branches[index]);
-    } catch (e) {
-      console.warn('[BranchController] Update branch API notice:', e.message);
-    }
+    await BranchesApi.update(branches[index].id, branches[index]);
   } else {
     const newBranch = {
       id: branchData.id || 'BR-' + Math.floor(100 + Math.random() * 900),
@@ -202,11 +154,7 @@ export async function saveBranch(branchData) {
       status: branchData.status || 'Active'
     };
     branches.push(newBranch);
-    try {
-      await BranchesApi.create(newBranch);
-    } catch (e) {
-      console.warn('[BranchController] Create branch API notice:', e.message);
-    }
+    await BranchesApi.create(newBranch);
   }
   
   saveBranches(branches);
@@ -218,11 +166,7 @@ export async function saveBranch(branchData) {
  */
 export async function deleteBranch(branchId) {
   memoryBranches = memoryBranches.filter(b => b.id !== branchId);
-  try {
-    await BranchesApi.delete(branchId);
-  } catch (e) {
-    console.warn('[BranchController] Delete branch API notice:', e.message);
-  }
+  await BranchesApi.delete(branchId);
   return true;
 }
 

@@ -142,17 +142,6 @@ export function renderAdminPage(queryPart) {
               <div class="sidebar-tooltip">Newsletter & Email Marketing</div>
             </button>
 
-            <button data-tab="trash" onclick="switchAdminTab('trash')" title="Trash Bin & Data Recovery Vault"
-              class="superadmin-only-nav sidebar-nav-btn w-full flex items-center justify-between px-2 lg:px-3.5 py-2.5 rounded-lg font-medium text-xs text-[#475569] hover:text-rose-700 hover:bg-rose-50 transition-all relative group">
-              <div class="flex items-center space-x-0 lg:space-x-3">
-                <svg class="w-5 h-5 flex-shrink-0 text-rose-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                </svg>
-                <span class="sidebar-text-label hidden lg:inline whitespace-nowrap font-bold text-rose-700">Trash Bin</span>
-              </div>
-              <span id="admin-trash-badge" class="hidden lg:inline-flex px-1.5 py-0.5 rounded-full text-[9px] font-mono font-extrabold bg-rose-100 text-rose-700 border border-rose-200 shadow-2xs">0</span>
-              <div class="sidebar-tooltip">Trash Bin & Data Recovery</div>
-            </button>
             <button data-tab="branches" onclick="switchAdminTab('branches')" title="Store Branches"
               class="admin-only-nav sidebar-nav-btn w-full flex items-center justify-center lg:justify-start space-x-0 lg:space-x-3 px-2 lg:px-3.5 py-2.5 rounded-lg font-medium text-xs text-[#475569] hover:text-[#0f172a] hover:bg-[#f1f5f9] transition-all relative group">
               <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -309,6 +298,12 @@ export function renderAdminPage(queryPart) {
                 </div>
 
                 <div class="flex items-center space-x-2.5 w-full sm:w-auto">
+                  <select id="product-status-filter" onchange="filterProductsTable()"
+                    class="px-2.5 py-2 rounded-md bg-[#f8fafc] border border-[#e2e8f0] text-[#0f172a] text-xs focus:border-blue-600 cursor-pointer font-medium">
+                    <option value="ALL">All Statuses</option>
+                    <option value="ACTIVE">Active Only</option>
+                    <option value="INACTIVE">Inactive Only</option>
+                  </select>
                   <input type="text" id="product-search-input" onkeyup="filterProductsTable()"
                     placeholder="Search SKU or Product..."
                     class="px-3.5 py-2 rounded-md bg-[#f8fafc] border border-[#e2e8f0] text-[#0f172a] text-xs placeholder-[#94a3b8] focus:border-blue-600 w-full sm:w-60">
@@ -760,9 +755,6 @@ export function renderAdminPage(queryPart) {
           <div id="tab-panel-brand-form" class="dashboard-tab-panel hidden">
           </div>
 
-          <!-- Tab Panel: SuperAdmin Trash Bin & Data Recovery Vault -->
-          <div id="tab-panel-trash" class="dashboard-tab-panel hidden">
-          </div>
 
           <!-- Tab Panel: Newsletter & Email Marketing Management -->
           <div id="tab-panel-newsletter" class="dashboard-tab-panel hidden">

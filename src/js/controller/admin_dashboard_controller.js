@@ -39,7 +39,6 @@ import {
   handleCancelTransfer 
 } from './transfer_management_controller.js';
 import { renderBrandsTab } from './brand_management_controller.js';
-import { renderTrashBinTab, getTrashTotalCount } from './trash_bin_controller.js';
 import { renderNewsletterTab } from './newsletter_management_controller.js';
 import { parseLKR } from '../util/formatters.js';
 
@@ -71,7 +70,6 @@ export function initAdminDashboard() {
   updateUserInfoHeader();
   setupRoleBasedNavigation();
   setupSidebarEventListeners();
-  updateTrashSidebarBadge();
   switchAdminTab(activeTab);
 }
 
@@ -185,20 +183,6 @@ function setupRoleBasedNavigation() {
   });
 }
 
-/**
- * Update Sidebar Trash Bin counter badge
- */
-export function updateTrashSidebarBadge() {
-  const badge = document.getElementById('admin-trash-badge');
-  if (!badge) return;
-  const count = getTrashTotalCount();
-  badge.textContent = count;
-  if (count > 0) {
-    badge.className = 'hidden lg:inline-flex px-1.5 py-0.5 rounded-full text-[9px] font-mono font-extrabold bg-rose-100 text-rose-700 border border-rose-200 shadow-2xs animate-pulse';
-  } else {
-    badge.className = 'hidden lg:inline-flex px-1.5 py-0.5 rounded-full text-[9px] font-mono font-extrabold bg-[#f1f5f9] text-[#64748b] border border-[#e2e8f0] shadow-2xs';
-  }
-}
 
 /**
  * Tab Switching Handler
@@ -211,9 +195,6 @@ export function switchAdminTab(tabName, param = null) {
     tabName = 'overview';
   }
 
-  if (tabName === 'trash' && !isSuperAdmin) {
-    tabName = 'overview';
-  }
 
   activeTab = tabName;
   closeAdminSidebar();
@@ -222,15 +203,10 @@ export function switchAdminTab(tabName, param = null) {
   navBtns.forEach(btn => {
     const target = btn.getAttribute('data-tab');
     if (target === tabName) {
-      if (tabName === 'trash') {
-        btn.classList.add('bg-rose-600', 'text-white', 'shadow-sm', 'font-bold');
-        btn.classList.remove('text-[#475569]', 'hover:text-[#0f172a]', 'hover:bg-[#f1f5f9]', 'font-medium');
-      } else {
-        btn.classList.add('bg-blue-600', 'text-white', 'shadow-sm', 'font-bold');
-        btn.classList.remove('text-[#475569]', 'hover:text-[#0f172a]', 'hover:bg-[#f1f5f9]', 'font-medium');
-      }
+      btn.classList.add('bg-blue-600', 'text-white', 'shadow-sm', 'font-bold');
+      btn.classList.remove('text-[#475569]', 'hover:text-[#0f172a]', 'hover:bg-[#f1f5f9]', 'font-medium');
     } else {
-      btn.classList.remove('bg-blue-600', 'bg-rose-600', 'text-white', 'shadow-sm', 'font-bold');
+      btn.classList.remove('bg-blue-600', 'text-white', 'shadow-sm', 'font-bold');
       btn.classList.add('text-[#475569]', 'hover:text-[#0f172a]', 'hover:bg-[#f1f5f9]', 'font-medium');
     }
   });
@@ -256,9 +232,6 @@ export function switchAdminTab(tabName, param = null) {
   else if (tabName === 'users' && isSuperOrAdmin) renderUsersTab();
   else if (tabName === 'analytics' && isSuperOrAdmin) renderAnalyticsTab();
   else if (tabName === 'policies' && isSuperOrAdmin) renderPoliciesTab();
-  else if (tabName === 'trash' && isSuperAdmin) renderTrashBinTab();
-
-  updateTrashSidebarBadge();
 }
 
 /**
@@ -1760,7 +1733,6 @@ if (typeof window !== 'undefined') {
     toggleAdminSidebar,
     closeAdminModal,
     handleAdminLogout,
-    filterProductsTable,
-    updateTrashSidebarBadge
+    filterProductsTable
   });
 }
