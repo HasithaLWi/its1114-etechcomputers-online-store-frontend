@@ -6,8 +6,7 @@ import {
   toggleBrandFeatured, getBrandProductCount, updateBrandStatus, syncBrandsFromApi
 } from '../models/brand_data.js';
 import { getCategories } from '../models/taxonomy_data.js';
-import { getStoredProducts } from '../models/data.js';
-import { switchAdminTab, updateTrashSidebarBadge } from './admin_dashboard_controller.js';
+import { switchAdminTab } from './admin_dashboard_controller.js';
 import {
   iconBuilding,
   iconPackage,
@@ -65,7 +64,10 @@ export function renderBrandsTab(shouldSync = true) {
   if (shouldSync) {
     syncBrandsFromApi().then(() => {
       renderBrandsTab(false);
-    }).catch(() => {});
+    }).catch(err => {
+      console.error('[BrandController] Brands sync failed:', err);
+      etechAlert.error('Connection Error', 'Unable to load brands. Please try again.');
+    });
   }
 
   // By default, exclude soft-deleted brands
@@ -279,7 +281,7 @@ export function renderBrandsTab(shouldSync = true) {
 
                     <!-- Store Products Count -->
                     <td class="py-3 px-4 text-center min-w-[130px] whitespace-nowrap">
-                      <a href="#shop?brand=${brand.slug}" title="View ${productCount} products in store catalog">
+                      <a href="#shop?brand=${brand.id || brand.slug}" title="View ${productCount} products in store catalog">
                         ${renderCountBadge(productCount, 'item', 'items', 'blue')}
                       </a>
                     </td>
@@ -305,7 +307,7 @@ export function renderBrandsTab(shouldSync = true) {
                     <td class="py-3 px-4 text-right whitespace-nowrap min-w-[130px]">
                       <div class="flex items-center justify-end space-x-1.5">
                         
-                        <a href="#shop?brand=${brand.slug}" title="View Brand Catalog in Store"
+                        <a href="#shop?brand=${brand.id || brand.slug}" title="View Brand Catalog in Store"
                           class="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors border border-transparent hover:border-blue-200">
                           ${iconEye('w-4 h-4')}
                         </a>
@@ -316,7 +318,7 @@ export function renderBrandsTab(shouldSync = true) {
                           <span>Edit</span>
                         </button>
 
-                        <button type="button" onclick="handleDeleteBrand('${brand.id}', '${brand.name.replace(/'/g, "\\'")}')" title="Soft Delete (Move to Trash Bin)"
+                        <button type="button" onclick="handleDeleteBrand('${brand.id}', '${brand.name.replace(/'/g, "\\'")}')" title="Delete Brand"
                           class="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors border border-transparent hover:border-rose-200 cursor-pointer">
                           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                         </button>
@@ -827,14 +829,13 @@ export function handleToggleBrandFeatured(id) {
 }
 
 export async function handleDeleteBrand(id, name) {
-  const confirmed = await etechAlert.confirmDelete(`Brand "${name}"`, 'Moving brand partner to Trash Bin.');
+  const confirmed = await etechAlert.confirmDelete(`Brand "${name}"`, 'This will delete the manufacturer partner.');
   if (!confirmed) return;
 
   const result = await deleteBrand(id);
   if (result.success) {
     showToast(result.message, 'success');
     renderBrandsTab();
-    updateTrashSidebarBadge();
   } else {
     etechAlert.error('Delete Failed', result.message);
   }

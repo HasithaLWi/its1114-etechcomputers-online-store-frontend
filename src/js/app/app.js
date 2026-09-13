@@ -7,8 +7,9 @@ import { getRoleBadge } from '../models/user_model.js';
 import { 
   getUserOrders, getOrderById, renderCustomerOrderDetailPage, 
   openOrderSupportEmail, handleCustomerCancelOrder, getStatusStyle,
-  syncOrdersFromApi
+  syncOrdersFromApi, parseCurrencyAmount
 } from '../controller/order_management_controller.js';
+import { formatLKR } from '../util/formatters.js';
 import { initCartLogic, initCheckoutLogic, updateCartBadge, addToCart, getCart, saveCart, showToast } from '../controller/cart_controller.js';
 import { renderProductDetailsPage, viewProductDetails } from '../controller/product-details_controller.js';
 import { initShopLogic, renderFilteredProducts } from '../controller/shop_controller.js';
@@ -688,7 +689,7 @@ export function renderUserOrderHistory(userOrEmail) {
                   ${oStatus === 'Cancelled' ? '✕ Cancelled' : (oStatus === 'Delivered' ? '✓ Delivered' : `● ${oStatus}`)}
                 </span>
                 <span class="text-base font-extrabold text-[#0f172a] font-mono">
-                  Rs. ${parseFloat((order.totalAmount || 0).toString().replace(/[^0-9.]/g, '')).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  ${formatLKR(parseCurrencyAmount(order.totalAmount || order.total))}
                 </span>
               </div>
             </div>
@@ -977,7 +978,7 @@ export function renderHomeBrandsShowcase() {
     const initials = (brand.name || 'BR').substring(0, 2).toUpperCase();
 
     return `
-      <a href="#shop?brand=${brand.slug}" class="group flex-shrink-0 w-44 sm:w-52 bg-[#f8fafc] hover:bg-white border border-[#e2e8f0] hover:border-blue-300 rounded-2xl p-4 flex flex-col justify-between transition-all duration-300 hover:-translate-y-1 shadow-sm hover:shadow-md cursor-pointer">
+      <a href="#shop?brand=${brand.id || brand.slug}" class="group flex-shrink-0 w-44 sm:w-52 bg-[#f8fafc] hover:bg-white border border-[#e2e8f0] hover:border-blue-300 rounded-2xl p-4 flex flex-col justify-between transition-all duration-300 hover:-translate-y-1 shadow-sm hover:shadow-md cursor-pointer">
         <div>
           <!-- Brand Logo Container -->
           <div class="w-full h-16 rounded-xl bg-white border border-[#e2e8f0] p-2.5 flex items-center justify-center mb-3 shadow-sm group-hover:border-blue-200 transition-colors overflow-hidden">

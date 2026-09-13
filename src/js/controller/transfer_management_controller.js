@@ -42,7 +42,18 @@ export async function renderTransfersTab() {
   const container = document.getElementById('tab-panel-transfers');
   if (!container) return;
 
-  await syncTransfersFromApi();
+  try {
+    await syncTransfersFromApi();
+  } catch (err) {
+    etechAlert.error('Connection Error', 'Failed to synchronize transfer logs. Please try again.');
+    container.innerHTML = `
+      <div class="p-8 text-center bg-white rounded-2xl border border-rose-200 shadow-sm max-w-lg mx-auto my-12 space-y-3">
+        <p class="text-base font-extrabold text-rose-600">⚠️ Service Unavailable</p>
+        <p class="text-xs text-[#64748b]">Unable to fetch stock transfers. Please try again.</p>
+      </div>
+    `;
+    return;
+  }
 
   const activeUser = getCurrentUser();
   const transfers = getStockTransfers();
@@ -366,13 +377,17 @@ export async function handleApproveDispatchTransfer(transferId) {
 
   if (!confirmed) return;
 
-  const res = dispatchStockTransfer(transferId, userName);
-  if (res.success) {
-    showToast(`Transfer ${transferId} approved and dispatched! Stock deducted from ${res.transfer.fromBranchName}.`, 'success');
-    renderTransfersTab();
-    if (typeof renderOverviewTab === 'function') renderOverviewTab();
-  } else {
-    etechAlert.error('Dispatch Failed', res.message);
+  try {
+    const res = await dispatchStockTransfer(transferId, userName);
+    if (res.success) {
+      showToast(`Transfer ${transferId} approved and dispatched! Stock deducted from ${res.transfer.fromBranchName}.`, 'success');
+      await renderTransfersTab();
+      if (typeof renderOverviewTab === 'function') renderOverviewTab();
+    } else {
+      etechAlert.error('Dispatch Failed', res.message);
+    }
+  } catch (err) {
+    etechAlert.error('Dispatch Failed', err.message || 'An error occurred during dispatch. Please try again.');
   }
 }
 
@@ -393,13 +408,17 @@ export async function handleReceiveTransfer(transferId) {
 
   if (!confirmed) return;
 
-  const res = receiveStockTransfer(transferId, userName);
-  if (res.success) {
-    showToast(`Transfer ${transferId} successfully received & credited to ${res.transfer.toBranchName}!`, 'success');
-    renderTransfersTab();
-    if (typeof renderOverviewTab === 'function') renderOverviewTab();
-  } else {
-    etechAlert.error('Receipt Failed', res.message);
+  try {
+    const res = await receiveStockTransfer(transferId, userName);
+    if (res.success) {
+      showToast(`Transfer ${transferId} successfully received & credited to ${res.transfer.toBranchName}!`, 'success');
+      await renderTransfersTab();
+      if (typeof renderOverviewTab === 'function') renderOverviewTab();
+    } else {
+      etechAlert.error('Receipt Failed', res.message);
+    }
+  } catch (err) {
+    etechAlert.error('Receipt Failed', err.message || 'An error occurred during receipt acknowledgment. Please try again.');
   }
 }
 
@@ -421,13 +440,17 @@ export async function handleCancelTransfer(transferId) {
   );
 
   if (reason !== null && reason.trim() !== '') {
-    const res = cancelStockTransfer(transferId, reason || 'Cancelled by staff/admin', userName);
-    if (res.success) {
-      showToast(`Transfer ${transferId} cancelled.`, 'info');
-      renderTransfersTab();
-      if (typeof renderOverviewTab === 'function') renderOverviewTab();
-    } else {
-      etechAlert.error('Cancellation Error', res.message);
+    try {
+      const res = await cancelStockTransfer(transferId, reason || 'Cancelled by staff/admin', userName);
+      if (res.success) {
+        showToast(`Transfer ${transferId} cancelled.`, 'info');
+        await renderTransfersTab();
+        if (typeof renderOverviewTab === 'function') renderOverviewTab();
+      } else {
+        etechAlert.error('Cancellation Error', res.message);
+      }
+    } catch (err) {
+      etechAlert.error('Cancellation Error', err.message || 'An error occurred during cancellation. Please try again.');
     }
   }
 }
@@ -688,31 +711,35 @@ export async function handleSaveTransferSubmit(event) {
   const isStaff = activeUser && activeUser.isStaff();
   const requestedStatus = isStaff ? "Requested" : (instantDelivery ? "Received" : "In Transit");
 
-  const res = createStockTransfer({
-    productId,
-    fromBranchId,
-    toBranchId,
-    quantity,
-    reason,
-    driverOrCourier,
-    trackingCode,
-    notes,
-    instantDelivery,
-    status: requestedStatus,
-    requestedBy: activeUser ? `${activeUser.name} (${activeUser.role})` : "Staff Member"
-  });
+  try {
+    const res = await createStockTransfer({
+      productId,
+      fromBranchId,
+      toBranchId,
+      quantity,
+      reason,
+      driverOrCourier,
+      trackingCode,
+      notes,
+      instantDelivery,
+      status: requestedStatus,
+      requestedBy: activeUser ? `${activeUser.name} (${activeUser.role})` : "Staff Member"
+    });
 
-  if (res.success) {
-    if (isStaff) {
-      showToast(`Transfer request #${res.transfer.id} submitted! Waiting for ${res.transfer.fromBranchName} approval.`, 'success');
+    if (res.success) {
+      if (isStaff) {
+        showToast(`Transfer request #${res.transfer.id} submitted! Waiting for ${res.transfer.fromBranchName} approval.`, 'success');
+      } else {
+        showToast(`Stock transfer ${res.transfer.id} initiated successfully!`, 'success');
+      }
+      closeAdminModal();
+      await renderTransfersTab();
+      if (typeof renderOverviewTab === 'function') renderOverviewTab();
     } else {
-      showToast(`Stock transfer ${res.transfer.id} initiated successfully!`, 'success');
+      etechAlert.error('Transfer Failed', res.message);
     }
-    closeAdminModal();
-    renderTransfersTab();
-    if (typeof renderOverviewTab === 'function') renderOverviewTab();
-  } else {
-    etechAlert.error('Transfer Failed', res.message);
+  } catch (err) {
+    etechAlert.error('Transfer Failed', err.message || 'An error occurred during transfer creation. Please try again.');
   }
 }
 

@@ -3,6 +3,7 @@
 // ============================================================
 import { getStoredProducts, saveStoredProducts, updateProductStockSettings, quickAdjustStock, transferBranchStock } from '../models/data.js';
 import { getBranches } from './branch_controller.js';
+import { getCurrentUser } from './login_controller.js';
 import {
   iconBuilding,
   iconAlert,
@@ -698,13 +699,17 @@ export async function handleQuickRestockSubmit(e, productId) {
   const confirmed = await etechAlert.confirmUpdate(`Warehouse Stock for Product #${productId}`, `Add +${qty} units to warehouse inventory.`);
   if (!confirmed) return;
 
-  const updated = quickAdjustStock(productId, branchId, qty, false);
-  if (updated) {
-    showToast(`Added +${qty} units of ${updated.name} to warehouse.`, 'success');
-    const modal = document.getElementById('admin-modal-container');
-    if (modal) modal.innerHTML = '';
-    renderStockHealthTab();
-    if (typeof renderOverviewTab === 'function') renderOverviewTab();
+  try {
+    const updated = await quickAdjustStock(productId, branchId, qty, false);
+    if (updated) {
+      showToast(`Added +${qty} units of ${updated.name} to warehouse.`, 'success');
+      const modal = document.getElementById('admin-modal-container');
+      if (modal) modal.innerHTML = '';
+      renderStockHealthTab();
+      if (typeof renderOverviewTab === 'function') renderOverviewTab();
+    }
+  } catch (err) {
+    etechAlert.error('Stock Adjustment Failed', err.message || 'An error occurred during stock adjustment. Please try again.');
   }
 }
 
@@ -738,14 +743,18 @@ export async function handleStockTransferSubmit(e, productId) {
 
   if (!confirmed) return;
 
-  const result = transferBranchStock(productId, fromBranch, toBranch, qty);
-  if (result.success) {
-    showToast(`Transferred ${result.transferred} units between warehouses.`, 'success');
-    const modal = document.getElementById('admin-modal-container');
-    if (modal) modal.innerHTML = '';
-    renderStockHealthTab();
-    if (typeof renderOverviewTab === 'function') renderOverviewTab();
-  } else {
-    etechAlert.error('Transfer Failed', result.message || 'Transfer failed.');
+  try {
+    const result = await transferBranchStock(productId, fromBranch, toBranch, qty);
+    if (result.success) {
+      showToast(`Transferred ${result.transferred} units between warehouses.`, 'success');
+      const modal = document.getElementById('admin-modal-container');
+      if (modal) modal.innerHTML = '';
+      renderStockHealthTab();
+      if (typeof renderOverviewTab === 'function') renderOverviewTab();
+    } else {
+      etechAlert.error('Transfer Failed', result.message || 'Transfer failed.');
+    }
+  } catch (err) {
+    etechAlert.error('Transfer Failed', err.message || 'An error occurred during stock transfer. Please try again.');
   }
 }

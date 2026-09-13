@@ -21,6 +21,10 @@
   <!-- Chart.js 4.4.1 for Dashboard Charts & Sparklines -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
+  <!-- Leaflet.js for Interactive Map & Geodesic Distance Routing -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
   <!-- Tailwind CSS CDN with Extended Precision Design System Tokens -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
@@ -124,15 +128,15 @@
             <select id="header-category-select" onchange="handleHeaderSearchSubmit()"
               class="hidden lg:block bg-transparent text-xs font-semibold text-[#475569] px-3.5 py-2.5 border-r border-[#e2e8f0] focus:outline-none cursor-pointer">
               <option value="">All Categories</option>
-              <option value="laptops">Laptops</option>
-              <option value="desktops">Desktop PCs</option>
-              <option value="gpus">Graphics Cards</option>
-              <option value="cpus">Processors</option>
-              <option value="motherboards">Motherboards</option>
-              <option value="ram">RAM</option>
-              <option value="storage">Storage</option>
-              <option value="monitors">Monitors</option>
-              <option value="accessories">Accessories</option>
+              <option value="cat-laptops">Laptops</option>
+              <option value="cat-desktops">Desktop PCs</option>
+              <option value="cat-gpus">Graphics Cards</option>
+              <option value="cat-cpus">Processors</option>
+              <option value="cat-motherboards">Motherboards</option>
+              <option value="cat-ram">RAM</option>
+              <option value="cat-storage">Storage</option>
+              <option value="cat-monitors">Monitors</option>
+              <option value="cat-accessories">Accessories</option>
             </select>
             <input type="text" id="header-search-input" placeholder="Search laptops, components, peripherals..."
               onkeypress="if(event.key==='Enter') { handleHeaderSearchSubmit(); }"
@@ -258,15 +262,15 @@
             onchange="if(this.value) { window.location.hash='#shop?cat='+this.value; closeMobileMenu(); }"
             class="bg-transparent text-xs font-semibold text-[#475569] px-2.5 py-2 border-r border-[#e2e8f0] focus:outline-none">
             <option value="">All</option>
-            <option value="laptops">Laptops</option>
-            <option value="desktops">Desktops</option>
-            <option value="gpus">GPUs</option>
-            <option value="cpus">CPUs</option>
-            <option value="motherboards">Motherboards</option>
-            <option value="ram">RAM</option>
-            <option value="storage">Storage</option>
-            <option value="monitors">Monitors</option>
-            <option value="accessories">Accessories</option>
+            <option value="cat-laptops">Laptops</option>
+            <option value="cat-desktops">Desktops</option>
+            <option value="cat-gpus">GPUs</option>
+            <option value="cat-cpus">CPUs</option>
+            <option value="cat-motherboards">Motherboards</option>
+            <option value="cat-ram">RAM</option>
+            <option value="cat-storage">Storage</option>
+            <option value="cat-monitors">Monitors</option>
+            <option value="cat-accessories">Accessories</option>
           </select>
           <input type="text" id="mobile-search-input" placeholder="Search hardware, laptops..."
             onkeypress="if(event.key==='Enter') { handleMobileSearchSubmit(); }"
@@ -556,7 +560,7 @@
         </div>
 
         <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-9 gap-3">
-          <a href="#shop?cat=laptops"
+          <a href="#shop?cat=cat-laptops"
             class="group rounded-xl bg-white p-3.5 border border-[#e2e8f0] hover:border-[#cbd5e1] hover:-translate-y-1 transition-all text-center flex flex-col items-center shadow-sm hover:shadow-md">
             <div
               class="w-10 h-10 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center mb-2.5 group-hover:bg-blue-600 group-hover:text-white transition-all border border-blue-100">
@@ -569,7 +573,7 @@
             <p class="text-[10px] text-[#64748b] mt-0.5 font-mono">120+ Products</p>
           </a>
 
-          <a href="#shop?cat=desktops"
+          <a href="#shop?cat=cat-desktops"
             class="group rounded-xl bg-white p-3.5 border border-[#e2e8f0] hover:border-[#cbd5e1] hover:-translate-y-1 transition-all text-center flex flex-col items-center shadow-sm hover:shadow-md">
             <div
               class="w-10 h-10 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center mb-2.5 group-hover:bg-blue-600 group-hover:text-white transition-all border border-blue-100">
@@ -582,7 +586,7 @@
             <p class="text-[10px] text-[#64748b] mt-0.5 font-mono">80+ Products</p>
           </a>
 
-          <a href="#shop?cat=gpus"
+          <a href="#shop?cat=cat-gpus"
             class="group rounded-xl bg-white p-3.5 border border-[#e2e8f0] hover:border-[#cbd5e1] hover:-translate-y-1 transition-all text-center flex flex-col items-center shadow-sm hover:shadow-md">
             <div
               class="w-10 h-10 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center mb-2.5 group-hover:bg-blue-600 group-hover:text-white transition-all border border-blue-100">
@@ -595,7 +599,7 @@
             <p class="text-[10px] text-[#64748b] mt-0.5 font-mono">200+ Products</p>
           </a>
 
-          <a href="#shop?cat=cpus"
+          <a href="#shop?cat=cat-cpus"
             class="group rounded-xl bg-white p-3.5 border border-[#e2e8f0] hover:border-[#cbd5e1] hover:-translate-y-1 transition-all text-center flex flex-col items-center shadow-sm hover:shadow-md">
             <div
               class="w-10 h-10 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center mb-2.5 group-hover:bg-blue-600 group-hover:text-white transition-all border border-blue-100">
@@ -608,7 +612,7 @@
             <p class="text-[10px] text-[#64748b] mt-0.5 font-mono">150+ Products</p>
           </a>
 
-          <a href="#shop?cat=motherboards"
+          <a href="#shop?cat=cat-motherboards"
             class="group rounded-xl bg-white p-3.5 border border-[#e2e8f0] hover:border-[#cbd5e1] hover:-translate-y-1 transition-all text-center flex flex-col items-center shadow-sm hover:shadow-md">
             <div
               class="w-10 h-10 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center mb-2.5 group-hover:bg-blue-600 group-hover:text-white transition-all border border-blue-100">
@@ -621,7 +625,7 @@
             <p class="text-[10px] text-[#64748b] mt-0.5 font-mono">120+ Products</p>
           </a>
 
-          <a href="#shop?cat=ram"
+          <a href="#shop?cat=cat-ram"
             class="group rounded-xl bg-white p-3.5 border border-[#e2e8f0] hover:border-[#cbd5e1] hover:-translate-y-1 transition-all text-center flex flex-col items-center shadow-sm hover:shadow-md">
             <div
               class="w-10 h-10 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center mb-2.5 group-hover:bg-blue-600 group-hover:text-white transition-all border border-blue-100">
@@ -634,7 +638,7 @@
             <p class="text-[10px] text-[#64748b] mt-0.5 font-mono">110+ Products</p>
           </a>
 
-          <a href="#shop?cat=storage"
+          <a href="#shop?cat=cat-storage"
             class="group rounded-xl bg-white p-3.5 border border-[#e2e8f0] hover:border-[#cbd5e1] hover:-translate-y-1 transition-all text-center flex flex-col items-center shadow-sm hover:shadow-md">
             <div
               class="w-10 h-10 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center mb-2.5 group-hover:bg-blue-600 group-hover:text-white transition-all border border-blue-100">
@@ -647,7 +651,7 @@
             <p class="text-[10px] text-[#64748b] mt-0.5 font-mono">140+ Products</p>
           </a>
 
-          <a href="#shop?cat=monitors"
+          <a href="#shop?cat=cat-monitors"
             class="group rounded-xl bg-white p-3.5 border border-[#e2e8f0] hover:border-[#cbd5e1] hover:-translate-y-1 transition-all text-center flex flex-col items-center shadow-sm hover:shadow-md">
             <div
               class="w-10 h-10 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center mb-2.5 group-hover:bg-blue-600 group-hover:text-white transition-all border border-blue-100">
@@ -660,7 +664,7 @@
             <p class="text-[10px] text-[#64748b] mt-0.5 font-mono">90+ Products</p>
           </a>
 
-          <a href="#shop?cat=peripherals"
+          <a href="#shop?cat=cat-peripherals"
             class="group rounded-xl bg-white p-3.5 border border-[#e2e8f0] hover:border-[#cbd5e1] hover:-translate-y-1 transition-all text-center flex flex-col items-center shadow-sm hover:shadow-md">
             <div
               class="w-10 h-10 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center mb-2.5 group-hover:bg-blue-600 group-hover:text-white transition-all border border-blue-100">
@@ -1417,6 +1421,17 @@
               </button>
             </div>
 
+            <!-- Shop Catalog Server-Side Pagination Bar -->
+            <div id="shop-pagination-container"
+              class="hidden flex flex-col sm:flex-row items-center justify-between gap-4 bg-white border border-[#e2e8f0] rounded-xl px-5 py-4 shadow-sm">
+              <p id="pagination-info" class="text-xs font-semibold text-[#64748b]">
+                Showing <span id="pagination-start" class="text-[#0f172a] font-bold">1</span> to <span id="pagination-end" class="text-[#0f172a] font-bold">12</span> of <span id="pagination-total" class="text-blue-600 font-bold">0</span> products
+              </p>
+              <div id="pagination-buttons" class="flex items-center space-x-1.5 flex-wrap gap-y-1">
+                <!-- Dynamically rendered by shop_controller.js -->
+              </div>
+            </div>
+
           </div>
         </div>
       </div>
@@ -1557,7 +1572,7 @@
                 <span>Shipping Information</span>
               </h3>
 
-              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
                   <label class="block text-xs font-semibold text-[#475569] uppercase tracking-wider mb-1">Full Name
                     *</label>
@@ -1569,6 +1584,13 @@
                   <label class="block text-xs font-semibold text-[#475569] uppercase tracking-wider mb-1">Email Address
                     *</label>
                   <input type="email" id="email" required placeholder="john@example.com"
+                    class="w-full px-3.5 py-2.5 rounded-md bg-[#f8fafc] border border-[#e2e8f0] text-[#0f172a] placeholder-[#94a3b8] text-sm focus:border-blue-600">
+                </div>
+
+                <div>
+                  <label class="block text-xs font-semibold text-[#475569] uppercase tracking-wider mb-1">Phone Number
+                    *</label>
+                  <input type="tel" id="phone" required placeholder="0771234567"
                     class="w-full px-3.5 py-2.5 rounded-md bg-[#f8fafc] border border-[#e2e8f0] text-[#0f172a] placeholder-[#94a3b8] text-sm focus:border-blue-600">
                 </div>
               </div>
@@ -1595,17 +1617,84 @@
                 </div>
 
                 <div>
-                  <label class="block text-xs font-semibold text-[#475569] uppercase tracking-wider mb-1">Country
-                    *</label>
-                  <select id="country" required
-                    class="w-full px-3.5 py-2.5 rounded-md bg-[#f8fafc] border border-[#e2e8f0] text-[#0f172a] text-sm focus:border-blue-600">
-                    <option value="LK">Sri Lanka</option>
-                    <option value="US">United States</option>
-                    <option value="UK">United Kingdom</option>
-                    <option value="AU">Australia</option>
+                  <label class="block text-xs font-semibold text-[#475569] uppercase tracking-wider mb-1">District / Region *</label>
+                  <select id="district" required
+                    class="w-full px-3.5 py-2.5 rounded-md bg-[#f8fafc] border border-[#e2e8f0] text-[#0f172a] text-sm focus:border-blue-600 font-medium">
+                    <option value="Colombo" selected>Colombo (Western)</option>
+                    <option value="Gampaha">Gampaha (Western)</option>
+                    <option value="Kalutara">Kalutara (Western)</option>
+                    <option value="Kandy">Kandy (Central)</option>
+                    <option value="Matale">Matale (Central)</option>
+                    <option value="Nuwara Eliya">Nuwara Eliya (Central)</option>
+                    <option value="Galle">Galle (Southern)</option>
+                    <option value="Matara">Matara (Southern)</option>
+                    <option value="Hambantota">Hambantota (Southern)</option>
+                    <option value="Jaffna">Jaffna (Northern)</option>
+                    <option value="Kilinochchi">Kilinochchi (Northern)</option>
+                    <option value="Mannar">Mannar (Northern)</option>
+                    <option value="Vavuniya">Vavuniya (Northern)</option>
+                    <option value="Mullaitivu">Mullaitivu (Northern)</option>
+                    <option value="Batticaloa">Batticaloa (Eastern)</option>
+                    <option value="Ampara">Ampara (Eastern)</option>
+                    <option value="Trincomalee">Trincomalee (Eastern)</option>
+                    <option value="Kurunegala">Kurunegala (North Western)</option>
+                    <option value="Puttalam">Puttalam (North Western)</option>
+                    <option value="Anuradhapura">Anuradhapura (North Central)</option>
+                    <option value="Polonnaruwa">Polonnaruwa (North Central)</option>
+                    <option value="Badulla">Badulla (Uva)</option>
+                    <option value="Monaragala">Monaragala (Uva)</option>
+                    <option value="Ratnapura">Ratnapura (Sabaragamuwa)</option>
+                    <option value="Kegalle">Kegalle (Sabaragamuwa)</option>
                   </select>
                 </div>
               </div>
+
+              <!-- Interactive Delivery & Route Map -->
+              <div class="mt-4 pt-4 border-t border-[#e2e8f0]">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
+                  <div class="flex items-center space-x-2">
+                    <span class="w-2 h-2 rounded-full bg-blue-600 animate-pulse"></span>
+                    <label class="block text-xs font-bold text-[#0f172a] uppercase tracking-wider">
+                      📍 Live Delivery Map & Doorstep Pin
+                    </label>
+                    <span class="text-rose-500 font-bold text-xs">*</span>
+                  </div>
+                  <div class="flex items-center space-x-2">
+                    <span id="map-location-status-badge">
+                      <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-300">
+                        <span class="w-1.5 h-1.5 rounded-full bg-amber-500 mr-1.5"></span>
+                        ⚠️ Pin Required to Checkout
+                      </span>
+                    </span>
+                    <span id="map-distance-badge" class="text-[11px] px-2.5 py-0.5 rounded-full font-mono font-bold bg-blue-50 text-blue-700 border border-blue-200">
+                      Calculating distance...
+                    </span>
+                  </div>
+                </div>
+
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2.5">
+                  <p class="text-[11px] text-[#64748b]">
+                    Click anywhere on the map or drag the <strong class="text-emerald-700">📍 green pin</strong> to your exact doorstep. Live geodesic distance to the nearest warehouse will calculate automatically.
+                  </p>
+                  <div class="flex items-center space-x-2 shrink-0">
+                    <button type="button" id="btn-checkout-use-gps" onclick="useCustomerCurrentGeolocation()"
+                      class="px-2.5 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 text-[11px] font-bold rounded-md border border-blue-200 transition shadow-2xs flex items-center space-x-1">
+                      <span>🎯 Pin My GPS</span>
+                    </button>
+                    <button type="button" onclick="markCheckoutLocationPinned()"
+                      class="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-[11px] font-bold rounded-md border border-emerald-300 transition shadow-2xs flex items-center space-x-1">
+                      <span>✓ Confirm Pin</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div id="checkout-delivery-map" class="w-full h-64 rounded-lg border border-[#cbd5e1] overflow-hidden shadow-inner relative z-0"></div>
+                <div id="map-route-summary" class="mt-2 text-xs text-[#475569] flex items-center justify-between">
+                  <span class="font-medium text-[11px]">Dispatch Hub: <strong id="nearest-hub-name" class="text-blue-700">Colombo Hub</strong></span>
+                  <span class="font-medium text-[11px]">Delivery Distance: <strong id="nearest-hub-distance" class="text-[#0f172a] font-mono">5 km</strong></span>
+                </div>
+              </div>
+
             </div>
 
             <div class="bg-white border border-[#e2e8f0] rounded-lg p-5 space-y-4 shadow-sm">
@@ -1616,18 +1705,18 @@
               </h3>
 
               <div class="grid grid-cols-2 gap-4">
-                <label
+                <label id="label-pay-card"
                   class="relative flex items-center p-3.5 rounded-md bg-[#f8fafc] border border-blue-600 cursor-pointer space-x-3 shadow-sm">
-                  <input type="radio" name="payment-method" value="card" checked class="text-blue-600 focus:ring-0">
+                  <input type="radio" name="payment-method" id="pay-method-card" value="card" checked class="text-blue-600 focus:ring-0">
                   <div class="flex flex-col">
-                    <span class="text-xs font-bold text-[#0f172a]">Credit Card</span>
-                    <span class="text-[10px] text-[#64748b]">Visa, Mastercard</span>
+                    <span class="text-xs font-bold text-[#0f172a]">PayHere / Card</span>
+                    <span class="text-[10px] text-[#64748b]">Visa, Mastercard, AMEX</span>
                   </div>
                 </label>
 
-                <label
+                <label id="label-pay-cod"
                   class="relative flex items-center p-3.5 rounded-md bg-[#f8fafc] border border-[#e2e8f0] hover:border-[#cbd5e1] cursor-pointer space-x-3">
-                  <input type="radio" name="payment-method" value="cod" class="text-blue-600 focus:ring-0">
+                  <input type="radio" name="payment-method" id="pay-method-cod" value="cod" class="text-blue-600 focus:ring-0">
                   <div class="flex flex-col">
                     <span class="text-xs font-bold text-[#0f172a]">Cash on Delivery</span>
                     <span class="text-[10px] text-[#64748b]">Pay on arrival</span>
@@ -1636,25 +1725,38 @@
               </div>
 
               <div id="card-fields" class="space-y-3 pt-1">
+                <!-- Sandbox Notice Banner -->
+                <div class="p-2.5 bg-emerald-50 border border-emerald-200 rounded-md flex items-center justify-between text-xs">
+                  <div class="flex items-center space-x-2">
+                    <span class="px-1.5 py-0.5 rounded bg-emerald-600 text-white font-mono font-bold text-[10px]">PAYHERE SANDBOX</span>
+                    <span class="text-[11px] text-emerald-800 font-medium">Secured with Sri Lanka's Central Bank approved gateway</span>
+                  </div>
+                  <span class="text-[10px] text-emerald-700 font-mono font-bold">LKR TEST MODE</span>
+                </div>
+
                 <div>
-                  <label class="block text-xs font-semibold text-[#475569] uppercase tracking-wider mb-1">Card Number
-                    *</label>
-                  <input type="text" id="card-number" placeholder="4532 •••• •••• 8892"
-                    class="w-full px-3.5 py-2.5 rounded-md bg-[#f8fafc] border border-[#e2e8f0] text-[#0f172a] placeholder-[#94a3b8] text-sm focus:border-blue-600">
+                  <div class="flex items-center justify-between mb-1">
+                    <label class="block text-xs font-semibold text-[#475569] uppercase tracking-wider">Card Number *</label>
+                    <span id="card-brand-badge" class="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200">GENERIC CARD</span>
+                  </div>
+                  <div class="relative">
+                    <input type="text" id="card-number" placeholder="4532 •••• •••• 8892" maxlength="19"
+                      class="w-full px-3.5 py-2.5 rounded-md bg-[#f8fafc] border border-[#e2e8f0] text-[#0f172a] placeholder-[#94a3b8] text-sm font-mono focus:border-blue-600">
+                    <span id="card-valid-indicator" class="absolute right-3 top-2.5 text-xs hidden"></span>
+                  </div>
+                  <p id="card-error-msg" class="text-[10px] text-rose-600 mt-1 hidden"></p>
                 </div>
 
                 <div class="grid grid-cols-2 gap-4">
                   <div>
-                    <label class="block text-xs font-semibold text-[#475569] uppercase tracking-wider mb-1">Expiry Date
-                      *</label>
-                    <input type="text" id="card-expiry" placeholder="MM/YY"
-                      class="w-full px-3.5 py-2.5 rounded-md bg-[#f8fafc] border border-[#e2e8f0] text-[#0f172a] placeholder-[#94a3b8] text-sm focus:border-blue-600">
+                    <label class="block text-xs font-semibold text-[#475569] uppercase tracking-wider mb-1">Expiry Date *</label>
+                    <input type="text" id="card-expiry" placeholder="MM/YY" maxlength="5"
+                      class="w-full px-3.5 py-2.5 rounded-md bg-[#f8fafc] border border-[#e2e8f0] text-[#0f172a] placeholder-[#94a3b8] text-sm font-mono focus:border-blue-600">
                   </div>
                   <div>
-                    <label class="block text-xs font-semibold text-[#475569] uppercase tracking-wider mb-1">CVV
-                      *</label>
+                    <label class="block text-xs font-semibold text-[#475569] uppercase tracking-wider mb-1">CVV / CVC *</label>
                     <input type="password" id="card-cvv" placeholder="•••" maxlength="4"
-                      class="w-full px-3.5 py-2.5 rounded-md bg-[#f8fafc] border border-[#e2e8f0] text-[#0f172a] placeholder-[#94a3b8] text-sm focus:border-blue-600">
+                      class="w-full px-3.5 py-2.5 rounded-md bg-[#f8fafc] border border-[#e2e8f0] text-[#0f172a] placeholder-[#94a3b8] text-sm font-mono focus:border-blue-600">
                   </div>
                 </div>
               </div>
@@ -1929,8 +2031,12 @@
           <span id="modal-customer-name" class="font-bold text-[#0f172a]">John Doe</span>
         </div>
         <div class="flex justify-between">
-          <span class="text-[#64748b]">Total Paid:</span>
-          <span id="modal-total-paid" class="font-bold text-emerald-600 font-mono">Rs. 0.00</span>
+          <span class="text-[#64748b]">Dispatch Branch:</span>
+          <span id="modal-order-branch" class="font-semibold text-[#0f172a]">Colombo Main Hub</span>
+        </div>
+        <div class="flex justify-between pt-1 border-t border-[#e2e8f0]">
+          <span class="text-[#64748b] font-bold">Total Paid:</span>
+          <span id="modal-total-paid" class="font-bold text-emerald-600 font-mono text-sm">Rs. 0.00</span>
         </div>
       </div>
 
@@ -1986,11 +2092,11 @@
         <div>
           <h3 class="text-white font-bold mb-4 text-xs tracking-wider uppercase">Shop</h3>
           <ul class="space-y-2.5 text-xs text-slate-400">
-            <li><a href="#shop?cat=laptops" class="hover:text-white transition-colors">Laptops</a></li>
-            <li><a href="#shop?cat=desktops" class="hover:text-white transition-colors">Desktop PCs</a></li>
-            <li><a href="#shop?cat=gpus" class="hover:text-white transition-colors">Components</a></li>
-            <li><a href="#shop?cat=monitors" class="hover:text-white transition-colors">Monitors</a></li>
-            <li><a href="#shop?cat=peripherals" class="hover:text-white transition-colors">Accessories</a></li>
+            <li><a href="#shop?cat=cat-laptops" class="hover:text-white transition-colors">Laptops</a></li>
+            <li><a href="#shop?cat=cat-desktops" class="hover:text-white transition-colors">Desktop PCs</a></li>
+            <li><a href="#shop?cat=cat-gpus" class="hover:text-white transition-colors">Components</a></li>
+            <li><a href="#shop?cat=cat-monitors" class="hover:text-white transition-colors">Monitors</a></li>
+            <li><a href="#shop?cat=cat-peripherals" class="hover:text-white transition-colors">Accessories</a></li>
             <li><a href="#shop" class="hover:text-white transition-colors">All Categories</a></li>
           </ul>
         </div>

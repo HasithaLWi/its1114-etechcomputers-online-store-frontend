@@ -23,17 +23,15 @@ let memoryWishlist = [];
  * Sync wishlist from backend API into memory
  */
 export async function syncWishlistFromApi() {
-  try {
-    const data = await WishlistApi.getWishlist();
-    if (Array.isArray(data)) {
-      memoryWishlist = data;
-    } else if (data && Array.isArray(data.content)) {
-      memoryWishlist = data.content;
-    }
-    updateWishlistBadge();
-  } catch (err) {
-    console.warn('[WishlistController] Wishlist API sync fallback:', err.message || err);
+  const data = await WishlistApi.getWishlist();
+  if (Array.isArray(data)) {
+    memoryWishlist = data;
+  } else if (data && Array.isArray(data.content)) {
+    memoryWishlist = data.content;
+  } else {
+    memoryWishlist = [];
   }
+  updateWishlistBadge();
   return memoryWishlist;
 }
 
@@ -113,7 +111,7 @@ export function updateWishlistBadge() {
  * @param {number|string} productId 
  * @param {HTMLElement} [btnElement] Optional button element to animate
  */
-export function toggleWishlist(productId, btnElement) {
+export async function toggleWishlist(productId, btnElement) {
   const pId = Number(productId);
   const storedProducts = getStoredProducts();
   const product = storedProducts.find(p => p.id === pId) || (typeof getProductById === 'function' ? getProductById(pId) : null);
@@ -158,10 +156,12 @@ export function toggleWishlist(productId, btnElement) {
     updateButtonVisualState(pId, true, btnElement);
   }
 
-  // Live background sync with backend API
-  WishlistApi.toggleWishlist(pId).catch(err => {
-    console.warn('[WishlistController] Wishlist toggle API fallback:', err.message || err);
-  });
+  // Single-Mode: Direct sync with backend API
+  try {
+    await WishlistApi.toggleWishlist(pId);
+  } catch (err) {
+    etechAlert.error('Connection Error', 'Unable to update wishlist. Please try again.');
+  }
 
   // If currently on wishlist page, re-render it
   const wishlistPage = document.getElementById('wishlist-page');
@@ -214,7 +214,7 @@ function applyHeartVisuals(button, isWishlisted) {
  * Directly removes an item from the wishlist
  * @param {number|string} productId 
  */
-export function removeFromWishlist(productId) {
+export async function removeFromWishlist(productId) {
   const pId = Number(productId);
   let wishlist = getWishlist();
   const item = wishlist.find(i => (i.id === pId || i.productId === pId));
@@ -226,9 +226,11 @@ export function removeFromWishlist(productId) {
     updateButtonVisualState(pId, false);
     renderWishlistPage();
 
-    WishlistApi.removeFromWishlist(pId).catch(err => {
-      console.warn('[WishlistController] Remove from wishlist API fallback:', err.message || err);
-    });
+    try {
+      await WishlistApi.removeFromWishlist(pId);
+    } catch (err) {
+      etechAlert.error('Connection Error', 'Unable to remove item from wishlist. Please try again.');
+    }
   }
 }
 
@@ -245,19 +247,19 @@ export async function clearWishlist() {
   const confirmed = await etechAlert.confirmDelete('all saved items from your wishlist', 'You can re-add items anytime while browsing the shop catalog.');
   if (!confirmed) return;
 
-  saveWishlist([]);
-  showToast('All items removed from your wishlist.', 'info');
-  updateWishlistBadge();
-  renderWishlistPage();
-  // Refresh visual state across shop and home
-  document.querySelectorAll('[data-wishlist-btn]').forEach(btn => {
-    applyHeartVisuals(btn, false);
-  });
-
-  WishlistApi.clearWishlist().catch(err => {
-    console.warn('[WishlistController] Clear wishlist API fallback:', err.message || err);
-  });
-
+  try {
+    await WishlistApi.clearWishlist();
+    saveWishlist([]);
+    showToast('All items removed from your wishlist.', 'info');
+    updateWishlistBadge();
+    renderWishlistPage();
+    // Refresh visual state across shop and home
+    document.querySelectorAll('[data-wishlist-btn]').forEach(btn => {
+      applyHeartVisuals(btn, false);
+    });
+  } catch (err) {
+    etechAlert.error('Connection Error', 'Unable to clear wishlist. Please try again.');
+  }
 }
 
 /**

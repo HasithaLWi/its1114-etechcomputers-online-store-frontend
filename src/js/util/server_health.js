@@ -90,7 +90,7 @@ export async function checkServerHealth(showAlert = true) {
     updateSystemStatusUI(false);
     if (showAlert && !hasShownOfflineAlert) {
       hasShownOfflineAlert = true;
-      etechAlert.error('Server Error', 'Unable to connect to the backend server.');
+      etechAlert.error('Connection Error', 'Unable to connect to the store service. Please check your network connection and try again.');
     }
     return false;
   }

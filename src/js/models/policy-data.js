@@ -22,20 +22,20 @@ let memoryPolicies = { ...DEFAULT_LEGAL_POLICIES };
  */
 export async function syncPoliciesFromApi() {
   try {
-    const [profileRes, policiesRes] = await Promise.allSettled([
+    const [profileRes, policiesRes] = await Promise.all([
       PoliciesApi.getBusinessProfile(),
       PoliciesApi.getAll()
     ]);
 
-    if (profileRes.status === 'fulfilled' && profileRes.value) {
-      const data = profileRes.value.body || profileRes.value;
+    if (profileRes) {
+      const data = profileRes.body || profileRes;
       if (data && typeof data === 'object') {
         memoryBusinessInfo = { ...memoryBusinessInfo, ...data };
       }
     }
 
-    if (policiesRes.status === 'fulfilled' && policiesRes.value) {
-      const list = policiesRes.value.body || policiesRes.value;
+    if (policiesRes) {
+      const list = policiesRes.body || policiesRes;
       if (Array.isArray(list)) {
         list.forEach(p => {
           const key = p.slug || p.id;
@@ -46,7 +46,8 @@ export async function syncPoliciesFromApi() {
       }
     }
   } catch (err) {
-    console.warn('[PoliciesModel] Live policies sync notice:', err.message);
+    console.error('[PoliciesModel] Live policies sync error:', err.message);
+    throw err;
   }
 }
 
@@ -62,11 +63,7 @@ export function getBusinessInfo() {
  */
 export async function saveBusinessInfo(info) {
   memoryBusinessInfo = { ...memoryBusinessInfo, ...info };
-  try {
-    await PoliciesApi.updateBusinessProfile(memoryBusinessInfo);
-  } catch (e) {
-    console.warn('[PoliciesModel] Update business profile API notice:', e.message);
-  }
+  await PoliciesApi.updateBusinessProfile(memoryBusinessInfo);
   return { success: true, message: 'Business profile updated successfully!' };
 }
 
@@ -104,11 +101,6 @@ export async function updatePolicyDocument(key, policyData) {
     id: key
   };
 
-  try {
-    await PoliciesApi.updatePolicy(key, memoryPolicies[key]);
-  } catch (e) {
-    console.warn(`[PoliciesModel] Update policy ${key} API notice:`, e.message);
-  }
-
+  await PoliciesApi.updatePolicy(key, memoryPolicies[key]);
   return { success: true, message: `${policyData.title || key} updated successfully!` };
 }

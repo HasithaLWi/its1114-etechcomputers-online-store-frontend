@@ -11,7 +11,8 @@ import {
   iconClipboard,
   iconCheck,
   iconClose,
-  iconClock
+  iconClock,
+  iconShield
 } from './icons.js';
 
 /**
@@ -242,7 +243,15 @@ export function renderStockStatusBadge(stock, alertQty = 5) {
  * @returns {string} HTML string
  */
 export function renderUserRoleBadge(role) {
-  const r = (role || '').toUpperCase().trim();
+  let r = (role || '').toUpperCase().trim();
+  if (r.startsWith('ROLE_')) r = r.substring(5);
+
+  if (r === 'SUPERADMIN' || r === 'SUPER_ADMIN') {
+    return `<span class="inline-flex items-center space-x-1 px-2.5 py-1 rounded-md text-[10px] font-mono font-extrabold whitespace-nowrap bg-purple-50 text-purple-700 border border-purple-200 shadow-2xs">
+      ${iconShield('w-3 h-3 text-purple-600 flex-shrink-0')}
+      <span>SUPERADMIN</span>
+    </span>`;
+  }
 
   if (r === 'ADMIN') {
     return `<span class="inline-flex items-center space-x-1 px-2.5 py-1 rounded-md text-[10px] font-mono font-extrabold whitespace-nowrap bg-rose-50 text-rose-700 border border-rose-200 shadow-2xs">

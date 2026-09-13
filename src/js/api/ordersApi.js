@@ -51,11 +51,12 @@ export const OrdersApi = {
    */
   async placeOrder(orderData) {
     console.log('[OrdersAPI] placeOrder() -> payload:', orderData);
-    return ajaxRequest({
+    const res = await ajaxRequest({
       endpoint: '/orders',
       method: 'POST',
       data: orderData
     });
+    return (res && res.body !== undefined && res.body !== null) ? res.body : res;
   },
 
   /**
@@ -67,7 +68,8 @@ export const OrdersApi = {
     const cleanId = String(id).replace(/^#/, '');
     return ajaxRequest({
       endpoint: `/orders/${encodeURIComponent(cleanId)}/status?status=${encodeURIComponent(status)}`,
-      method: 'PATCH'
+      method: 'PATCH',
+      data: { status }
     });
   }
 };

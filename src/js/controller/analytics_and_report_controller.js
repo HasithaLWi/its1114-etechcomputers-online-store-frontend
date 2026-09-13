@@ -1,6 +1,5 @@
-import { getAllOrders, syncOrdersFromApi } from './order_management_controller.js';
-import { getBranches, syncBranchesFromApi } from './branch_controller.js';
 import { AnalyticsApi } from '../api/analyticsApi.js';
+import { etechAlert } from '../util/index.js';
 
 /**
  * ============================================================
@@ -10,8 +9,6 @@ import { AnalyticsApi } from '../api/analyticsApi.js';
 export async function renderAnalyticsTab() {
   const list = document.getElementById('analytics-branches-list');
   if (!list) return;
-
-  await Promise.allSettled([syncOrdersFromApi(), syncBranchesFromApi()]);
 
   try {
     const branchRev = await AnalyticsApi.getBranchRevenue();
@@ -34,36 +31,22 @@ export async function renderAnalyticsTab() {
           </div>
         `;
       }).join('');
-      return;
+    } else {
+      list.innerHTML = `
+        <div class="p-8 text-center text-xs text-slate-400">
+          No branch revenue recorded yet.
+        </div>
+      `;
     }
   } catch (err) {
-    console.warn('[AnalyticsController] Analytics API fallback:', err.message || err);
-  }
-
-  const orders = getAllOrders();
-  const branches = getBranches();
-
-  // Branch Revenue Calculations
-  const branchSales = branches.map(b => {
-    const branchOrders = orders.filter(o => o.fulfillmentBranchId === b.id || o.fulfillmentBranch === b.name);
-    const revenue = branchOrders.reduce((sum, o) => sum + (parseFloat((o.totalAmount || "0").toString().replace(/[^0-9.]/g, '')) || 0), 0);
-    return { name: b.name, city: b.city, count: branchOrders.length, revenue };
-  });
-
-  const maxRevenue = Math.max(...branchSales.map(bs => bs.revenue), 1000);
-
-  list.innerHTML = branchSales.map(bs => {
-    const percentage = Math.round((bs.revenue / maxRevenue) * 100);
-    return `
-      <div class="bg-[#f8fafc] p-4 rounded-md border border-[#e2e8f0] space-y-2 shadow-xs">
-        <div class="flex items-center justify-between text-xs">
-          <span class="font-bold text-[#0f172a]">${bs.name} (${bs.city})</span>
-          <span class="font-mono text-blue-600 font-extrabold">Rs. ${bs.revenue.toLocaleString()} (${bs.count} orders)</span>
-        </div>
-        <div class="w-full h-2.5 rounded-full bg-[#e2e8f0] overflow-hidden border border-[#cbd5e1]">
-          <div class="h-full bg-blue-600 rounded-full transition-all duration-500" style="width: ${percentage}%"></div>
-        </div>
+    console.error('[AnalyticsController] Analytics API error:', err);
+    etechAlert.error('Connection Error', 'Unable to load analytics. Please try again.');
+    list.innerHTML = `
+      <div class="p-8 text-center space-y-3 bg-rose-50/50 rounded-xl border border-rose-200">
+        <p class="text-xs font-bold text-rose-700">Unable to Load Analytics</p>
+        <p class="text-[11px] text-slate-500">Failed to fetch branch revenue statistics. Please check your connection and try again.</p>
+        <button onclick="renderAnalyticsTab()" class="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold cursor-pointer">Retry</button>
       </div>
     `;
-  }).join('');
+  }
 }

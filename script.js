@@ -31,7 +31,7 @@ import { getBranches, calculateShippingFee, autoSelectFulfillmentBranch } from '
 import {
     getCart, saveCart, updateCartBadge, addToCart, addBundleToCart, showToast,
     initCartLogic, initCheckoutLogic, validateCartBundles,
-    updateItemQuantity, removeItemFromCart
+    updateItemQuantity, removeItemFromCart, clearCheckoutFields
 } from './src/js/controller/cart_controller.js';
 import {
     viewProductDetails, renderProductDetailsPage,
@@ -85,10 +85,13 @@ import {
     removeClauseSection, confirmResetPolicies
 } from './src/js/controller/policy_management_controller.js';
 
+// AI Chatbot API Import
+import { ChatApi } from './src/js/api/chatApi.js';
+
 // Newsletter & Email Marketing Imports
 import { NewsletterApi } from './src/js/api/newsletterApi.js';
 import {
-    Subscriber, NEWSLETTER_STATUS, NEWSLETTER_SOURCE,
+    Subscriber, NEWSLETTER_STATUS,
     getNewsletterSubscribers, saveNewsletterSubscribers,
     getNewsletterCampaigns, saveNewsletterCampaigns,
     getNewsletterAnalytics, isValidEmail
@@ -96,7 +99,7 @@ import {
 import {
     renderNewsletterTab, setNewsletterSubTab,
     handleNewsletterSearch, handleNewsletterStatusFilter,
-    handleNewsletterSourceFilter, handleNewsletterSort,
+    handleNewsletterSort,
     changeNewsletterPage, toggleSelectSubscriber,
     toggleSelectAllSubscribers, clearSelectedSubscribers,
     bulkUnsubscribeSelected, bulkResubscribeSelected,
@@ -133,20 +136,28 @@ import {
     saveOrder, getAllOrders, getUserOrders, updateOrderStatus,
     getOrderById, cancelCustomerOrder, renderCustomerOrderDetailPage,
     openOrderSupportEmail, handleCustomerCancelOrder, closeCancelOrderModal,
-    confirmCancelOrder
+    confirmCancelOrder, renderAdminOrderDetailView, backToOrdersList,
+    handleAdminOrderStatusUpdate
 } from './src/js/controller/order_management_controller.js';
 import { handleUserOrderSearch, handleUserOrderStatusFilter } from './src/js/app/app.js';
 
 // Branch Management Controller Imports
 import {
     renderBranchesTab, confirmDeleteBranch, openBranchModal,
-    editBranch, handleSaveBranchSubmit
+    editBranch, handleSaveBranchSubmit, openBranchFormPage, closeBranchFormPage,
+    filterBranchesTab, handleBranchCityChange, useBranchCurrentGPSLocation,
+    handleManualBranchCoordChange
 } from './src/js/controller/branch_management_controller.js';
+import {
+    useCustomerCurrentGeolocation, markCheckoutLocationPinned, getCheckoutDeliveryLocation,
+    resetCheckoutDeliveryLocation
+} from './src/js/controller/branch_controller.js';
 
 // User Management Controller Imports
 import {
     renderUsersTab, changeUserRole, changeUserStatus, confirmDeleteUser,
-    openUserModal, handleSaveUserSubmit, handleUserModalRoleChange
+    openUserModal, handleSaveUserSubmit, handleUserModalRoleChange,
+    filterUsersByType
 } from './src/js/controller/user_management_controller.js';
 
 // Analytics and Reports Controller Imports
@@ -172,7 +183,6 @@ import {
 import {
     getCategories, saveCategory, deleteCategory, getCategoryBySlug,
     getBadges, saveBadge, deleteBadge, getBadgeById, getBadgeThresholdSummary,
-    getProductBehaviorHistory, recordProductBehaviorEvent, getProductHistory, clearProductBehaviorHistory,
     runAutoBadgeAssignment
 } from './src/js/models/taxonomy_data.js';
 
@@ -272,7 +282,7 @@ Object.assign(window, {
     // Cart & Checkout
     getCart, saveCart, updateCartBadge, addToCart, showToast,
     initCartLogic, initCheckoutLogic,
-    updateItemQuantity, removeItemFromCart,
+    updateItemQuantity, removeItemFromCart, clearCheckoutFields,
 
     // Product Details, Ratings & Reviews
     viewProductDetails, renderProductDetailsPage,
@@ -329,15 +339,20 @@ Object.assign(window, {
     renderOrdersTab, changeOrderStatus, saveOrder, getAllOrders, getUserOrders, updateOrderStatus,
     getOrderById, cancelCustomerOrder, renderCustomerOrderDetailPage, openOrderSupportEmail,
     handleCustomerCancelOrder, closeCancelOrderModal, confirmCancelOrder,
+    renderAdminOrderDetailView, backToOrdersList, handleAdminOrderStatusUpdate,
     handleUserOrderSearch, handleUserOrderStatusFilter,
 
     // Branch Management
     renderBranchesTab, confirmDeleteBranch, openBranchModal,
-    editBranch, handleSaveBranchSubmit,
+    editBranch, handleSaveBranchSubmit, openBranchFormPage, closeBranchFormPage,
+    filterBranchesTab, handleBranchCityChange, useBranchCurrentGPSLocation,
+    handleManualBranchCoordChange, useCustomerCurrentGeolocation, markCheckoutLocationPinned,
+    getCheckoutDeliveryLocation, resetCheckoutDeliveryLocation,
 
     // User Management
     renderUsersTab, changeUserRole, changeUserStatus, confirmDeleteUser,
     openUserModal, handleSaveUserSubmit, handleUserModalRoleChange,
+    filterUsersByType,
 
     // Dynamic Page Generators (SPA)
     renderLoginPage, initLoginPage,
@@ -361,24 +376,26 @@ Object.assign(window, {
     // Analytics & Reports
     renderAnalyticsTab,
 
-    // Taxonomy, Badges & Product Behavior History
+    // Taxonomy & Badges
     renderTaxonomyTab, runAutoBadgeAssigner,
     openCategoryModal, handleSaveCategorySubmit, confirmDeleteCategory,
     openBadgeModal, updateBadgeThresholdsUI, handleSaveBadgeSubmit, confirmDeleteBadge,
     getCategories, saveCategory, deleteCategory, getCategoryBySlug,
     getBadges, saveBadge, deleteBadge, getBadgeById, getBadgeThresholdSummary,
-    getProductBehaviorHistory, recordProductBehaviorEvent, getProductHistory, clearProductBehaviorHistory,
     runAutoBadgeAssignment,
+
+    // AI Chatbot
+    ChatApi,
 
     // Newsletter & Email Marketing
     NewsletterApi,
-    Subscriber, NEWSLETTER_STATUS, NEWSLETTER_SOURCE,
+    Subscriber, NEWSLETTER_STATUS,
     getNewsletterSubscribers, saveNewsletterSubscribers,
     getNewsletterCampaigns, saveNewsletterCampaigns,
     getNewsletterAnalytics, isValidEmail,
     renderNewsletterTab, setNewsletterSubTab,
     handleNewsletterSearch, handleNewsletterStatusFilter,
-    handleNewsletterSourceFilter, handleNewsletterSort,
+    handleNewsletterSort,
     changeNewsletterPage, toggleSelectSubscriber,
     toggleSelectAllSubscribers, clearSelectedSubscribers,
     bulkUnsubscribeSelected, bulkResubscribeSelected,

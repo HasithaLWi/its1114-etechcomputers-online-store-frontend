@@ -8,7 +8,6 @@ import {
 import { getCurrentUser } from './login_controller.js';
 import { getCategories, getBadges } from '../models/taxonomy_data.js';
 import { getBrands } from '../models/brand_data.js';
-import { updateTrashSidebarBadge } from './admin_dashboard_controller.js';
 import {
   iconPackage,
   iconFolder,
@@ -27,6 +26,7 @@ import {
 
 
 let productSearchQuery = '';
+let productStatusFilter = 'ALL';
 
 /**
  * ============================================================
@@ -64,14 +64,24 @@ export function renderProductsTab(shouldSync = true) {
     }
   }
 
-  // Filter with live search
+  // Filter with live search and status dropdown
   const searchInput = document.getElementById('product-search-input');
-  if (searchInput && searchInput.value) {
+  if (searchInput && searchInput.value !== undefined) {
     productSearchQuery = searchInput.value.toLowerCase().trim();
+  }
+  const statusSelect = document.getElementById('product-status-filter');
+  if (statusSelect) {
+    productStatusFilter = statusSelect.value || 'ALL';
   }
 
   const renderRows = (productList) => {
     let filtered = productList || [];
+    if (productStatusFilter && productStatusFilter !== 'ALL') {
+      filtered = filtered.filter(p => {
+        const s = (p.productStatus || p.status || 'ACTIVE').toUpperCase();
+        return s === productStatusFilter;
+      });
+    }
     if (productSearchQuery) {
       filtered = filtered.filter(p => 
         p.name.toLowerCase().includes(productSearchQuery) ||
@@ -85,7 +95,7 @@ export function renderProductsTab(shouldSync = true) {
       tbody.innerHTML = `
         <tr>
           <td colspan="7" class="py-8 text-center text-[#64748b] text-xs">
-            ${productSearchQuery ? 'No catalog items matched your search query.' : 'No active products found in database.'}
+            ${productSearchQuery ? 'No catalog items matched your search query.' : 'No products found.'}
           </td>
         </tr>
       `;
@@ -140,7 +150,7 @@ export function renderProductsTab(shouldSync = true) {
               <button onclick="editProduct(${p.id})" class="p-1.5 bg-[#f8fafc] hover:bg-[#f1f5f9] text-blue-600 rounded border border-[#e2e8f0] transition-colors shadow-sm" title="Edit Product">
                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
               </button>
-              <button onclick="confirmDeleteProduct(${p.id})" class="p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded transition-colors shadow-sm" title="Soft Delete (Move to Trash Bin)">
+              <button onclick="confirmDeleteProduct(${p.id})" class="p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded transition-colors shadow-sm" title="Delete Product">
                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
               </button>
             </div>
@@ -153,9 +163,12 @@ export function renderProductsTab(shouldSync = true) {
   renderRows(products);
 
   if (shouldSync) {
-    syncProductsFromApi().then(liveList => {
+    syncProductsFromApi({ status: 'ALL', size: 200 }).then(liveList => {
       renderRows(liveList || getStoredProducts());
-    }).catch(() => {});
+    }).catch(err => {
+      console.error('[ProductController] Product sync error:', err);
+      etechAlert.error('Connection Error', 'Unable to load products. Please try again.');
+    });
   }
 }
 
@@ -171,20 +184,22 @@ export async function toggleProductStatus(productId) {
 
   await updateProductStatus(productId, nextStatus);
   showToast(`Product "${p.name}" status changed to ${nextStatus}.`, 'info');
-  renderProductsTab();
+  renderProductsTab(false);
 }
 
 /**
- * Filter Table via Search Input
+ * Filter Table via Search Input & Status Dropdown
  */
 export function filterProductsTable() {
   const searchInput = document.getElementById('product-search-input');
   productSearchQuery = searchInput ? searchInput.value.toLowerCase().trim() : '';
-  renderProductsTab();
+  const statusSelect = document.getElementById('product-status-filter');
+  productStatusFilter = statusSelect ? statusSelect.value : 'ALL';
+  renderProductsTab(false);
 }
 
 /**
- * Soft Delete Product confirmation (Moves to Trash Bin)
+ * Delete Product confirmation
  */
 export async function confirmDeleteProduct(productId) {
   const p = getProductById(productId);
@@ -192,15 +207,14 @@ export async function confirmDeleteProduct(productId) {
 
   const confirmed = await etechAlert.confirmDelete(
     `Product "${name}"`,
-    p ? `SKU: ${p.sku || 'N/A'} | Price: Rs. ${(p.price || 0).toLocaleString()} | Branch Inventory will be soft-deleted.` : ''
+    p ? `SKU: ${p.sku || 'N/A'} | Price: Rs. ${(p.price || 0).toLocaleString()}` : ''
   );
 
   if (!confirmed) return;
 
   await deleteProduct(productId);
-  showToast(`"${name}" was moved to the Trash Bin.`, 'info');
+  showToast(`"${name}" was deleted successfully.`, 'info');
   renderProductsTab();
-  updateTrashSidebarBadge();
 }
 
 // ── Dedicated Product Add/Edit Workspace Page ──
@@ -291,9 +305,9 @@ export function openProductFormPage(productId = null) {
   if (categorySelect) {
     const allCategories = getCategories({ activeOnly: false });
     categorySelect.innerHTML = allCategories.map(c => `
-      <option value="${c.slug}">${c.name}</option>
+      <option value="${c.id}">${c.name}</option>
     `).join('');
-    categorySelect.value = product ? product.category : (allCategories[0]?.slug || 'laptops');
+    categorySelect.value = product ? (product.categoryId || product.category) : (allCategories[0]?.id || 'cat-laptops');
   }
 
   // Populate dynamic brand options
@@ -301,12 +315,9 @@ export function openProductFormPage(productId = null) {
   if (brandSelect) {
     const allBrands = getBrands({ activeOnly: false });
     brandSelect.innerHTML = allBrands.map(b => `
-      <option value="${b.name}">${b.name}</option>
+      <option value="${b.id}">${b.name}</option>
     `).join('');
-    if (product && product.brand && !allBrands.some(b => b.name.toLowerCase() === product.brand.toLowerCase())) {
-      brandSelect.innerHTML += `<option value="${product.brand}" selected>${product.brand}</option>`;
-    }
-    brandSelect.value = product ? (product.brand || allBrands[0]?.name || 'ASUS') : (allBrands[0]?.name || 'ASUS');
+    brandSelect.value = product ? (product.brandId || product.brand) : (allBrands[0]?.id || 'brd-asus');
   }
 
   // Populate dynamic badge options
@@ -314,10 +325,10 @@ export function openProductFormPage(productId = null) {
   if (badgeSelect) {
     const allBadges = getBadges({ activeOnly: true }).filter(b => b.slug !== 'hot-deal' && !b.name.toLowerCase().includes('hot deal'));
     badgeSelect.innerHTML = `
-      ${allBadges.map(b => `<option value="${b.name}">${b.name}</option>`).join('')}
+      ${allBadges.map(b => `<option value="${b.id}">${b.name}</option>`).join('')}
       <option value="">None (No Badge)</option>
     `;
-    badgeSelect.value = product && product.badge && !product.badge.toLowerCase().includes('hot deal') ? product.badge : '';
+    badgeSelect.value = product && (product.badgeId || product.badge) ? (product.badgeId || product.badge) : '';
   }
 
   // Status selector (ACTIVE / INACTIVE)
@@ -634,7 +645,8 @@ export async function handleSaveProductSubmit(e) {
     : ["High Performance Tech Hardware"];
 
   const categoryVal = document.getElementById('form-p-category').value;
-  const brandVal = document.getElementById('form-p-brand') ? document.getElementById('form-p-brand').value : (existingProduct ? existingProduct.brand : 'ASUS');
+  const brandVal = document.getElementById('form-p-brand') ? document.getElementById('form-p-brand').value : (existingProduct ? existingProduct.brandId : 'brd-asus');
+  const badgeVal = document.getElementById('form-p-badge') ? document.getElementById('form-p-badge').value : (existingProduct ? existingProduct.badgeId : '');
   const priceVal = parseFloat(document.getElementById('form-p-price').value);
   const origPriceVal = document.getElementById('form-p-original-price').value ? parseFloat(document.getElementById('form-p-original-price').value) : priceVal;
   const statusVal = document.getElementById('form-p-status') ? document.getElementById('form-p-status').value : (existingProduct ? existingProduct.productStatus : 'ACTIVE');
@@ -643,14 +655,17 @@ export async function handleSaveProductSubmit(e) {
     id: productId,
     name: document.getElementById('form-p-name').value,
     category: categoryVal,
+    categoryId: categoryVal,
     brand: brandVal,
+    brandId: brandVal,
     price: priceVal,
     originalPrice: origPriceVal,
-    sku: document.getElementById('form-p-sku').value || `ETC-${categoryVal.toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)}`,
+    sku: document.getElementById('form-p-sku').value || `ETC-${categoryVal.replace(/^cat-/, '').toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)}`,
     warranty: document.getElementById('form-p-warranty').value || '1-Year Warranty',
     image: images[0],
     images: images,
-    badge: document.getElementById('form-p-badge') ? document.getElementById('form-p-badge').value : (existingProduct ? existingProduct.badge : ''),
+    badge: badgeVal,
+    badgeId: badgeVal,
     description: document.getElementById('form-p-description').value || '',
     fullDescription: document.getElementById('form-p-full-description').value || document.getElementById('form-p-description').value || '',
     specs: Object.keys(specsObj).length > 0 ? specsObj : { "Category": categoryVal },
@@ -667,13 +682,18 @@ export async function handleSaveProductSubmit(e) {
 
   if (!confirmed) return;
 
-  await saveProduct(productData);
-  showToast(`Product "${productData.name}" saved successfully.`, 'success');
-  window.dispatchEvent(new CustomEvent('productsUpdated'));
-  if (window.switchAdminTab) {
-    window.switchAdminTab('products');
+  try {
+    await saveProduct(productData);
+    showToast(`Product "${productData.name}" saved successfully.`, 'success');
+    window.dispatchEvent(new CustomEvent('productsUpdated'));
+    if (window.switchAdminTab) {
+      window.switchAdminTab('products');
+    }
+    renderProductsTab();
+  } catch (err) {
+    console.error('[ProductController] Failed to save product:', err);
+    etechAlert.error('Save Failed', err.message || 'Unable to save product. Please try again.');
   }
-  renderProductsTab();
 }
 
 // Export aliases

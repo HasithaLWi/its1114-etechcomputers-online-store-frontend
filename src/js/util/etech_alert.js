@@ -264,7 +264,7 @@ export const etechAlert = {
   confirmDelete(entityName = 'this item', extraInfo = '') {
     return createModalElement({
       title: `Delete ${entityName}?`,
-      message: `Are you sure you want to delete ${entityName}? This action will move the record to the system Trash Bin or delete it permanently.`,
+      message: `Are you sure you want to delete ${entityName}? This action cannot be undone.`,
       details: extraInfo,
       type: 'danger',
       confirmText: 'Yes, Delete',
@@ -302,7 +302,7 @@ export const etechAlert = {
   confirmCreate(entityName = 'new record', extraInfo = '') {
     return createModalElement({
       title: `Create ${entityName}?`,
-      message: `Confirm creating this ${entityName}. It will be saved into the database and activated.`,
+      message: `Confirm creating this ${entityName}. It will be saved and activated.`,
       details: extraInfo,
       type: 'create',
       confirmText: 'Create Now',

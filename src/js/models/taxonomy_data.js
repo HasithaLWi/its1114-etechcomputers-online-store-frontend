@@ -47,6 +47,7 @@ export async function syncCategoriesFromApi(options = {}) {
     if (apiList.length > 0) {
       memoryCategories = apiList.map(c => ({
         id: c.id,
+        superCategoryId: c.superCategoryId || null,
         name: c.name || '',
         slug: c.slug || '',
         icon: c.icon || '🏷️',
@@ -56,20 +57,16 @@ export async function syncCategoriesFromApi(options = {}) {
         categoryStatus: (c.categoryStatus || c.status || 'ACTIVE').toUpperCase(),
         status: (c.categoryStatus || c.status || 'ACTIVE').toUpperCase()
       }));
+    } else {
+      memoryCategories = [];
     }
     return getCategories(options);
   } catch (err) {
-    console.warn('[TaxonomyModel] Categories API sync notice:', err.message);
-    return getCategories(options);
+    console.error('[TaxonomyModel] Categories API sync failed:', err.message);
+    throw err;
   }
 }
 
-/**
- * Retrieve only deleted categories for SuperADMIN Trash Bin
- */
-export function getDeletedCategories() {
-  return memoryCategories.filter(c => (c.categoryStatus || c.status || '').toUpperCase() === 'DELETED');
-}
 
 export function saveCategories(categories) {
   if (Array.isArray(categories)) {
@@ -84,52 +81,50 @@ export function getCategoryBySlug(slug) {
 }
 
 export async function saveCategory(categoryData, isEdit = false) {
-  const categories = memoryCategories;
   const slug = (categoryData.slug || categoryData.name || '').toLowerCase().trim().replace(/[^a-z0-9]+/g, '-');
   const categoryStatus = (categoryData.categoryStatus || categoryData.status || 'ACTIVE').toUpperCase();
+  const superCategoryId = categoryData.superCategoryId && categoryData.superCategoryId.trim() !== '' 
+    ? categoryData.superCategoryId.trim() 
+    : null;
 
   if (isEdit) {
-    const index = categories.findIndex(c => c.id === categoryData.id || c.slug === categoryData.slug);
+    const index = memoryCategories.findIndex(c => c.id === categoryData.id || c.slug === categoryData.slug);
     if (index !== -1) {
-      categories[index] = {
-        ...categories[index],
+      const targetId = memoryCategories[index].id;
+      const updatedCat = {
+        ...memoryCategories[index],
         ...categoryData,
+        superCategoryId: superCategoryId,
         categoryStatus: categoryStatus,
         status: categoryStatus,
-        slug: slug || categories[index].slug
+        slug: slug || memoryCategories[index].slug
       };
 
-      try {
-        await CategoriesApi.update(categories[index].id, categories[index]);
-      } catch (err) {
-        console.warn('[TaxonomyModel] Backend category update notice:', err.message);
-      }
-
-      return categories[index];
+      // Call backend API strictly
+      await CategoriesApi.update(targetId, updatedCat);
+      memoryCategories[index] = updatedCat;
+      return memoryCategories[index];
     }
+    throw new Error(`Category with ID ${categoryData.id} not found.`);
   }
 
   // Create New Category
   const newCat = {
     id: categoryData.id || `cat-${slug || Date.now()}`,
+    superCategoryId: superCategoryId,
     name: categoryData.name || 'New Category',
     slug: slug || `category-${Math.floor(1000 + Math.random() * 9000)}`,
     icon: categoryData.icon || '🏷️',
     description: categoryData.description || '',
     featured: Boolean(categoryData.featured),
-    displayOrder: parseInt(categoryData.displayOrder) || (categories.length + 1),
+    displayOrder: parseInt(categoryData.displayOrder) || (memoryCategories.length + 1),
     categoryStatus: categoryStatus,
     status: categoryStatus
   };
 
-  categories.push(newCat);
-
-  try {
-    await CategoriesApi.create(newCat);
-  } catch (err) {
-    console.warn('[TaxonomyModel] Backend category create notice:', err.message);
-  }
-
+  // Call backend API strictly
+  await CategoriesApi.create(newCat);
+  memoryCategories.push(newCat);
   return newCat;
 }
 
@@ -141,15 +136,9 @@ export async function updateCategoryStatus(idOrSlug, newStatus) {
   const index = memoryCategories.findIndex(c => c.id === idOrSlug || c.slug === idOrSlug);
 
   if (index !== -1) {
+    await CategoriesApi.updateStatus(memoryCategories[index].id, upperStatus);
     memoryCategories[index].categoryStatus = upperStatus;
     memoryCategories[index].status = upperStatus;
-
-    try {
-      await CategoriesApi.updateStatus(memoryCategories[index].id, upperStatus);
-    } catch (err) {
-      console.warn(`[TaxonomyModel] Backend category status update notice for ${idOrSlug}:`, err.message);
-    }
-
     return { success: true, category: memoryCategories[index] };
   }
   return { success: false, message: 'Category not found.' };
@@ -160,12 +149,9 @@ export async function updateCategoryStatus(idOrSlug, newStatus) {
  */
 export async function deleteCategory(slugOrId) {
   const cat = getCategoryBySlug(slugOrId);
+  if (!cat) throw new Error('Category not found');
+  await CategoriesApi.delete(cat.id);
   const res = await updateCategoryStatus(slugOrId, 'DELETED');
-  try {
-    if (cat) await CategoriesApi.delete(cat.id);
-  } catch (err) {
-    console.warn(`[TaxonomyModel] Backend category soft-delete notice for ${slugOrId}:`, err.message);
-  }
   return res.success;
 }
 
@@ -181,14 +167,10 @@ export async function restoreCategory(slugOrId) {
  */
 export async function permanentlyDeleteCategory(slugOrId) {
   const target = memoryCategories.find(c => c.id === slugOrId || c.slug === slugOrId);
-  memoryCategories = memoryCategories.filter(c => c.id !== slugOrId && c.slug !== slugOrId);
-
-  try {
-    if (target) await CategoriesApi.permaDelete(target.id);
-  } catch (err) {
-    console.warn(`[TaxonomyModel] Backend category perma-delete notice for ${slugOrId}:`, err.message);
+  if (target) {
+    await CategoriesApi.permaDelete(target.id);
+    memoryCategories = memoryCategories.filter(c => c.id !== target.id && c.slug !== target.slug);
   }
-
   return { success: true, category: target };
 }
 
@@ -241,20 +223,16 @@ export async function syncBadgesFromApi(options = {}) {
         isActive: (b.status || '').toUpperCase() === 'ACTIVE' || b.isActive === true,
         thresholds: b.thresholds || {}
       }));
+    } else {
+      memoryBadges = [];
     }
     return getBadges(options);
   } catch (err) {
-    console.warn('[TaxonomyModel] Badges API sync notice:', err.message);
-    return getBadges(options);
+    console.error('[TaxonomyModel] Badges API sync failed:', err.message);
+    throw err;
   }
 }
 
-/**
- * Retrieve only deleted badges for SuperADMIN Trash Bin
- */
-export function getDeletedBadges() {
-  return memoryBadges.filter(b => (b.status || '').toUpperCase() === 'DELETED');
-}
 
 export function saveBadges(badges) {
   if (Array.isArray(badges)) {

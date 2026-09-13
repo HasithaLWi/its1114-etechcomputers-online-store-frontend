@@ -1,141 +1,479 @@
-import { getBranches, saveBranch, deleteBranch, getBranchById } from './branch_controller.js';
+import { getBranches, saveBranch, deleteBranch, getBranchById, getBranchCoords, SRI_LANKA_DISTRICTS_COORDS } from './branch_controller.js';
 import { etechAlert, showToast } from '../util/index.js';
+
+let branchEditorMap = null;
+let branchEditorMarker = null;
 
 /**
  * ============================================================
- * TAB 4: BRANCH MANAGEMENT (ADMIN ONLY)
+ * TAB 4: STORE BRANCH MANAGEMENT (DEDICATED FULL PAGE VIEW)
  * ============================================================
  */
-export function renderBranchesTab() {
+
+/**
+ * Render Branch Management List Tab
+ */
+export function renderBranchesTab(branchesToRender = null) {
   const grid = document.getElementById('branches-list-grid');
   if (!grid) return;
 
-  const branches = getBranches();
+  const branches = branchesToRender || getBranches();
 
-  grid.innerHTML = branches.map(b => `
-    <div class="bg-white border border-[#e2e8f0] rounded-lg p-4 space-y-3.5 hover:border-[#cbd5e1] transition-colors shadow-sm">
-      <div class="flex items-center justify-between border-b border-[#e2e8f0] pb-2.5">
+  if (branches.length === 0) {
+    grid.innerHTML = `
+      <div class="col-span-full p-8 text-center bg-[#f8fafc] border border-dashed border-[#cbd5e1] rounded-xl">
+        <span class="text-3xl">🏢</span>
+        <h4 class="text-sm font-bold text-[#0f172a] mt-2">No Warehouses Found</h4>
+        <p class="text-xs text-[#64748b] mt-0.5">Click "+ Add New Branch" to create your first regional fulfillment warehouse.</p>
+      </div>
+    `;
+    return;
+  }
+
+  grid.innerHTML = branches.map(b => {
+    const coords = getBranchCoords(b);
+    const isActive = b.status === 'Active' || b.active !== false;
+
+    return `
+      <div class="bg-white border border-[#e2e8f0] rounded-xl p-5 space-y-4 hover:border-blue-300 hover:shadow-md transition-all duration-200 shadow-xs flex flex-col justify-between">
         <div>
-          <span class="text-[9px] font-mono text-blue-600 uppercase tracking-widest font-bold">${b.id}</span>
-          <h4 class="text-sm font-extrabold text-[#0f172a]">${b.name}</h4>
-          <p class="text-[11px] text-[#64748b]">${b.city} Hub</p>
+          <div class="flex items-start justify-between border-b border-[#f1f5f9] pb-3">
+            <div>
+              <div class="flex items-center space-x-2">
+                <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-blue-50 text-blue-700 border border-blue-200 uppercase tracking-wider">${b.id}</span>
+                <span class="text-[11px] font-medium text-[#64748b]">${b.city} Regional Hub</span>
+              </div>
+              <h4 class="text-base font-extrabold text-[#0f172a] mt-1">${b.name}</h4>
+            </div>
+            <span class="px-2.5 py-1 rounded-full text-[10px] font-bold ${isActive ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-rose-50 text-rose-700 border border-rose-200'}">
+              ${isActive ? 'Active' : 'Inactive'}
+            </span>
+          </div>
+
+          <div class="space-y-1.5 text-xs text-[#475569] mt-3">
+            <p class="flex items-start space-x-1.5">
+              <span class="text-slate-400 shrink-0">📍</span>
+              <span><strong class="text-[#334155]">Address:</strong> ${b.address || 'Not specified'}</span>
+            </p>
+            <p class="flex items-center space-x-1.5">
+              <span class="text-slate-400 shrink-0">📞</span>
+              <span><strong class="text-[#334155]">Phone:</strong> ${b.phone || 'N/A'}</span>
+            </p>
+            <p class="flex items-center space-x-1.5">
+              <span class="text-slate-400 shrink-0">✉️</span>
+              <span><strong class="text-[#334155]">Email:</strong> ${b.email || 'N/A'}</span>
+            </p>
+            <p class="flex items-center space-x-1.5">
+              <span class="text-slate-400 shrink-0">🚚</span>
+              <span><strong class="text-[#334155]">Shipping Rate:</strong> Rs. ${b.baseShippingFee || 350} base + Rs. ${b.perKmFee || 25}/km</span>
+            </p>
+
+            <div class="mt-2.5 p-2 rounded-lg bg-slate-50 border border-slate-200 flex items-center justify-between text-[11px]">
+              <span class="text-[#64748b] font-medium">📍 Live GPS Coordinates:</span>
+              <span class="font-mono font-bold text-blue-700 bg-white px-2 py-0.5 rounded border border-slate-200">
+                ${coords.lat.toFixed(4)}, ${coords.lng.toFixed(4)}
+              </span>
+            </div>
+          </div>
         </div>
-        <span class="px-2 py-0.5 rounded text-[9px] font-mono font-bold ${b.status === 'Active' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-rose-50 text-rose-700 border border-rose-200'}">
-          ${b.status}
-        </span>
-      </div>
 
-      <div class="space-y-1 text-xs text-[#475569]">
-        <p>📍 <strong class="text-[#64748b]">Address:</strong> ${b.address}</p>
-        <p>📞 <strong class="text-[#64748b]">Phone:</strong> ${b.phone}</p>
-        <p>🚚 <strong class="text-[#64748b]">Base Shipping:</strong> Rs. ${b.baseShippingFee} + Rs. ${b.perKmFee}/km</p>
+        <div class="pt-3 border-t border-[#f1f5f9] flex items-center justify-end space-x-2">
+          <button onclick="openBranchFormPage('${b.id}')"
+            class="px-3 py-1.5 bg-[#f8fafc] hover:bg-blue-50 text-blue-700 hover:text-blue-800 rounded-lg text-xs font-bold border border-[#e2e8f0] hover:border-blue-200 transition-colors shadow-2xs flex items-center space-x-1">
+            <span>✏️</span>
+            <span>View & Edit</span>
+          </button>
+          <button onclick="confirmDeleteBranch('${b.id}')"
+            class="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-lg text-xs font-bold border border-rose-200 transition-colors shadow-2xs">
+            Delete
+          </button>
+        </div>
       </div>
-
-      <div class="pt-2 border-t border-[#e2e8f0] flex items-center justify-end space-x-2">
-        <button onclick="editBranch('${b.id}')" class="px-3 py-1.5 bg-[#f8fafc] hover:bg-[#f1f5f9] text-blue-600 rounded-md text-xs font-bold border border-[#e2e8f0] transition-colors shadow-sm">Edit Branch</button>
-        <button onclick="confirmDeleteBranch('${b.id}')" class="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-md text-xs font-bold transition-colors shadow-sm">Delete</button>
-      </div>
-    </div>
-  `).join('');
+    `;
+  }).join('');
 }
 
+/**
+ * Filter branch tab cards by query
+ */
+export function filterBranchesTab(query) {
+  const q = (query || '').toLowerCase().trim();
+  if (!q) {
+    renderBranchesTab();
+    return;
+  }
+
+  const branches = getBranches();
+  const filtered = branches.filter(b => 
+    (b.name || '').toLowerCase().includes(q) ||
+    (b.city || '').toLowerCase().includes(q) ||
+    (b.id || '').toLowerCase().includes(q) ||
+    (b.address || '').toLowerCase().includes(q)
+  );
+
+  renderBranchesTab(filtered);
+}
+
+/**
+ * Open Dedicated Branch Editor Page (Replaces Overlay Modal)
+ */
+export function openBranchFormPage(branchId = null) {
+  const listView = document.getElementById('branches-list-view');
+  const formView = document.getElementById('branch-form-view');
+  if (!listView || !formView) return;
+
+  const branch = branchId ? getBranchById(branchId) : null;
+
+  // Toggle visible page
+  listView.classList.add('hidden');
+  formView.classList.remove('hidden');
+
+  // Update Page Header
+  const titleEl = document.getElementById('branch-page-title');
+  const subtitleEl = document.getElementById('branch-page-subtitle');
+  const statusPill = document.getElementById('branch-form-status-pill');
+
+  if (titleEl) titleEl.textContent = branch ? `Edit Warehouse: ${branch.name}` : 'Add New Store Branch';
+  if (subtitleEl) subtitleEl.textContent = branch 
+    ? `Update warehouse contact information, fulfillment fees, and exact GPS delivery dispatch coordinates.` 
+    : 'Configure a new regional warehouse hub and pinpoint its map coordinates for live geodesic routing.';
+  if (statusPill) {
+    if (branch) {
+      statusPill.textContent = `ID: ${branch.id}`;
+      statusPill.className = 'px-2.5 py-1 rounded-full text-xs font-mono font-bold bg-blue-50 text-blue-700 border border-blue-200';
+    } else {
+      statusPill.textContent = 'New Warehouse';
+      statusPill.className = 'px-2.5 py-1 rounded-full text-xs font-mono font-bold bg-emerald-50 text-emerald-700 border border-emerald-200';
+    }
+  }
+
+  // Populate Input Fields
+  const idInput = document.getElementById('bform-id');
+  const nameInput = document.getElementById('bform-name');
+  const citySelect = document.getElementById('bform-city');
+  const codeInput = document.getElementById('bform-code');
+  const phoneInput = document.getElementById('bform-phone');
+  const emailInput = document.getElementById('bform-email');
+  const addressInput = document.getElementById('bform-address');
+  const baseFeeInput = document.getElementById('bform-basefee');
+  const kmFeeInput = document.getElementById('bform-kmfee');
+  const activeInput = document.getElementById('bform-active');
+  const latInput = document.getElementById('bform-lat');
+  const lngInput = document.getElementById('bform-lng');
+
+  if (idInput) idInput.value = branch ? branch.id : '';
+  if (nameInput) nameInput.value = branch ? branch.name : '';
+  if (citySelect) {
+    if (branch && branch.city) {
+      let matched = false;
+      for (let i = 0; i < citySelect.options.length; i++) {
+        if (citySelect.options[i].value.toLowerCase() === branch.city.toLowerCase()) {
+          citySelect.selectedIndex = i;
+          matched = true;
+          break;
+        }
+      }
+      if (!matched) citySelect.value = branch.city;
+    } else {
+      citySelect.value = 'Colombo';
+    }
+  }
+  if (codeInput) {
+    codeInput.value = branch ? branch.id : '';
+    codeInput.disabled = Boolean(branch);
+  }
+  if (phoneInput) phoneInput.value = branch ? branch.phone : '';
+  if (emailInput) emailInput.value = branch ? branch.email : '';
+  if (addressInput) addressInput.value = branch ? branch.address : '';
+  if (baseFeeInput) baseFeeInput.value = branch ? (branch.baseShippingFee || 350) : 350;
+  if (kmFeeInput) kmFeeInput.value = branch ? (branch.perKmFee || 25) : 25;
+  if (activeInput) activeInput.checked = branch ? (branch.status === 'Active' || branch.active !== false) : true;
+
+  // Resolve initial coordinates
+  const coords = branch ? getBranchCoords(branch) : { lat: 6.9271, lng: 79.8612 };
+  if (latInput) latInput.value = coords.lat.toFixed(6);
+  if (lngInput) lngInput.value = coords.lng.toFixed(6);
+
+  // Initialize Interactive Leaflet Map for Branch Editor
+  initBranchEditorMap(coords.lat, coords.lng);
+
+  // Scroll to top of panel smoothly
+  formView.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+/**
+ * Close Branch Editor Page and return to list view
+ */
+export function closeBranchFormPage() {
+  const listView = document.getElementById('branches-list-view');
+  const formView = document.getElementById('branch-form-view');
+  if (!listView || !formView) return;
+
+  formView.classList.add('hidden');
+  listView.classList.remove('hidden');
+
+  if (branchEditorMap) {
+    try {
+      branchEditorMap.remove();
+      branchEditorMap = null;
+      branchEditorMarker = null;
+    } catch (e) {}
+  }
+
+  renderBranchesTab();
+}
+
+/**
+ * Initialize Leaflet Map in the Branch Editor Page
+ */
+function initBranchEditorMap(lat, lng) {
+  const container = document.getElementById('branch-editor-map');
+  if (!container) return;
+
+  if (typeof window.L === 'undefined') {
+    setTimeout(() => initBranchEditorMap(lat, lng), 250);
+    return;
+  }
+
+  if (branchEditorMap) {
+    try {
+      branchEditorMap.remove();
+      branchEditorMap = null;
+      branchEditorMarker = null;
+    } catch (e) {}
+  }
+
+  // Create Map instance
+  branchEditorMap = L.map('branch-editor-map', {
+    center: [lat, lng],
+    zoom: 12,
+    zoomControl: true
+  });
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; OpenStreetMap contributors',
+    maxZoom: 19
+  }).addTo(branchEditorMap);
+
+  const warehouseIcon = L.divIcon({
+    className: 'custom-warehouse-pin',
+    html: `
+      <div style="background-color: #2563eb; color: white; width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(37,99,235,0.5); border: 2px solid white; font-size: 16px;">
+        🏢
+      </div>
+    `,
+    iconSize: [36, 36],
+    iconAnchor: [18, 18],
+    popupAnchor: [0, -20]
+  });
+
+  branchEditorMarker = L.marker([lat, lng], {
+    icon: warehouseIcon,
+    draggable: true
+  }).addTo(branchEditorMap);
+
+  branchEditorMarker.bindPopup(`<strong>Warehouse Location</strong><br><span style="font-size:11px;color:#64748b;">Drag to reposition warehouse pin</span>`).openPopup();
+
+  // On marker dragend -> update lat/lng inputs
+  branchEditorMarker.on('dragend', function (e) {
+    const pos = e.target.getLatLng();
+    setBranchFormCoords(pos.lat, pos.lng);
+  });
+
+  // On map click -> move marker & update lat/lng inputs
+  branchEditorMap.on('click', function (e) {
+    const { lat: clickLat, lng: clickLng } = e.latlng;
+    branchEditorMarker.setLatLng([clickLat, clickLng]);
+    setBranchFormCoords(clickLat, clickLng);
+  });
+
+  setTimeout(() => {
+    if (branchEditorMap) branchEditorMap.invalidateSize();
+  }, 200);
+}
+
+/**
+ * Sync Latitude and Longitude to inputs
+ */
+function setBranchFormCoords(lat, lng) {
+  const latInput = document.getElementById('bform-lat');
+  const lngInput = document.getElementById('bform-lng');
+  if (latInput) latInput.value = Number(lat).toFixed(6);
+  if (lngInput) lngInput.value = Number(lng).toFixed(6);
+}
+
+/**
+ * Handle manual numeric input of Latitude or Longitude
+ */
+export function handleManualBranchCoordChange() {
+  const latInput = document.getElementById('bform-lat');
+  const lngInput = document.getElementById('bform-lng');
+  if (!latInput || !lngInput) return;
+
+  const lat = parseFloat(latInput.value);
+  const lng = parseFloat(lngInput.value);
+
+  if (!isNaN(lat) && !isNaN(lng) && branchEditorMarker && branchEditorMap) {
+    branchEditorMarker.setLatLng([lat, lng]);
+    branchEditorMap.panTo([lat, lng], { animate: true });
+  }
+}
+
+/**
+ * Handle City Dropdown change in branch form: Pan map to city centroid
+ */
+export function handleBranchCityChange(cityName) {
+  const matched = SRI_LANKA_DISTRICTS_COORDS[cityName];
+  if (matched && branchEditorMarker && branchEditorMap) {
+    branchEditorMarker.setLatLng([matched.lat, matched.lng]);
+    branchEditorMap.setView([matched.lat, matched.lng], 12, { animate: true });
+    setBranchFormCoords(matched.lat, matched.lng);
+  }
+}
+
+/**
+ * Use Device HTML5 GPS for Branch Warehouse
+ */
+export function useBranchCurrentGPSLocation() {
+  if (!navigator.geolocation) {
+    alert('Geolocation is not supported by your browser.');
+    return;
+  }
+
+  const btn = document.getElementById('btn-branch-gps');
+  const origText = btn ? btn.innerHTML : '';
+  if (btn) btn.innerHTML = '<span>⏳ Acquiring GPS...</span>';
+
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
+      const lat = pos.coords.latitude;
+      const lng = pos.coords.longitude;
+
+      if (branchEditorMarker && branchEditorMap) {
+        branchEditorMarker.setLatLng([lat, lng]);
+        branchEditorMap.setView([lat, lng], 14, { animate: true });
+        setBranchFormCoords(lat, lng);
+      }
+
+      showToast('Warehouse coordinates updated from current GPS location.', 'success');
+      if (btn) btn.innerHTML = origText;
+    },
+    (err) => {
+      console.warn('GPS error:', err.message);
+      alert('Unable to acquire GPS position: ' + err.message);
+      if (btn) btn.innerHTML = origText;
+    },
+    { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+  );
+}
+
+/**
+ * Save Branch Form Submission
+ */
+export async function handleSaveBranchSubmit(e) {
+  e.preventDefault();
+
+  const idInput = document.getElementById('bform-id');
+  const nameInput = document.getElementById('bform-name');
+  const citySelect = document.getElementById('bform-city');
+  const codeInput = document.getElementById('bform-code');
+  const phoneInput = document.getElementById('bform-phone');
+  const emailInput = document.getElementById('bform-email');
+  const addressInput = document.getElementById('bform-address');
+  const baseFeeInput = document.getElementById('bform-basefee');
+  const kmFeeInput = document.getElementById('bform-kmfee');
+  const activeInput = document.getElementById('bform-active');
+  const latInput = document.getElementById('bform-lat');
+  const lngInput = document.getElementById('bform-lng');
+
+  const existingId = (idInput ? idInput.value : '').trim();
+  const name = (nameInput ? nameInput.value : '').trim();
+  const city = (citySelect ? citySelect.value : '').trim();
+  const customCode = (codeInput ? codeInput.value : '').trim().toUpperCase();
+  const phone = (phoneInput ? phoneInput.value : '').trim();
+  const email = (emailInput ? emailInput.value : '').trim();
+  const address = (addressInput ? addressInput.value : '').trim();
+  const baseShippingFee = parseFloat(baseFeeInput ? baseFeeInput.value : 350) || 350;
+  const perKmFee = parseFloat(kmFeeInput ? kmFeeInput.value : 25) || 25;
+  const isActive = activeInput ? activeInput.checked : true;
+  const latitude = parseFloat(latInput ? latInput.value : 6.9271) || 6.9271;
+  const longitude = parseFloat(lngInput ? lngInput.value : 79.8612) || 79.8612;
+
+  if (!name || !city || !phone || !address) {
+    etechAlert.warning('Missing Fields', 'Please fill in all required warehouse fields marked with *.');
+    return;
+  }
+
+  const branchId = existingId || customCode || ('BR-' + city.substring(0, 3).toUpperCase());
+
+  const branchData = {
+    id: branchId,
+    name,
+    city,
+    phone,
+    email: email || `${city.toLowerCase().replace(/\s+/g, '')}@etechcomputers.lk`,
+    address,
+    baseShippingFee,
+    baseShippingRate: baseShippingFee,
+    perKmFee,
+    latitude,
+    longitude,
+    status: isActive ? 'Active' : 'Inactive',
+    active: isActive
+  };
+
+  const isEdit = Boolean(existingId);
+  const confirmed = isEdit
+    ? await etechAlert.confirmUpdate(`Warehouse "${branchData.name}"`, `City: ${branchData.city} | GPS: ${latitude.toFixed(4)}, ${longitude.toFixed(4)}`)
+    : await etechAlert.confirmCreate(`Warehouse "${branchData.name}"`, `City: ${branchData.city} | GPS: ${latitude.toFixed(4)}, ${longitude.toFixed(4)}`);
+
+  if (!confirmed) return;
+
+  const submitBtn = document.getElementById('btn-save-branch-submit');
+  if (submitBtn) {
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<span>⏳ Saving Warehouse...</span>';
+  }
+
+  try {
+    await saveBranch(branchData);
+    showToast(`Branch "${branchData.name}" saved successfully with coordinates!`, 'success');
+    closeBranchFormPage();
+  } catch (err) {
+    console.error('Error saving branch:', err);
+    etechAlert.error('Save Failed', 'Failed to save warehouse to database. Please check connection and try again.');
+  } finally {
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = '<span>💾 Save Branch</span>';
+    }
+  }
+}
+
+/**
+ * Delete Branch with confirmation
+ */
 export async function confirmDeleteBranch(branchId) {
   const branch = getBranchById(branchId);
   const name = branch ? branch.name : `Branch #${branchId}`;
 
   const confirmed = await etechAlert.confirmDelete(
     `Branch "${name}"`,
-    'Warning: Any staff assigned to this branch and local stock balances may be affected.'
+    'Warning: Any staff assigned to this branch and regional inventory stock may be affected.'
   );
 
   if (!confirmed) return;
 
-  deleteBranch(branchId);
+  await deleteBranch(branchId);
   showToast(`Branch "${name}" deleted.`, 'info');
   renderBranchesTab();
 }
 
+// Retain alias for backward compatibility
 export function openBranchModal(branchId = null) {
-  const modal = document.getElementById('admin-modal-container');
-  const branch = branchId ? getBranchById(branchId) : null;
-
-  modal.innerHTML = `
-    <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#0f172a]/60 backdrop-blur-xs">
-      <div class="bg-white border border-[#e2e8f0] rounded-lg p-6 max-w-md w-full space-y-4 shadow-xl">
-        <div class="flex items-center justify-between border-b border-[#e2e8f0] pb-3">
-          <h3 class="text-base font-extrabold text-[#0f172a]">${branch ? 'Edit Store Branch' : 'Add Store Branch'}</h3>
-          <button onclick="closeAdminModal()" class="text-[#64748b] hover:text-[#0f172a] text-lg font-bold">&times;</button>
-        </div>
-
-        <form onsubmit="handleSaveBranchSubmit(event, ${branch ? `'${branch.id}'` : 'null'})" class="space-y-3.5 text-xs">
-          <div>
-            <label class="block text-[#475569] font-bold mb-1">Branch Name *</label>
-            <input type="text" id="modal-b-name" required value="${branch ? branch.name : ''}" class="w-full px-3 py-2 rounded-md bg-[#f8fafc] border border-[#e2e8f0] text-[#0f172a] focus:border-blue-600">
-          </div>
-
-          <div class="grid grid-cols-2 gap-3">
-            <div>
-              <label class="block text-[#475569] font-bold mb-1">City *</label>
-              <input type="text" id="modal-b-city" required value="${branch ? branch.city : ''}" class="w-full px-3 py-2 rounded-md bg-[#f8fafc] border border-[#e2e8f0] text-[#0f172a] focus:border-blue-600">
-            </div>
-            <div>
-              <label class="block text-[#475569] font-bold mb-1">Phone *</label>
-              <input type="text" id="modal-b-phone" required value="${branch ? branch.phone : ''}" class="w-full px-3 py-2 rounded-md bg-[#f8fafc] border border-[#e2e8f0] text-[#0f172a] focus:border-blue-600">
-            </div>
-          </div>
-
-          <div>
-            <label class="block text-[#475569] font-bold mb-1">Full Physical Address</label>
-            <input type="text" id="modal-b-address" value="${branch ? branch.address : ''}" class="w-full px-3 py-2 rounded-md bg-[#f8fafc] border border-[#e2e8f0] text-[#0f172a] focus:border-blue-600">
-          </div>
-
-          <div class="grid grid-cols-2 gap-3">
-            <div>
-              <label class="block text-[#475569] font-bold mb-1">Base Shipping Fee (Rs.)</label>
-              <input type="number" id="modal-b-basefee" value="${branch ? branch.baseShippingFee : 350}" class="w-full px-3 py-2 rounded-md bg-[#f8fafc] border border-[#e2e8f0] text-[#0f172a] focus:border-blue-600">
-            </div>
-            <div>
-              <label class="block text-[#475569] font-bold mb-1">Per KM Fee (Rs.)</label>
-              <input type="number" id="modal-b-kmfee" value="${branch ? branch.perKmFee : 25}" class="w-full px-3 py-2 rounded-md bg-[#f8fafc] border border-[#e2e8f0] text-[#0f172a] focus:border-blue-600">
-            </div>
-          </div>
-
-          <div class="pt-2 flex items-center justify-end space-x-2.5">
-            <button type="button" onclick="closeAdminModal()" class="px-4 py-2 bg-[#f8fafc] hover:bg-[#f1f5f9] text-[#475569] rounded-md font-bold border border-[#e2e8f0]">Cancel</button>
-            <button type="submit" class="px-5 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-md font-bold shadow-sm">Save Branch</button>
-          </div>
-        </form>
-      </div>
-    </div>
-  `;
+  openBranchFormPage(branchId);
 }
 
 export function editBranch(branchId) {
-  openBranchModal(branchId);
-}
-
-export async function handleSaveBranchSubmit(e, branchId) {
-  e.preventDefault();
-  const branchData = {
-    id: branchId,
-    name: document.getElementById('modal-b-name').value.trim(),
-    city: document.getElementById('modal-b-city').value.trim(),
-    phone: document.getElementById('modal-b-phone').value.trim(),
-    address: document.getElementById('modal-b-address').value.trim(),
-    baseShippingFee: document.getElementById('modal-b-basefee').value,
-    perKmFee: document.getElementById('modal-b-kmfee').value,
-    status: 'Active'
-  };
-
-  const isEdit = Boolean(branchId);
-  const confirmed = isEdit
-    ? await etechAlert.confirmUpdate(`Branch "${branchData.name}"`, `City: ${branchData.city} | Phone: ${branchData.phone}`)
-    : await etechAlert.confirmCreate(`Branch "${branchData.name}"`, `City: ${branchData.city} | Phone: ${branchData.phone}`);
-
-  if (!confirmed) return;
-
-  saveBranch(branchData);
-  if (window.closeAdminModal) window.closeAdminModal();
-  renderBranchesTab();
-  showToast(`Branch "${branchData.name}" saved successfully.`, 'success');
+  openBranchFormPage(branchId);
 }

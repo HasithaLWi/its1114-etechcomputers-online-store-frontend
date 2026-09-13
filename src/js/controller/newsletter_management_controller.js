@@ -5,7 +5,6 @@
 import {
   Subscriber,
   NEWSLETTER_STATUS,
-  NEWSLETTER_SOURCE,
   getNewsletterSubscribers,
   saveNewsletterSubscribers,
   getNewsletterCampaigns,
@@ -28,7 +27,6 @@ import {
 // Controller State
 let searchQuery = '';
 let selectedStatusFilter = 'ALL';
-let selectedSourceFilter = 'ALL';
 let sortBy = 'newest';
 let activeSubTab = 'subscribers'; // 'subscribers' | 'campaigns'
 let selectedSubscriberIds = new Set();
@@ -119,7 +117,7 @@ export async function renderNewsletterTab() {
             <p class="text-[11px] font-bold text-[#64748b] uppercase tracking-wider">Active Subscribed</p>
             <h3 class="text-2xl font-black text-emerald-600 font-mono">${analytics.activeSubscribers}</h3>
             <p class="text-[10px] text-[#64748b] font-medium">
-              <span class="text-emerald-600 font-bold font-mono">${analytics.activeRate}%</span> of total database
+              <span class="text-emerald-600 font-bold font-mono">${analytics.activeRate}%</span> of total subscribers
             </p>
           </div>
           <div class="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center border border-emerald-100">
@@ -209,13 +207,11 @@ function renderSubscribersWorkspaceHtml() {
   // Filtering
   let filtered = allSubscribers.filter(s => {
     if (selectedStatusFilter !== 'ALL' && s.status !== selectedStatusFilter) return false;
-    if (selectedSourceFilter !== 'ALL' && s.source !== selectedSourceFilter) return false;
     if (searchQuery) {
       const q = searchQuery.toLowerCase().trim();
       const matchEmail = s.email.toLowerCase().includes(q);
       const matchName = s.name && s.name.toLowerCase().includes(q);
-      const matchTags = s.tags && s.tags.some(t => t.toLowerCase().includes(q));
-      if (!matchEmail && !matchName && !matchTags) return false;
+      if (!matchEmail && !matchName) return false;
     }
     return true;
   });
@@ -251,7 +247,7 @@ function renderSubscribersWorkspaceHtml() {
             id="newsletter-search-input"
             value="${escapeHtml(searchQuery)}"
             oninput="handleNewsletterSearch(this.value)"
-            placeholder="Search by email address, customer name, or tag..."
+            placeholder="Search by email address or customer name..."
             class="w-full pl-9 pr-4 py-2 bg-[#f8fafc] border border-[#cbd5e1] rounded-lg text-xs font-medium text-[#0f172a] placeholder-[#94a3b8] focus:bg-white focus:border-blue-600 focus:outline-none transition-all"
           />
           <svg class="w-4 h-4 text-[#94a3b8] absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -267,17 +263,6 @@ function renderSubscribersWorkspaceHtml() {
             <option value="ALL" ${selectedStatusFilter === 'ALL' ? 'selected' : ''}>Status: All</option>
             <option value="${NEWSLETTER_STATUS.SUBSCRIBED}" ${selectedStatusFilter === NEWSLETTER_STATUS.SUBSCRIBED ? 'selected' : ''}>Active (Subscribed)</option>
             <option value="${NEWSLETTER_STATUS.UNSUBSCRIBED}" ${selectedStatusFilter === NEWSLETTER_STATUS.UNSUBSCRIBED ? 'selected' : ''}>Unsubscribed</option>
-          </select>
-
-          <!-- Source Filter -->
-          <select id="newsletter-source-filter" onchange="handleNewsletterSourceFilter(this.value)"
-            class="px-3 py-2 bg-[#f8fafc] border border-[#cbd5e1] rounded-lg text-xs font-bold text-[#334155] focus:bg-white focus:border-blue-600 focus:outline-none">
-            <option value="ALL" ${selectedSourceFilter === 'ALL' ? 'selected' : ''}>Channel: All</option>
-            <option value="${NEWSLETTER_SOURCE.STOREFRONT_BANNER}" ${selectedSourceFilter === NEWSLETTER_SOURCE.STOREFRONT_BANNER ? 'selected' : ''}>Storefront Banner</option>
-            <option value="${NEWSLETTER_SOURCE.DEALS_PAGE}" ${selectedSourceFilter === NEWSLETTER_SOURCE.DEALS_PAGE ? 'selected' : ''}>Deals Page</option>
-            <option value="${NEWSLETTER_SOURCE.CHECKOUT}" ${selectedSourceFilter === NEWSLETTER_SOURCE.CHECKOUT ? 'selected' : ''}>Checkout</option>
-            <option value="${NEWSLETTER_SOURCE.ACCOUNT}" ${selectedSourceFilter === NEWSLETTER_SOURCE.ACCOUNT ? 'selected' : ''}>Account</option>
-            <option value="${NEWSLETTER_SOURCE.MANUAL}" ${selectedSourceFilter === NEWSLETTER_SOURCE.MANUAL ? 'selected' : ''}>Manual Admin</option>
           </select>
 
           <!-- Sort Selector -->
@@ -325,8 +310,6 @@ function renderSubscribersWorkspaceHtml() {
                   <input type="checkbox" onchange="toggleSelectAllSubscribers(this.checked)" ${isAllSelected ? 'checked' : ''} class="rounded border-[#cbd5e1] text-blue-600 focus:ring-blue-500 cursor-pointer" />
                 </th>
                 <th class="py-3 px-4">Subscriber</th>
-                <th class="py-3 px-4">Tags / Segments</th>
-                <th class="py-3 px-4">Channel Source</th>
                 <th class="py-3 px-4">Subscribed Date</th>
                 <th class="py-3 px-4">Status</th>
                 <th class="py-3 px-4 text-right">Actions</th>
@@ -335,13 +318,13 @@ function renderSubscribersWorkspaceHtml() {
             <tbody class="divide-y divide-[#e2e8f0] text-[#334155]">
               ${pageItems.length === 0 ? `
                 <tr>
-                  <td colspan="7" class="py-12 text-center text-[#94a3b8]">
+                  <td colspan="5" class="py-12 text-center text-[#94a3b8]">
                     <div class="flex flex-col items-center justify-center space-y-2">
                       <svg class="w-10 h-10 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
                       </svg>
                       <p class="font-bold text-sm text-[#475569]">No subscribers found</p>
-                      <p class="text-xs text-[#94a3b8]">Try modifying your search query or channel filter.</p>
+                      <p class="text-xs text-[#94a3b8]">Try modifying your search query or status filter.</p>
                     </div>
                   </td>
                 </tr>
@@ -375,16 +358,6 @@ function renderSubscribersWorkspaceHtml() {
                           ${s.name ? `<p class="text-[11px] text-[#64748b]">${escapeHtml(s.name)}</p>` : ''}
                         </div>
                       </div>
-                    </td>
-                    <td class="py-3 px-4">
-                      <div class="flex flex-wrap gap-1">
-                        ${(s.tags || ['General']).map(t => `
-                          <span class="px-2 py-0.5 rounded-md bg-[#f1f5f9] text-[#475569] text-[10px] font-semibold border border-[#e2e8f0]">${escapeHtml(t)}</span>
-                        `).join('')}
-                      </div>
-                    </td>
-                    <td class="py-3 px-4">
-                      ${getSourceBadgeHtml(s.source)}
                     </td>
                     <td class="py-3 px-4 font-mono text-[11px] text-[#64748b]">
                       ${subDateFormatted}
@@ -538,26 +511,6 @@ function renderCampaignsLogHtml() {
 }
 
 /**
- * Returns badge HTML for subscriber channel source
- */
-function getSourceBadgeHtml(source) {
-  switch (source) {
-    case NEWSLETTER_SOURCE.STOREFRONT_BANNER:
-      return `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200">Storefront Banner</span>`;
-    case NEWSLETTER_SOURCE.DEALS_PAGE:
-      return `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200">Hot Deals Page</span>`;
-    case NEWSLETTER_SOURCE.CHECKOUT:
-      return `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-200">Checkout Flow</span>`;
-    case NEWSLETTER_SOURCE.ACCOUNT:
-      return `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">User Account</span>`;
-    case NEWSLETTER_SOURCE.MANUAL:
-      return `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">Admin Manual</span>`;
-    default:
-      return `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200">${escapeHtml(source || 'Online')}</span>`;
-  }
-}
-
-/**
  * Filter and Search Handlers
  */
 export function handleNewsletterSearch(val) {
@@ -568,12 +521,6 @@ export function handleNewsletterSearch(val) {
 
 export function handleNewsletterStatusFilter(val) {
   selectedStatusFilter = val;
-  currentPage = 1;
-  updateSubscribersViewOnly();
-}
-
-export function handleNewsletterSourceFilter(val) {
-  selectedSourceFilter = val;
   currentPage = 1;
   updateSubscribersViewOnly();
 }
@@ -703,14 +650,12 @@ export function exportSubscribersCsv() {
     return;
   }
 
-  const headers = ['Subscriber ID', 'Email', 'Customer Name', 'Status', 'Channel Source', 'Tags', 'Subscribed Date', 'Last Campaign Sent'];
+  const headers = ['Subscriber ID', 'Email', 'Customer Name', 'Status', 'Subscribed Date', 'Last Campaign Sent'];
   const rows = subscribers.map(s => [
     s.id,
     `"${s.email}"`,
     `"${(s.name || '').replace(/"/g, '""')}"`,
     s.status,
-    s.source,
-    `"${(s.tags || []).join(', ')}"`,
     s.subscribedAt,
     s.lastCampaignSentAt || 'None'
   ]);
@@ -756,34 +701,16 @@ export function openAddSubscriberModal() {
 
           <div>
             <label class="block font-bold text-[#334155] mb-1">Full Name (Optional)</label>
-            <input type="text" id="modal-sub-name" placeholder="John Doe"
+            <input type="text" id="modal-sub-name" placeholder="Leave blank to auto-derive from email"
               class="w-full px-3 py-2 border border-[#cbd5e1] rounded-lg focus:border-blue-600 focus:outline-none" />
-          </div>
-
-          <div class="grid grid-cols-2 gap-3">
-            <div>
-              <label class="block font-bold text-[#334155] mb-1">Channel Source</label>
-              <select id="modal-sub-source" class="w-full px-3 py-2 border border-[#cbd5e1] rounded-lg focus:border-blue-600 focus:outline-none">
-                <option value="${NEWSLETTER_SOURCE.MANUAL}">Admin Manual</option>
-                <option value="${NEWSLETTER_SOURCE.STOREFRONT_BANNER}">Storefront Banner</option>
-                <option value="${NEWSLETTER_SOURCE.DEALS_PAGE}">Deals Page</option>
-                <option value="${NEWSLETTER_SOURCE.ACCOUNT}">Account</option>
-              </select>
-            </div>
-
-            <div>
-              <label class="block font-bold text-[#334155] mb-1">Initial Status</label>
-              <select id="modal-sub-status" class="w-full px-3 py-2 border border-[#cbd5e1] rounded-lg focus:border-blue-600 focus:outline-none">
-                <option value="${NEWSLETTER_STATUS.SUBSCRIBED}">SUBSCRIBED</option>
-                <option value="${NEWSLETTER_STATUS.UNSUBSCRIBED}">UNSUBSCRIBED</option>
-              </select>
-            </div>
           </div>
 
           <div>
-            <label class="block font-bold text-[#334155] mb-1">Audience Tags (Comma separated)</label>
-            <input type="text" id="modal-sub-tags" placeholder="VIP Gamer, RTX 40-Series, Corporate"
-              class="w-full px-3 py-2 border border-[#cbd5e1] rounded-lg focus:border-blue-600 focus:outline-none" />
+            <label class="block font-bold text-[#334155] mb-1">Initial Status</label>
+            <select id="modal-sub-status" class="w-full px-3 py-2 border border-[#cbd5e1] rounded-lg focus:border-blue-600 focus:outline-none">
+              <option value="${NEWSLETTER_STATUS.SUBSCRIBED}">SUBSCRIBED</option>
+              <option value="${NEWSLETTER_STATUS.UNSUBSCRIBED}">UNSUBSCRIBED</option>
+            </select>
           </div>
 
           <div class="flex items-center justify-end space-x-2 pt-3 border-t border-[#e2e8f0]">
@@ -804,17 +731,12 @@ export async function saveNewSubscriberManual(event) {
   if (event) event.preventDefault();
   const email = document.getElementById('modal-sub-email').value.trim();
   const name = document.getElementById('modal-sub-name').value.trim();
-  const source = document.getElementById('modal-sub-source').value;
   const status = document.getElementById('modal-sub-status').value;
-  const tagsRaw = document.getElementById('modal-sub-tags').value;
-  const tags = tagsRaw.split(',').map(t => t.trim()).filter(Boolean);
 
   try {
     const res = await NewsletterApi.subscribe({
       email,
-      name,
-      source,
-      tags: tags.length ? tags : ['General']
+      name: name || undefined
     });
 
     if (res.data && status !== NEWSLETTER_STATUS.SUBSCRIBED) {
@@ -1109,9 +1031,7 @@ export async function handleStorefrontNewsletterSubmit(event) {
 
   try {
     const res = await NewsletterApi.subscribe({
-      email,
-      source: NEWSLETTER_SOURCE.STOREFRONT_BANNER,
-      tags: ['Storefront', 'General Deals']
+      email
     });
 
     if (res.alreadySubscribed) {

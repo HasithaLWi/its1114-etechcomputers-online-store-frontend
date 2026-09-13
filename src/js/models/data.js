@@ -32,13 +32,6 @@ export function getStoredProducts(options = {}) {
     return list.filter(p => (p.productStatus || p.status || 'ACTIVE').toUpperCase() !== 'DELETED');
 }
 
-/**
- * Retrieve only deleted products for the SuperADMIN Trash Bin
- * @returns {Array}
- */
-export function getDeletedProducts() {
-    return memoryProducts.filter(p => (p.productStatus || p.status || '').toUpperCase() === 'DELETED');
-}
 
 /**
  * Update the in-memory products array
@@ -215,14 +208,10 @@ export async function saveProduct(productData) {
     saveStoredProducts(all);
 
     // Synchronize with API
-    try {
-        if (index > -1) {
-            await ProductsApi.update(formattedProduct.id, formattedProduct);
-        } else {
-            await ProductsApi.create(formattedProduct);
-        }
-    } catch (err) {
-        console.warn(`[DataModel] Backend sync notice for saveProduct:`, err.message);
+    if (index > -1) {
+        await ProductsApi.update(formattedProduct.id, formattedProduct);
+    } else {
+        await ProductsApi.create(formattedProduct);
     }
 
     return formattedProduct;
@@ -237,6 +226,20 @@ export function deductBranchStock(productId, branchId, quantity) {
         const current = product.branchStock[branchId] || 0;
         product.branchStock[branchId] = Math.max(0, current - quantity);
         product.totalStock = Object.values(product.branchStock).reduce((a, b) => a + b, 0);
+        product.inStock = product.totalStock > 0;
+    }
+}
+
+/**
+ * Restore stock back to a specific branch when an order is cancelled or refunded
+ */
+export function restoreBranchStock(productId, branchId, quantity) {
+    const product = memoryProducts.find(p => p.id === parseInt(productId));
+    if (product) {
+        if (!product.branchStock) product.branchStock = { "BR-COL": 0, "BR-GAL": 0, "BR-MAT": 0, "BR-KAN": 0 };
+        const current = parseInt(product.branchStock[branchId] || 0);
+        product.branchStock[branchId] = current + parseInt(quantity || 0);
+        product.totalStock = Object.values(product.branchStock).reduce((a, b) => a + parseInt(b || 0), 0);
         product.inStock = product.totalStock > 0;
     }
 }
@@ -269,6 +272,9 @@ export async function quickAdjustStock(productId, branchId, quantityOrDelta, isA
         const current = parseInt(product.branchStock[branchId] || 0);
         const delta = isAbsolute ? (parseInt(quantityOrDelta) - current) : parseInt(quantityOrDelta || 0);
 
+        // Single-mode: sync with backend API directly
+        await InventoryApi.adjustStock(productId, { branchId, quantityDelta: delta });
+
         if (isAbsolute) {
             product.branchStock[branchId] = Math.max(0, parseInt(quantityOrDelta) || 0);
         } else {
@@ -276,10 +282,6 @@ export async function quickAdjustStock(productId, branchId, quantityOrDelta, isA
         }
         product.totalStock = Object.values(product.branchStock).reduce((a, b) => a + parseInt(b || 0), 0);
         product.inStock = product.totalStock > 0;
-
-        try {
-            await InventoryApi.adjustStock(productId, { branchId, quantityDelta: delta });
-        } catch (e) {}
 
         return product;
     }
@@ -289,21 +291,25 @@ export async function quickAdjustStock(productId, branchId, quantityOrDelta, isA
 /**
  * Transfer stock from one branch warehouse to another
  */
-export function transferBranchStock(productId, fromBranchId, toBranchId, transferQty) {
+export async function transferBranchStock(productId, fromBranchId, toBranchId, transferQty) {
     const product = memoryProducts.find(p => p.id === parseInt(productId));
     const qty = parseInt(transferQty) || 0;
     if (product && qty > 0 && fromBranchId !== toBranchId) {
         if (!product.branchStock) product.branchStock = { "BR-COL": 0, "BR-GAL": 0, "BR-MAT": 0, "BR-KAN": 0 };
         const sourceStock = parseInt(product.branchStock[fromBranchId] || 0);
         const actualTransfer = Math.min(sourceStock, qty);
-        product.branchStock[fromBranchId] = Math.max(0, sourceStock - actualTransfer);
-        product.branchStock[toBranchId] = (parseInt(product.branchStock[toBranchId] || 0)) + actualTransfer;
+        const nextBranchStock = {
+            ...product.branchStock,
+            [fromBranchId]: Math.max(0, sourceStock - actualTransfer),
+            [toBranchId]: (parseInt(product.branchStock[toBranchId] || 0)) + actualTransfer
+        };
+
+        // Single-mode: sync with backend API directly
+        await ProductsApi.updateInventory(productId, nextBranchStock);
+
+        product.branchStock = nextBranchStock;
         product.totalStock = Object.values(product.branchStock).reduce((a, b) => a + parseInt(b || 0), 0);
         product.inStock = product.totalStock > 0;
-
-        try {
-            ProductsApi.updateInventory(productId, product.branchStock).catch(() => {});
-        } catch (e) {}
 
         return { success: true, transferred: actualTransfer, product };
     }
@@ -453,13 +459,47 @@ export async function syncProductsFromApi(options = {}) {
     try {
         const filterParams = {
             page: options.page !== undefined ? options.page : 0,
-            size: options.size !== undefined ? options.size : 20,
+            size: options.size !== undefined ? options.size : 200,
             sortBy: options.sortBy || 'id',
             sortDir: options.sortDir || 'asc'
         };
 
-        if (options.category) filterParams.category = options.category;
-        if (options.brand) filterParams.brand = options.brand;
+        if (options.status) {
+            filterParams.status = options.status;
+        } else if (options.includeDeleted) {
+            filterParams.status = 'DELETED';
+        }
+
+        if (options.category) {
+            const catList = getCategories({ includeDeleted: true });
+            const normCat = String(options.category).trim().toLowerCase();
+            const found = catList.find(c => 
+                (c.id && c.id.toLowerCase() === normCat) || 
+                (c.slug && c.slug.toLowerCase() === normCat) ||
+                (c.name && c.name.toLowerCase() === normCat)
+            );
+            filterParams.category = found ? found.id : (normCat.startsWith('cat-') ? normCat : `cat-${normCat}`);
+        }
+        if (options.brand) {
+            const brandList = getBrands({ includeDeleted: true });
+            const normBrand = String(options.brand).trim().toLowerCase();
+            const found = brandList.find(b => 
+                (b.id && b.id.toLowerCase() === normBrand) || 
+                (b.slug && b.slug.toLowerCase() === normBrand) ||
+                (b.name && b.name.toLowerCase() === normBrand)
+            );
+            filterParams.brand = found ? found.id : (normBrand.startsWith('brd-') ? normBrand : `brd-${normBrand}`);
+        }
+        if (options.badge) {
+            const badgeList = getBadges({ includeDeleted: true });
+            const normBadge = String(options.badge).trim().toLowerCase();
+            const found = badgeList.find(b => 
+                (b.id && b.id.toLowerCase() === normBadge) || 
+                (b.slug && b.slug.toLowerCase() === normBadge) ||
+                (b.name && b.name.toLowerCase() === normBadge)
+            );
+            filterParams.badge = found ? found.id : (normBadge.startsWith('bdg-') ? normBadge : `bdg-${normBadge}`);
+        }
         if (options.search) filterParams.search = options.search;
         if (options.minPrice !== undefined && options.minPrice !== null && options.minPrice !== '') {
             filterParams.minPrice = options.minPrice;
@@ -467,18 +507,17 @@ export async function syncProductsFromApi(options = {}) {
         if (options.maxPrice !== undefined && options.maxPrice !== null && options.maxPrice !== '') {
             filterParams.maxPrice = options.maxPrice;
         }
-        if (options.badge) filterParams.badge = options.badge;
 
         const res = await ProductsApi.getFiltered(filterParams);
         let apiList = [];
-        if (Array.isArray(res)) {
+        if (res && Array.isArray(res.content)) {
+            apiList = res.content;
+        } else if (Array.isArray(res)) {
             apiList = res;
         } else if (res && Array.isArray(res.body)) {
             apiList = res.body;
         } else if (res && Array.isArray(res.data)) {
             apiList = res.data;
-        } else if (res && Array.isArray(res.content)) {
-            apiList = res.content;
         }
 
         const cachedCategories = getCategories({ includeDeleted: true });
@@ -526,11 +565,19 @@ export async function syncProductsFromApi(options = {}) {
         });
 
         if (normalized.length > 0) {
-            saveStoredProducts(normalized);
+            if (options.status === 'DELETED' || options.includeDeleted) {
+                const nonDeleted = memoryProducts.filter(p => (p.productStatus || p.status || '').toUpperCase() !== 'DELETED');
+                saveStoredProducts([...nonDeleted, ...normalized]);
+            } else if (options.status === 'ALL' || !options.status) {
+                const deletedItems = memoryProducts.filter(p => (p.productStatus || p.status || '').toUpperCase() === 'DELETED');
+                saveStoredProducts([...normalized, ...deletedItems]);
+            } else {
+                saveStoredProducts(normalized);
+            }
         }
         return getStoredProducts(options);
     } catch (err) {
-        console.warn('[DataModel] Live API sync notice:', err.message);
-        return getStoredProducts(options);
+        console.error('[DataModel] Live API sync failed:', err.message);
+        throw err;
     }
 }

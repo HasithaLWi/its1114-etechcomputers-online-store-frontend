@@ -138,8 +138,7 @@ Admin Console Dashboard (#admin)
  ├── 📧 9. Newsletter & Broadcast Studio (Subscriber List, Rich HTML Campaign Composer, Preview/Send)
  ├── 🏛️ 10. Corporate Profile & Policy Editor (Live WYSIWYG Policy Editor, Company Metadata Manager)
  ├── 👥 11. User & Access Control (Staff & Customer Accounts, Role Assignment, Account Suspension)
- ├── 🗑️ 12. Trash Bin & Recovery Vault (Two-Stage Soft-Delete Recovery System, Permanent Purge)
- └── 📈 13. Financial & Analytics Reports (Sales Trends, Category Breakdown, Profit Margin Insights, CSV Export)
+ └── 📈 12. Financial & Analytics Reports (Sales Trends, Category Breakdown, Profit Margin Insights, CSV Export)
 ```
 
 ### Inter-Branch Stock Transfer Workflow
@@ -327,7 +326,6 @@ ITS1114-AAD-ETech-Computers-Online-Store-HTML/
         │   ├── stock_health_controller.js          # Regional inventory matrix & alerts
         │   ├── taxonomy_controller.js              # Categories, subcategories & badge rules
         │   ├── transfer_management_controller.js   # Inter-branch stock transfer workflow
-        │   ├── trash_bin_controller.js             # Soft-delete recovery vault
         │   ├── user_management_controller.js       # User accounts & RBAC security matrix
         │   └── wishlist_controller.js              # Wishlist management & cart sync
         │

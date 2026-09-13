@@ -151,6 +151,7 @@ export function normalizeBundle(b, productsList = null, branchesList = null) {
     timerUpdatedAt: b.timerUpdatedAt || new Date().toISOString(),
     active: isActive,
     isActive: isActive,
+    isFreeShipping: Boolean(b.isFreeShipping),
     componentsBreakdown: (inv.componentsBreakdown && inv.componentsBreakdown.length > 0) ? inv.componentsBreakdown : (b.componentsBreakdown || []),
     branchAssembly: inv.branchAssembly || {},
     totalReadyToShip: inv.totalReadyToShip || 0
@@ -200,6 +201,7 @@ export function normalizeHotDeal(d, productsList = null) {
     soldCount: Number(d.soldCount) || 0,
     active: isActive,
     isActive: isActive,
+    isFreeShipping: Boolean(d.isFreeShipping),
     product: product
   };
 }
@@ -547,29 +549,13 @@ export async function saveHomeDealBanner(bannerData) {
     isActive: isNowActive
   };
 
-  try {
-    const res = await PromotionsApi.updateHomeBanner(apiPayload);
-    const saved = res.body || res;
-    if (saved && typeof saved === 'object') {
-      memoryHomeDealBanner = normalizeHomeBanner({ ...saved, bgImage: bannerData.bgImage || memoryHomeDealBanner.bgImage });
-      return memoryHomeDealBanner;
-    }
-  } catch (e) {
-    console.warn('[DealsModel] Update banner API notice:', e.message);
+  const res = await PromotionsApi.updateHomeBanner(apiPayload);
+  const saved = res.body || res;
+  if (saved && typeof saved === 'object') {
+    memoryHomeDealBanner = normalizeHomeBanner({ ...saved, bgImage: bannerData.bgImage || memoryHomeDealBanner.bgImage });
+    return memoryHomeDealBanner;
   }
-
-  memoryHomeDealBanner = normalizeHomeBanner({
-    ...memoryHomeDealBanner,
-    ...apiPayload,
-    ...bannerData,
-    durationSeconds,
-    active: isNowActive,
-    isActive: isNowActive,
-    timerUpdatedAt: new Date().toISOString(),
-    lastUpdated: new Date().toISOString()
-  });
-
-  return memoryHomeDealBanner;
+  throw new Error("Failed to save home deal banner on backend.");
 }
 
 /**
@@ -633,29 +619,15 @@ export async function addDealBundle(bundleData) {
     }))
   };
 
-  try {
-    const res = await PromotionsApi.createBundle(apiPayload);
-    const saved = res.body || res;
-    if (saved && saved.id) {
-      const normalized = normalizeBundle(saved, products);
-      memoryDealBundles.push(normalized);
-      await syncPromotionsFromApi();
-      return normalized;
-    }
-  } catch (e) {
-    console.warn('[DealsModel] Create bundle API notice:', e.message);
+  const res = await PromotionsApi.createBundle(apiPayload);
+  const saved = res.body || res;
+  if (saved && saved.id) {
+    const normalized = normalizeBundle(saved, products);
+    memoryDealBundles.push(normalized);
+    await syncPromotionsFromApi();
+    return normalized;
   }
-
-  const newId = memoryDealBundles.length > 0 ? Math.max(...memoryDealBundles.map(b => b.id || 0)) + 1 : 1;
-  const fallbackBundle = normalizeBundle({
-    id: newId,
-    ...apiPayload,
-    ...bundleData,
-    bundleItems: normalizedItems
-  }, products);
-
-  memoryDealBundles.push(fallbackBundle);
-  return fallbackBundle;
+  throw new Error("Failed to create deal bundle on backend.");
 }
 
 /**
@@ -700,30 +672,15 @@ export async function updateDealBundle(id, bundleData) {
     }))
   };
 
-  try {
-    const res = await PromotionsApi.updateBundle(id, apiPayload);
-    const saved = res.body || res;
-    if (saved && saved.id) {
-      const normalized = normalizeBundle(saved, products);
-      if (index !== -1) memoryDealBundles[index] = normalized;
-      await syncPromotionsFromApi();
-      return normalized;
-    }
-  } catch (e) {
-    console.warn('[DealsModel] Update bundle API notice:', e.message);
+  const res = await PromotionsApi.updateBundle(id, apiPayload);
+  const saved = res.body || res;
+  if (saved && saved.id) {
+    const normalized = normalizeBundle(saved, products);
+    if (index !== -1) memoryDealBundles[index] = normalized;
+    await syncPromotionsFromApi();
+    return normalized;
   }
-
-  const updated = normalizeBundle({
-    ...existing,
-    ...apiPayload,
-    ...bundleData,
-    id: Number(id),
-    bundleItems: normalizedItems,
-    lastUpdated: new Date().toISOString()
-  }, products);
-
-  if (index !== -1) memoryDealBundles[index] = updated;
-  return updated;
+  throw new Error("Failed to update deal bundle on backend.");
 }
 
 /**
@@ -944,30 +901,15 @@ export async function addHotDeal(dealData) {
     isActive: isActive
   };
 
-  try {
-    const res = await PromotionsApi.createHotDeal(apiPayload);
-    const saved = res.body || res;
-    if (saved && saved.id) {
-      const normalized = normalizeHotDeal(saved, products);
-      memoryHotDeals.push(normalized);
-      await syncPromotionsFromApi();
-      return normalized;
-    }
-  } catch (e) {
-    console.warn('[DealsModel] Create hot deal API notice:', e.message);
+  const res = await PromotionsApi.createHotDeal(apiPayload);
+  const saved = res.body || res;
+  if (saved && saved.id) {
+    const normalized = normalizeHotDeal(saved, products);
+    memoryHotDeals.push(normalized);
+    await syncPromotionsFromApi();
+    return normalized;
   }
-
-  const newId = memoryHotDeals.length > 0 ? Math.max(...memoryHotDeals.map(d => d.id || 0)) + 1 : 101;
-  const fallbackDeal = normalizeHotDeal({
-    id: newId,
-    ...apiPayload,
-    ...dealData,
-    targetQuota: Number(dealData.targetQuota) || 25,
-    soldCount: 0
-  }, products);
-
-  memoryHotDeals.push(fallbackDeal);
-  return fallbackDeal;
+  throw new Error("Failed to create hot deal on backend.");
 }
 
 /**
@@ -1000,30 +942,15 @@ export async function updateHotDeal(id, dealData) {
     isActive: isActive
   };
 
-  try {
-    const res = await PromotionsApi.updateHotDeal(id, apiPayload);
-    const saved = res.body || res;
-    if (saved && saved.id) {
-      const normalized = normalizeHotDeal(saved, products);
-      if (index !== -1) memoryHotDeals[index] = normalized;
-      await syncPromotionsFromApi();
-      return normalized;
-    }
-  } catch (e) {
-    console.warn('[DealsModel] Update hot deal API notice:', e.message);
+  const res = await PromotionsApi.updateHotDeal(id, apiPayload);
+  const saved = res.body || res;
+  if (saved && saved.id) {
+    const normalized = normalizeHotDeal(saved, products);
+    if (index !== -1) memoryHotDeals[index] = normalized;
+    await syncPromotionsFromApi();
+    return normalized;
   }
-
-  const updated = normalizeHotDeal({
-    ...existing,
-    ...apiPayload,
-    ...dealData,
-    id: Number(id),
-    timerUpdatedAt: dealData.resetTimer ? new Date().toISOString() : (existing.timerUpdatedAt || new Date().toISOString()),
-    lastUpdated: new Date().toISOString()
-  }, products);
-
-  if (index !== -1) memoryHotDeals[index] = updated;
-  return updated;
+  throw new Error("Failed to update hot deal on backend.");
 }
 
 /**

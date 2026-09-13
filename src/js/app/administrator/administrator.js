@@ -142,17 +142,6 @@ export function renderAdminPage(queryPart) {
               <div class="sidebar-tooltip">Newsletter & Email Marketing</div>
             </button>
 
-            <button data-tab="trash" onclick="switchAdminTab('trash')" title="Trash Bin & Data Recovery Vault"
-              class="superadmin-only-nav sidebar-nav-btn w-full flex items-center justify-between px-2 lg:px-3.5 py-2.5 rounded-lg font-medium text-xs text-[#475569] hover:text-rose-700 hover:bg-rose-50 transition-all relative group">
-              <div class="flex items-center space-x-0 lg:space-x-3">
-                <svg class="w-5 h-5 flex-shrink-0 text-rose-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                </svg>
-                <span class="sidebar-text-label hidden lg:inline whitespace-nowrap font-bold text-rose-700">Trash Bin</span>
-              </div>
-              <span id="admin-trash-badge" class="hidden lg:inline-flex px-1.5 py-0.5 rounded-full text-[9px] font-mono font-extrabold bg-rose-100 text-rose-700 border border-rose-200 shadow-2xs">0</span>
-              <div class="sidebar-tooltip">Trash Bin & Data Recovery</div>
-            </button>
             <button data-tab="branches" onclick="switchAdminTab('branches')" title="Store Branches"
               class="admin-only-nav sidebar-nav-btn w-full flex items-center justify-center lg:justify-start space-x-0 lg:space-x-3 px-2 lg:px-3.5 py-2.5 rounded-lg font-medium text-xs text-[#475569] hover:text-[#0f172a] hover:bg-[#f1f5f9] transition-all relative group">
               <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -235,7 +224,7 @@ export function renderAdminPage(queryPart) {
       <div class="flex-1 flex flex-col min-w-0 h-screen overflow-hidden bg-[#f8fafc]">
 
         <!-- Top Workspace Utility Bar -->
-        <header class="h-16 bg-white border-b border-[#e2e8f0] px-4 sm:px-6 flex items-center justify-between flex-shrink-0 shadow-sm">
+        <header class="admin-header-bar h-16 px-4 sm:px-6 flex items-center justify-between flex-shrink-0">
           <div class="flex items-center space-x-3">
             <!-- Sidebar Collapse / Expand Toggle Button -->
             <button id="admin-sidebar-toggle" onclick="toggleAdminSidebar()" title="Toggle Sidebar"
@@ -277,7 +266,7 @@ export function renderAdminPage(queryPart) {
         </header>
 
         <!-- Main Dynamic Tab Content Scroll Area -->
-        <main class="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
+        <main class="admin-content-scroll flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
 
           <!-- Tab Panel 1: Overview (Dynamic Admin or Staff Overview) -->
           <div id="tab-panel-overview" class="dashboard-tab-panel">
@@ -309,6 +298,12 @@ export function renderAdminPage(queryPart) {
                 </div>
 
                 <div class="flex items-center space-x-2.5 w-full sm:w-auto">
+                  <select id="product-status-filter" onchange="filterProductsTable()"
+                    class="px-2.5 py-2 rounded-md bg-[#f8fafc] border border-[#e2e8f0] text-[#0f172a] text-xs focus:border-blue-600 cursor-pointer font-medium">
+                    <option value="ALL">All Statuses</option>
+                    <option value="ACTIVE">Active Only</option>
+                    <option value="INACTIVE">Inactive Only</option>
+                  </select>
                   <input type="text" id="product-search-input" onkeyup="filterProductsTable()"
                     placeholder="Search SKU or Product..."
                     class="px-3.5 py-2 rounded-md bg-[#f8fafc] border border-[#e2e8f0] text-[#0f172a] text-xs placeholder-[#94a3b8] focus:border-blue-600 w-full sm:w-60">
@@ -347,7 +342,8 @@ export function renderAdminPage(queryPart) {
 
           <!-- Tab Panel 3: Orders -->
           <div id="tab-panel-orders" class="dashboard-tab-panel hidden">
-            <div class="bg-white border border-[#e2e8f0] rounded-lg p-5 shadow-sm space-y-5">
+            <!-- 1. Orders List View -->
+            <div id="orders-list-view" class="bg-white border border-[#e2e8f0] rounded-lg p-5 shadow-sm space-y-5">
               <div>
                 <h3 class="text-lg font-bold text-[#0f172a]">Customer Order Fulfillment</h3>
                 <p class="text-xs text-[#64748b] mt-0.5">Process customer purchases, review delivery branch distances, and update shipping progress.</p>
@@ -363,7 +359,7 @@ export function renderAdminPage(queryPart) {
                       <th class="py-3 px-3.5">Dispatch Branch & Distance</th>
                       <th class="py-3 px-3.5">Total Amount</th>
                       <th class="py-3 px-3.5">Status</th>
-                      <th class="py-3 px-3.5 text-right">Update Action</th>
+                      <th class="py-3 px-3.5 text-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody id="orders-tbody" class="divide-y divide-[#e2e8f0]">
@@ -371,6 +367,11 @@ export function renderAdminPage(queryPart) {
                   </tbody>
                 </table>
               </div>
+            </div>
+
+            <!-- 2. Order Detail View (hidden by default, rendered dynamically) -->
+            <div id="admin-order-detail-view" class="hidden">
+              <!-- Rendered dynamically by order_management_controller.js -->
             </div>
           </div>
 
@@ -382,24 +383,197 @@ export function renderAdminPage(queryPart) {
 
           <!-- Tab Panel 4: Branches -->
           <div id="tab-panel-branches" class="dashboard-tab-panel hidden">
-            <div class="bg-white border border-[#e2e8f0] rounded-lg p-5 shadow-sm space-y-5">
+            <!-- 1. Branches List Page -->
+            <div id="branches-list-view" class="bg-white border border-[#e2e8f0] rounded-xl p-5 shadow-sm space-y-5">
               <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
                 <div>
-                  <h3 class="text-lg font-bold text-[#0f172a]">Store Branch Management</h3>
-                  <p class="text-xs text-[#64748b] mt-0.5">Manage regional warehouses, base shipping rates, and distance parameters.</p>
+                  <div class="flex items-center space-x-2">
+                    <span class="p-1.5 rounded-lg bg-blue-50 text-blue-600 text-sm font-bold">🏢</span>
+                    <h3 class="text-lg font-bold text-[#0f172a]">Store Branch Management</h3>
+                  </div>
+                  <p class="text-xs text-[#64748b] mt-0.5">Manage regional fulfillment warehouses, live GPS dispatch coordinates, and base shipping rates.</p>
                 </div>
-                <button onclick="openBranchModal()"
-                  class="px-3.5 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-md shadow-sm transition-all flex items-center space-x-1.5">
-                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-                  </svg>
-                  <span>Add New Branch</span>
-                </button>
+                <div class="flex items-center space-x-2.5 w-full sm:w-auto">
+                  <input type="text" id="branch-search-filter" oninput="filterBranchesTab(this.value)" placeholder="Search branches..."
+                    class="px-3 py-2 text-xs rounded-lg bg-[#f8fafc] border border-[#e2e8f0] text-[#0f172a] focus:border-blue-600 focus:outline-none w-full sm:w-48 shadow-xs" />
+                  <button onclick="openBranchFormPage()"
+                    class="px-3.5 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-lg shadow-sm transition-all flex items-center space-x-1.5 shrink-0">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                    </svg>
+                    <span>Add New Branch</span>
+                  </button>
+                </div>
               </div>
 
               <div id="branches-list-grid" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <!-- Dynamic cards -->
+                <!-- Dynamic branch cards -->
               </div>
+            </div>
+
+            <!-- 2. Dedicated Branch Form Page (Replaces Modal Overlay) -->
+            <div id="branch-form-view" class="hidden bg-white border border-[#e2e8f0] rounded-xl p-6 shadow-sm space-y-6">
+              <div class="flex items-center justify-between border-b border-[#e2e8f0] pb-4">
+                <div class="flex items-center space-x-3">
+                  <button type="button" onclick="closeBranchFormPage()"
+                    class="px-3 py-1.5 bg-[#f8fafc] hover:bg-[#f1f5f9] text-[#475569] hover:text-[#0f172a] rounded-lg text-xs font-bold border border-[#e2e8f0] flex items-center space-x-1 transition shadow-xs">
+                    <span>←</span>
+                    <span>Back to Branches</span>
+                  </button>
+                  <div>
+                    <h3 id="branch-page-title" class="text-base font-extrabold text-[#0f172a]">Add Store Branch</h3>
+                    <p id="branch-page-subtitle" class="text-xs text-[#64748b]">Configure warehouse details and pinpoint exact warehouse GPS location on the map.</p>
+                  </div>
+                </div>
+                <span id="branch-form-status-pill" class="px-2.5 py-1 rounded-full text-xs font-mono font-bold bg-blue-50 text-blue-700 border border-blue-200">
+                  New Warehouse
+                </span>
+              </div>
+
+              <form id="branch-editor-form" onsubmit="handleSaveBranchSubmit(event)" class="space-y-5">
+                <input type="hidden" id="bform-id" value="" />
+
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                  <!-- Left Column: Form Details (6 cols) -->
+                  <div class="lg:col-span-6 space-y-4 text-xs">
+                    <div>
+                      <label class="block text-[#475569] font-bold mb-1">Branch Name <span class="text-rose-500">*</span></label>
+                      <input type="text" id="bform-name" required placeholder="e.g. Colombo Main Hub / Kandy Center"
+                        class="w-full px-3.5 py-2.5 rounded-lg bg-[#f8fafc] border border-[#e2e8f0] text-[#0f172a] focus:border-blue-600 focus:bg-white text-xs shadow-xs" />
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3.5">
+                      <div>
+                        <label class="block text-[#475569] font-bold mb-1">City / Hub Region <span class="text-rose-500">*</span></label>
+                        <select id="bform-city" required onchange="handleBranchCityChange(this.value)"
+                          class="w-full px-3 py-2 rounded-lg bg-[#f8fafc] border border-[#e2e8f0] text-[#0f172a] focus:border-blue-600 focus:bg-white text-xs shadow-xs">
+                          <option value="Colombo">Colombo</option>
+                          <option value="Kandy">Kandy</option>
+                          <option value="Galle">Galle</option>
+                          <option value="Matara">Matara</option>
+                          <option value="Gampaha">Gampaha</option>
+                          <option value="Kalutara">Kalutara</option>
+                          <option value="Kurunegala">Kurunegala</option>
+                          <option value="Jaffna">Jaffna</option>
+                          <option value="Negombo">Negombo</option>
+                          <option value="Anuradhapura">Anuradhapura</option>
+                          <option value="Badulla">Badulla</option>
+                          <option value="Ratnapura">Ratnapura</option>
+                          <option value="Batticaloa">Batticaloa</option>
+                          <option value="Trincomalee">Trincomalee</option>
+                          <option value="Matale">Matale</option>
+                          <option value="Nuwara Eliya">Nuwara Eliya</option>
+                          <option value="Hambantota">Hambantota</option>
+                          <option value="Puttalam">Puttalam</option>
+                          <option value="Polonnaruwa">Polonnaruwa</option>
+                          <option value="Kegalle">Kegalle</option>
+                          <option value="Vavuniya">Vavuniya</option>
+                          <option value="Kilinochchi">Kilinochchi</option>
+                          <option value="Mannar">Mannar</option>
+                          <option value="Mullaitivu">Mullaitivu</option>
+                          <option value="Ampara">Ampara</option>
+                          <option value="Monaragala">Monaragala</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label class="block text-[#475569] font-bold mb-1">Custom Branch Code</label>
+                        <input type="text" id="bform-code" placeholder="e.g. BR-COL (Optional)"
+                          class="w-full px-3 py-2 rounded-lg bg-[#f8fafc] border border-[#e2e8f0] text-[#0f172a] font-mono uppercase focus:border-blue-600 focus:bg-white text-xs shadow-xs" />
+                      </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3.5">
+                      <div>
+                        <label class="block text-[#475569] font-bold mb-1">Contact Phone <span class="text-rose-500">*</span></label>
+                        <input type="text" id="bform-phone" required placeholder="+94 11 234 5678"
+                          class="w-full px-3.5 py-2.5 rounded-lg bg-[#f8fafc] border border-[#e2e8f0] text-[#0f172a] focus:border-blue-600 focus:bg-white text-xs shadow-xs" />
+                      </div>
+                      <div>
+                        <label class="block text-[#475569] font-bold mb-1">Contact Email</label>
+                        <input type="email" id="bform-email" placeholder="branch@etechcomputers.lk"
+                          class="w-full px-3.5 py-2.5 rounded-lg bg-[#f8fafc] border border-[#e2e8f0] text-[#0f172a] focus:border-blue-600 focus:bg-white text-xs shadow-xs" />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label class="block text-[#475569] font-bold mb-1">Full Physical Address <span class="text-rose-500">*</span></label>
+                      <textarea id="bform-address" rows="2" required placeholder="Street address, building name, floor..."
+                        class="w-full px-3.5 py-2 rounded-lg bg-[#f8fafc] border border-[#e2e8f0] text-[#0f172a] focus:border-blue-600 focus:bg-white text-xs shadow-xs resize-none"></textarea>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3.5">
+                      <div>
+                        <label class="block text-[#475569] font-bold mb-1">Base Shipping Fee (Rs.)</label>
+                        <input type="number" step="0.01" id="bform-basefee" value="350" required
+                          class="w-full px-3.5 py-2 rounded-lg bg-[#f8fafc] border border-[#e2e8f0] text-[#0f172a] font-mono focus:border-blue-600 focus:bg-white text-xs shadow-xs" />
+                      </div>
+                      <div>
+                        <label class="block text-[#475569] font-bold mb-1">Per KM Distance Rate (Rs.)</label>
+                        <input type="number" step="0.01" id="bform-kmfee" value="25" required
+                          class="w-full px-3.5 py-2 rounded-lg bg-[#f8fafc] border border-[#e2e8f0] text-[#0f172a] font-mono focus:border-blue-600 focus:bg-white text-xs shadow-xs" />
+                      </div>
+                    </div>
+
+                    <div class="pt-1">
+                      <label class="inline-flex items-center space-x-2 cursor-pointer">
+                        <input type="checkbox" id="bform-active" checked class="w-4 h-4 text-blue-600 rounded border-[#cbd5e1] focus:ring-0" />
+                        <span class="text-xs font-bold text-[#0f172a]">Warehouse Active for Storefront Order Fulfillment</span>
+                      </label>
+                    </div>
+                  </div>
+
+                  <!-- Right Column: Interactive Map & GPS Location Picker (6 cols) -->
+                  <div class="lg:col-span-6 space-y-3">
+                    <div class="flex items-center justify-between">
+                      <div>
+                        <label class="block text-xs font-bold text-[#0f172a] flex items-center space-x-1.5">
+                          <span>📍 Live Warehouse GPS Location Pin</span>
+                        </label>
+                        <p class="text-[11px] text-[#64748b]">Drag the pin or click anywhere on map to pinpoint warehouse coordinates.</p>
+                      </div>
+                      <button type="button" id="btn-branch-gps" onclick="useBranchCurrentGPSLocation()"
+                        class="px-2.5 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-md text-[11px] font-bold flex items-center space-x-1 transition shadow-xs">
+                        <span>🎯 Use Device GPS</span>
+                      </button>
+                    </div>
+
+                    <!-- Map Container -->
+                    <div id="branch-editor-map" class="w-full h-64 rounded-xl border border-slate-300 shadow-inner overflow-hidden relative z-0"></div>
+
+                    <!-- Lat / Long display & manual inputs -->
+                    <div class="grid grid-cols-2 gap-3 pt-1">
+                      <div>
+                        <label class="block text-[11px] font-bold text-[#475569] mb-1">Latitude (Lat)</label>
+                        <input type="number" step="0.00000001" id="bform-lat" required oninput="handleManualBranchCoordChange()"
+                          class="w-full px-3 py-1.5 rounded-lg bg-[#f8fafc] border border-[#e2e8f0] text-[#0f172a] font-mono text-xs focus:border-blue-600 focus:bg-white shadow-xs" />
+                      </div>
+                      <div>
+                        <label class="block text-[11px] font-bold text-[#475569] mb-1">Longitude (Lng)</label>
+                        <input type="number" step="0.00000001" id="bform-lng" required oninput="handleManualBranchCoordChange()"
+                          class="w-full px-3 py-1.5 rounded-lg bg-[#f8fafc] border border-[#e2e8f0] text-[#0f172a] font-mono text-xs focus:border-blue-600 focus:bg-white shadow-xs" />
+                      </div>
+                    </div>
+
+                    <div class="p-2.5 bg-blue-50 border border-blue-200 rounded-lg flex items-start space-x-2 text-[11px] text-blue-900">
+                      <span class="text-sm">💡</span>
+                      <span>This exact warehouse location will be saved in the database and immediately utilized by the checkout engine to calculate real delivery distances and route orders to the nearest branch.</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Form Footer Actions -->
+                <div class="pt-4 border-t border-[#e2e8f0] flex items-center justify-end space-x-3">
+                  <button type="button" onclick="closeBranchFormPage()"
+                    class="px-5 py-2.5 bg-[#f8fafc] hover:bg-[#f1f5f9] text-[#475569] rounded-lg font-bold text-xs border border-[#e2e8f0] transition shadow-xs">
+                    Cancel
+                  </button>
+                  <button type="submit" id="btn-save-branch-submit"
+                    class="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold text-xs shadow-md transition flex items-center space-x-2">
+                    <span>💾 Save Branch</span>
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
 
@@ -418,6 +592,28 @@ export function renderAdminPage(queryPart) {
                       d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
                   </svg>
                   <span>Create User Account</span>
+                </button>
+              </div>
+
+              <!-- User Type Toggle -->
+              <div class="flex items-center space-x-1 bg-[#f1f5f9] p-1 rounded-lg border border-[#e2e8f0] w-fit">
+                <button id="user-filter-all" onclick="filterUsersByType('all')"
+                  class="px-4 py-1.5 text-xs font-bold rounded-md transition-all bg-white text-[#0f172a] shadow-sm border border-[#e2e8f0]">
+                  All Users
+                </button>
+                <button id="user-filter-employees" onclick="filterUsersByType('employees')"
+                  class="px-4 py-1.5 text-xs font-bold rounded-md transition-all text-[#64748b] hover:text-[#0f172a]">
+                  <span class="flex items-center space-x-1.5">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+                    <span>Employees</span>
+                  </span>
+                </button>
+                <button id="user-filter-customers" onclick="filterUsersByType('customers')"
+                  class="px-4 py-1.5 text-xs font-bold rounded-md transition-all text-[#64748b] hover:text-[#0f172a]">
+                  <span class="flex items-center space-x-1.5">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+                    <span>Customers</span>
+                  </span>
                 </button>
               </div>
 
@@ -760,9 +956,6 @@ export function renderAdminPage(queryPart) {
           <div id="tab-panel-brand-form" class="dashboard-tab-panel hidden">
           </div>
 
-          <!-- Tab Panel: SuperAdmin Trash Bin & Data Recovery Vault -->
-          <div id="tab-panel-trash" class="dashboard-tab-panel hidden">
-          </div>
 
           <!-- Tab Panel: Newsletter & Email Marketing Management -->
           <div id="tab-panel-newsletter" class="dashboard-tab-panel hidden">
