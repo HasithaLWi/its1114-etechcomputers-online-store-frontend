@@ -453,9 +453,3 @@ The complete academic dissertation and technical project report is included dire
 
 Distributed under the **MIT License**. See `LICENSE` for more information.
 
----
-
-<p align="center">
-  <b>ETech Computers — Enterprise E-Commerce & Hardware Management Suite</b><br>
-  <i>Developed by Hasitha Wijesinghe · Higher Diploma in Software Engineering (HDSE 75) · Institute of Software Engineering (IJSE)</i>
-</p>
