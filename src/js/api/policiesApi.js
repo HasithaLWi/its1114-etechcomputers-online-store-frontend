@@ -71,5 +71,56 @@ export const PoliciesApi = {
       method: 'PUT',
       data: policyData
     });
+  },
+
+  /**
+   * Create a new legal policy document (Admin / SuperAdmin)
+   * POST /api/v1/policies
+   */
+  async createPolicy(policyData) {
+    console.log('[PoliciesAPI] createPolicy() -> payload:', policyData);
+    return ajaxRequest({
+      endpoint: '/policies',
+      method: 'POST',
+      data: policyData
+    });
+  },
+
+  /**
+   * Delete a legal policy document (Admin / SuperAdmin)
+   * DELETE /api/v1/policies/{slug}
+   */
+  async deletePolicy(slug) {
+    console.log('[PoliciesAPI] deletePolicy() -> slug:', slug);
+    return ajaxRequest({
+      endpoint: `/policies/${encodeURIComponent(slug)}`,
+      method: 'DELETE'
+    });
+  },
+
+  /**
+   * Add a new section/clause to a legal policy (Admin / SuperAdmin)
+   * POST /api/v1/policies/{slug}/sections
+   */
+  async addSection(slug, sectionData) {
+    console.log('[PoliciesAPI] addSection() -> slug:', slug, sectionData);
+    return ajaxRequest({
+      endpoint: `/policies/${encodeURIComponent(slug)}/sections`,
+      method: 'POST',
+      data: sectionData
+    });
+  },
+
+  /**
+   * Delete a section/clause from a legal policy (Admin / SuperAdmin)
+   * DELETE /api/v1/policies/{slug}/sections/{sectionId}
+   */
+  async deleteSection(slug, sectionId) {
+    console.log('[PoliciesAPI] deleteSection() -> slug:', slug, 'sectionId:', sectionId);
+    return ajaxRequest({
+      endpoint: `/policies/${encodeURIComponent(slug)}/sections/${encodeURIComponent(sectionId)}`,
+      method: 'DELETE'
+    });
   }
 };
+

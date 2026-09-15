@@ -23,7 +23,7 @@ import { renderLoginPage } from './login/login.js';
 import { renderAdminPage } from './administrator/administrator.js';
 import { renderAboutPage } from './about/about.js';
 import { etechAlert } from '../util/index.js';
-import { checkServerHealth } from '../util/server_health.js';
+import { checkServerHealth, showAppLoading, setAppLoadingStatus, hideAppLoading, onServerReconnect } from '../util/server_health.js';
 
 document.addEventListener('DOMContentLoaded', () => {
   initApp();
@@ -34,33 +34,59 @@ window.addEventListener('hashchange', () => {
 });
 
 /**
- * Initialize SPA application
+ * Synchronizes catalog and store data from backend REST APIs into local in-memory stores.
  */
-export function initApp() {
-  // Test server connectivity via test API
-  checkServerHealth(true);
-
-  // Sync live backend data from REST APIs into in-memory stores
-  Promise.allSettled([
-    syncProductsFromApi({ page: 0, size: 20 }),
-    syncCategoriesFromApi({ activeOnly: true }),
-    syncBrandsFromApi({ activeOnly: true }),
-    syncBadgesFromApi({ activeOnly: true }),
-    syncPromotionsFromApi(),
-    syncBranchesFromApi(),
-    syncPoliciesFromApi(),
-    syncOrdersFromApi(),
-    syncWishlistFromApi(),
-    syncNewsletterFromApi()
-  ]).then(() => {
+export async function syncLiveBackendData() {
+  try {
+    await Promise.allSettled([
+      syncProductsFromApi({ page: 0, size: 20 }),
+      syncCategoriesFromApi({ activeOnly: true }),
+      syncBrandsFromApi({ activeOnly: true }),
+      syncBadgesFromApi({ activeOnly: true }),
+      syncPromotionsFromApi(),
+      syncBranchesFromApi(),
+      syncPoliciesFromApi(),
+      syncOrdersFromApi(),
+      syncWishlistFromApi(),
+      syncNewsletterFromApi()
+    ]);
     const hash = window.location.hash || '#home';
     const [routePart, queryPart] = hash.substring(1).split('?');
     triggerPageHooks(routePart || 'home', queryPart);
-  }).catch(err => {
-    console.warn('[AppInit] Initial live sync notice:', err.message || err);
+  } catch (err) {
+    console.warn('[AppSync] Live sync notice:', err.message || err);
+  }
+}
+
+/**
+ * Initialize SPA application
+ */
+export async function initApp() {
+  // 1. Show pre-boot splash loading screen
+  showAppLoading('Connecting to ETech Services...');
+
+  // 2. Register auto-reconnect listener: resync data automatically when server comes back
+  onServerReconnect(async () => {
+    await syncLiveBackendData();
+    updateCartBadge();
+    updateWishlistBadge();
+    updateHeaderAuthUI();
+    handleRoute();
   });
 
-  handleRoute();
+  // 3. Probe backend server connectivity via /api/v1/test/ping
+  const isOnline = await checkServerHealth();
+
+  if (isOnline) {
+    setAppLoadingStatus('Synchronizing store catalog...');
+    await syncLiveBackendData();
+    hideAppLoading();
+    handleRoute();
+  } else {
+    // If backend is offline, hide initial splash; offline blocker handles UI
+    hideAppLoading();
+  }
+
   updateCartBadge();
   updateWishlistBadge();
   updateHeaderAuthUI();
@@ -154,8 +180,8 @@ function handleRoute() {
     return;
   }
 
-  // Handle Legal Policy routes (privacy, terms, warranty, policy, policies)
-  if (['privacy', 'terms', 'warranty', 'policy', 'policies'].includes(pageName)) {
+  // Handle Legal Policy routes (privacy, terms, warranty, returns, policy, policies)
+  if (['privacy', 'terms', 'warranty', 'returns', 'policy', 'policies'].includes(pageName)) {
     const policySection = document.getElementById('policy-page');
     if (policySection) {
       policySection.classList.remove('hidden');
@@ -228,16 +254,53 @@ function handleRoute() {
   updateHeaderAuthUI();
 }
 
+let isRefreshingHome = false;
+
 /**
- * Executes page-specific logic functions after section unhide
+ * Refreshes live backend API data for the Home Page and updates all home sections
  */
-function triggerPageHooks(pageName, queryPart) {
-  if (pageName === 'home') {
+export async function refreshHomePageData() {
+  // 1. Render immediately from existing cache/store so UI is fast and responsive
+  renderHomeFeaturedProducts();
+  renderHomeDealBannerLive();
+  renderHomeNewArrivalsCarousel();
+  renderHomeNewArrivalsGrid();
+  renderHomeBrandsShowcase();
+
+  // 2. Fetch fresh live data from backend REST APIs
+  if (isRefreshingHome) return;
+  isRefreshingHome = true;
+
+  try {
+    await Promise.allSettled([
+      syncProductsFromApi({ page: 0, size: 20 }),
+      syncPromotionsFromApi(),
+      syncCategoriesFromApi({ activeOnly: true }),
+      syncBrandsFromApi({ activeOnly: true }),
+      syncBadgesFromApi({ activeOnly: true })
+    ]);
+
+    // 3. Re-render home sections with fresh backend data
     renderHomeFeaturedProducts();
     renderHomeDealBannerLive();
     renderHomeNewArrivalsCarousel();
     renderHomeNewArrivalsGrid();
     renderHomeBrandsShowcase();
+  } catch (err) {
+    console.warn('[HomePage] Background refresh notice:', err.message || err);
+  } finally {
+    isRefreshingHome = false;
+  }
+}
+
+window.refreshHomePageData = refreshHomePageData;
+
+/**
+ * Executes page-specific logic functions after section unhide
+ */
+function triggerPageHooks(pageName, queryPart) {
+  if (pageName === 'home') {
+    refreshHomePageData();
   } else if (pageName === 'shop') {
     initShopLogic(queryPart);
   } else if (pageName === 'deals' || pageName === 'hot-deals') {
@@ -1249,18 +1312,47 @@ window.addEventListener('productsUpdated', () => {
 /**
  * Renders Legal Policy Section (Privacy Policy, Terms of Service, Guarantee & Warranty)
  */
-function renderPolicyPage(policyKey = 'privacy') {
+async function renderPolicyPage(policyKey = 'privacy') {
   const container = document.getElementById('policy-content-area');
   const tabsContainer = document.getElementById('policy-tabs-container');
   if (!container) return;
 
-  const policies = getStoredPolicies();
-  const key = policies[policyKey] ? policyKey : 'privacy';
+  let policies = getStoredPolicies();
+  if (!policies || Object.keys(policies).length === 0) {
+    container.innerHTML = `
+      <div class="bg-white border border-[#e2e8f0] rounded-2xl p-12 text-center shadow-sm">
+        <div class="inline-block w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-3"></div>
+        <p class="text-sm font-bold text-[#0f172a]">Loading Legal Policies from Server...</p>
+        <p class="text-xs text-[#64748b] mt-1">Retrieving official customer protection documents directly from ETech backend.</p>
+      </div>
+    `;
+    try {
+      await syncPoliciesFromApi();
+      policies = getStoredPolicies();
+    } catch (e) {
+      container.innerHTML = `
+        <div class="bg-white border border-rose-200 rounded-2xl p-8 text-center shadow-sm">
+          <p class="text-sm font-bold text-rose-600">Failed to load legal policies</p>
+          <p class="text-xs text-[#64748b] mt-1">Please ensure the backend server is online and try again.</p>
+        </div>
+      `;
+      return;
+    }
+  }
+
+  const keys = Object.keys(policies);
+  if (keys.length === 0) {
+    container.innerHTML = `<div class="bg-white border border-[#e2e8f0] rounded-2xl p-8 text-center text-xs text-[#64748b]">No legal policies currently published.</div>`;
+    return;
+  }
+
+  const key = policies[policyKey] ? policyKey : (keys.includes('privacy') ? 'privacy' : keys[0]);
   const policy = policies[key];
+  if (!policy) return;
 
   // Render Tabs
   if (tabsContainer) {
-    tabsContainer.innerHTML = Object.keys(policies).map(k => {
+    tabsContainer.innerHTML = keys.map(k => {
       const p = policies[k];
       const isActive = k === key;
       return `
@@ -1302,25 +1394,36 @@ function renderPolicyPage(policyKey = 'privacy') {
 
       <!-- Policy Sections List -->
       <div class="space-y-4">
-        ${policy.sections.map(sec => `
-          <div class="space-y-2 bg-[#f8fafc] p-4 rounded-md border border-[#e2e8f0]">
-            <h3 class="text-sm font-bold text-[#0f172a] flex items-center space-x-2">
-              <span class="w-1.5 h-1.5 rounded-full bg-blue-600 inline-block"></span>
-              <span>${sec.heading}</span>
-            </h3>
-            <p class="text-xs text-[#475569] leading-relaxed font-normal">${sec.content}</p>
-            ${sec.bullets ? `
-              <ul class="mt-2 space-y-1 pl-3 border-l border-blue-200">
-                ${sec.bullets.map(bullet => `
-                  <li class="text-xs text-[#64748b] flex items-start space-x-2">
-                    <span class="text-blue-600 font-bold">▪</span>
-                    <span>${bullet}</span>
-                  </li>
-                `).join('')}
-              </ul>
-            ` : ''}
-          </div>
-        `).join('')}
+        ${(policy.sections || []).map(sec => {
+          let bullets = [];
+          if (Array.isArray(sec.bullets) && sec.bullets.length > 0) {
+            bullets = sec.bullets;
+          } else if (sec.bulletPoints) {
+            bullets = sec.bulletPoints.split('|').map(b => b.trim()).filter(Boolean);
+          }
+
+          return `
+            <div class="space-y-2 bg-[#f8fafc] p-4 rounded-md border border-[#e2e8f0]">
+              <h3 class="text-sm font-bold text-[#0f172a] flex items-center space-x-2">
+                <span class="w-1.5 h-1.5 rounded-full bg-blue-600 inline-block"></span>
+                <span>${sec.heading || sec.sectionTitle || ''}</span>
+              </h3>
+              ${sec.content || sec.sectionContent ? `
+                <p class="text-xs text-[#475569] leading-relaxed font-normal">${sec.content || sec.sectionContent}</p>
+              ` : ''}
+              ${bullets.length > 0 ? `
+                <ul class="mt-2 space-y-1 pl-3 border-l border-blue-200">
+                  ${bullets.map(bullet => `
+                    <li class="text-xs text-[#64748b] flex items-start space-x-2">
+                      <span class="text-blue-600 font-bold">▪</span>
+                      <span>${bullet}</span>
+                    </li>
+                  `).join('')}
+                </ul>
+              ` : ''}
+            </div>
+          `;
+        }).join('')}
       </div>
 
       <!-- Policy Footer Assistance Callout -->

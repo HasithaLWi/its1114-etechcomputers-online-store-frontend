@@ -56,7 +56,8 @@ import {
 } from './src/js/controller/hot_deal_controller.js';
 import { 
     handleLogout, updateHeaderAuthUI, renderHomeNewArrivalsGrid, renderHomeBrandsShowcase, scrollHomeBrands,
-    toggleMobileMenu, openMobileMenu, closeMobileMenu, handleMobileSearchSubmit, handleHeaderSearchSubmit
+    toggleMobileMenu, openMobileMenu, closeMobileMenu, handleMobileSearchSubmit, handleHeaderSearchSubmit,
+    refreshHomePageData
 } from './src/js/app/app.js';
 import {
     getWishlist, saveWishlist, isInWishlist, getWishlistCount,
@@ -82,7 +83,7 @@ import {
 import {
     renderPoliciesTab, openBusinessInfoModal, handleSaveBusinessInfoSubmit,
     openPolicyEditorModal, handleSavePolicySubmit, addClauseSection,
-    removeClauseSection, confirmResetPolicies
+    removeClauseSection
 } from './src/js/controller/policy_management_controller.js';
 
 // AI Chatbot API Import
@@ -219,9 +220,19 @@ import {
     getStockTransfers, saveStockTransfers, createStockTransfer,
     dispatchStockTransfer, receiveStockTransfer, cancelStockTransfer, getTransfersMetrics
 } from './src/js/models/transfers_data.js';
+import {
+    checkServerHealth, retryServerConnection,
+    showAppLoading, hideAppLoading,
+    showOfflineBlocker, hideOfflineBlocker
+} from './src/js/util/server_health.js';
 
 // ── Bind everything to window in one shot ────────────────────
 Object.assign(window, {
+    // Server Health & Connection Guard
+    checkServerHealth, retryServerConnection,
+    showAppLoading, hideAppLoading,
+    showOfflineBlocker, hideOfflineBlocker,
+
     // Inter-Branch Stock Transfers & Logistics
     renderTransfersTab, filterTransfersByStatus, handleTransferSearch,
     handleReceiveTransfer, handleCancelTransfer, openInitiateTransferModal,
@@ -261,7 +272,7 @@ Object.assign(window, {
     renderAboutPage,
     renderPoliciesTab, openBusinessInfoModal, handleSaveBusinessInfoSubmit,
     openPolicyEditorModal, handleSavePolicySubmit, addClauseSection,
-    removeClauseSection, confirmResetPolicies,
+    removeClauseSection,
 
     // Chatbot Config
     ET_CONFIG,
@@ -297,7 +308,7 @@ Object.assign(window, {
     initShopLogic, renderFilteredProducts, applyProductFilters, resetProductFilters,
     addCategoryFilter, removeCategoryFilter, clearCategoryFilters, getSelectedCategories,
     addBrandFilter, removeBrandFilter, clearBrandFilters, getSelectedBrands,
-    renderHomeBrandsShowcase, scrollHomeBrands,
+    renderHomeBrandsShowcase, scrollHomeBrands, refreshHomePageData,
 
     // Hardware Brands Management
     renderBrandsTab, openBrandFormPage, closeBrandFormPage,

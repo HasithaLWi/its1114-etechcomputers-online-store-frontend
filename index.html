@@ -7,6 +7,10 @@
   <title>ETech Computers - Built for Performance. Designed for You.</title>
   <meta name="description"
     content="Explore high-performance laptops, powerful components, and premium peripherals from trusted brands at ETech Computers.">
+  <link rel="preload" as="image" href="public/images/Create_ETech_Computers_logo_.jpeg" fetchpriority="high">
+  <!-- Favicon -->
+  <link rel="icon" type="image/jpeg" href="public/images/Create_ETech_Computers_logo_.jpeg">
+  <link rel="apple-touch-icon" href="public/images/Create_ETech_Computers_logo_.jpeg">
 
   <!-- Google Fonts: Plus Jakarta Sans & JetBrains Mono -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -22,8 +26,10 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
   <!-- Leaflet.js for Interactive Map & Geodesic Distance Routing -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 
   <!-- Tailwind CSS CDN with Extended Precision Design System Tokens -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -86,9 +92,115 @@
   class="bg-[#f8fafc] text-[#0f172a] flex flex-col min-h-screen font-sans antialiased selection:bg-blue-600 selection:text-white">
 
   <!-- ============================================================ -->
+  <!-- 0. APP GATEWAY LOADING SPLASH & OFFLINE UI BLOCKER           -->
+  <!-- ============================================================ -->
+  <!-- App Splash Loader (Visible instantly on page load to prevent FOUC) -->
+  <div id="etech-app-loader"
+    class="fixed inset-0 z-[9999999] flex flex-col items-center justify-center bg-[#0b1120] text-white transition-opacity duration-300">
+    <div class="flex flex-col items-center max-w-sm px-6 text-center space-y-5 select-none">
+      <!-- Brand Mark with pulsing glow -->
+      <div class="relative flex items-center justify-center">
+        <div class="absolute w-24 h-24 rounded-full bg-blue-600/30 blur-xl animate-pulse"></div>
+        <div
+          class="w-16 h-16 rounded-2xl bg-gradient-to-tr from-blue-600 to-cyan-500 flex items-center justify-center shadow-lg shadow-blue-500/25 border border-blue-400/30 relative z-10 overflow-hidden">
+          <img src="public/images/Create_ETech_Computers_logo_.jpeg" alt="ET"
+            class="w-full h-full object-cover rounded-2xl">
+        </div>
+      </div>
+
+      <!-- Brand Title -->
+      <div>
+        <h2 class="text-xl font-black tracking-tight text-white">
+          ETech<span class="text-blue-400">Computers</span>
+        </h2>
+        <p class="text-[10px] tracking-[0.25em] uppercase text-slate-400 font-semibold mt-0.5">NEXT-GEN TECH STORE</p>
+      </div>
+
+      <!-- Spinner & Status Text -->
+      <div class="flex flex-col items-center space-y-2.5 pt-1">
+        <div class="w-6 h-6 border-2 border-blue-500/20 border-t-blue-500 rounded-full animate-spin"></div>
+        <p id="etech-loader-status-text" class="text-xs font-medium text-slate-300">
+          Connecting to ETech Services...
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Non-Dismissible Offline Blocker Screen (Circuit Breaker UI) -->
+  <div id="etech-offline-blocker"
+    class="fixed inset-0 z-[99999999] flex items-center justify-center p-4 bg-[#090d16]/90 backdrop-blur-md transition-opacity duration-200 hidden opacity-0"
+    role="alertdialog" aria-modal="true">
+    <div id="etech-offline-card"
+      class="bg-white rounded-2xl max-w-md w-full p-6 sm:p-7 shadow-2xl border border-slate-200/80 transform scale-95 transition-all duration-200 space-y-5 text-center select-none">
+
+      <!-- Glowing Disconnect Icon -->
+      <div class="relative mx-auto w-16 h-16 flex items-center justify-center">
+        <div class="absolute inset-0 rounded-2xl bg-rose-500/20 animate-ping opacity-60"></div>
+        <div
+          class="w-16 h-16 rounded-2xl bg-rose-50 border border-rose-200 flex items-center justify-center text-rose-600 shadow-lg shadow-rose-500/10 relative z-10">
+          <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M18.364 5.636a9 9 0 010 12.728m0 0l-2.829-2.829m2.829 2.829L21 21M15.536 8.464a5 5 0 010 7.072m0 0l-2.829-2.829m-4.243 4.243a4.978 4.978 0 01-1.414-2.83m-1.414 5.657L3 21m0 0l2.828-2.828m0 0A9 9 0 0118.364 5.636M3 3l18 18" />
+          </svg>
+        </div>
+      </div>
+
+      <!-- Status Badge & Header -->
+      <div class="space-y-1.5">
+        <div
+          class="inline-flex items-center space-x-1.5 px-2.5 py-0.5 rounded-full bg-rose-100 text-rose-800 text-[10px] font-mono font-extrabold tracking-wider uppercase">
+          <span class="w-2 h-2 rounded-full bg-rose-500 animate-pulse"></span>
+          <span>OFFLINE</span>
+        </div>
+        <h3 class="text-xl font-black text-slate-900 tracking-tight">
+          Connection Lost
+        </h3>
+        <p class="text-xs sm:text-sm text-slate-600 leading-relaxed max-w-sm mx-auto">
+          We're having trouble connecting to our services. Please check your internet connection or try again.
+        </p>
+      </div>
+
+      <!-- User-Friendly Reconnect Status Message -->
+      <div id="etech-offline-feedback"
+        class="p-2.5 rounded-xl bg-rose-50 border border-rose-200/80 text-xs font-semibold text-rose-700 hidden">
+        Unable to reconnect. We'll automatically try again shortly.
+      </div>
+
+
+      <!-- Action Controls & Auto-Retry Countdown -->
+      <div class="space-y-2.5 pt-1">
+        <button type="button" id="etech-retry-connection-btn"
+          onclick="window.retryServerConnection &amp; window.retryServerConnection()"
+          class="w-full py-3 px-4 rounded-xl bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white font-bold text-xs sm:text-sm shadow-md shadow-blue-500/20 transition-all flex items-center justify-center space-x-2 cursor-pointer disabled:opacity-75 disabled:cursor-not-allowed">
+          <svg id="etech-retry-spinner" class="w-4 h-4 animate-spin hidden" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+          </svg>
+          <svg id="etech-retry-icon" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
+              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+          <span id="etech-retry-btn-text">Retry Connection Now</span>
+        </button>
+
+        <div class="flex items-center justify-center space-x-1.5 text-[11px] text-slate-500">
+          <svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <span>Auto-retrying in <strong id="etech-retry-countdown"
+              class="font-bold text-slate-700 font-mono">10s</strong></span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
   <!-- 1. PERSISTENT HEADER NAVIGATION BAR                          -->
   <!-- ============================================================ -->
   <header class="sticky top-0 z-50 backdrop-blur-md bg-white/95 text-[#0f172a] shadow-sm">
+
 
     <!-- Top Announcement / Utility Bar -->
     <!-- <div class="bg-[#f1f5f9] border-b border-[#e2e8f0] text-[#475569] text-xs py-2">
@@ -1379,10 +1491,12 @@
 
               <!-- Apply Filters Button -->
               <div class="pt-2">
-                <button id="apply-filters-btn" type="button" onclick="if(window.applyProductFilters) window.applyProductFilters()"
+                <button id="apply-filters-btn" type="button"
+                  onclick="if(window.applyProductFilters) window.applyProductFilters()"
                   class="w-full py-2.5 px-4 bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white text-xs font-extrabold rounded-lg shadow-sm transition-all flex items-center justify-center space-x-2 cursor-pointer">
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
                   </svg>
                   <span>Apply Filters</span>
                 </button>
@@ -1425,7 +1539,9 @@
             <div id="shop-pagination-container"
               class="hidden flex flex-col sm:flex-row items-center justify-between gap-4 bg-white border border-[#e2e8f0] rounded-xl px-5 py-4 shadow-sm">
               <p id="pagination-info" class="text-xs font-semibold text-[#64748b]">
-                Showing <span id="pagination-start" class="text-[#0f172a] font-bold">1</span> to <span id="pagination-end" class="text-[#0f172a] font-bold">12</span> of <span id="pagination-total" class="text-blue-600 font-bold">0</span> products
+                Showing <span id="pagination-start" class="text-[#0f172a] font-bold">1</span> to <span
+                  id="pagination-end" class="text-[#0f172a] font-bold">12</span> of <span id="pagination-total"
+                  class="text-blue-600 font-bold">0</span> products
               </p>
               <div id="pagination-buttons" class="flex items-center space-x-1.5 flex-wrap gap-y-1">
                 <!-- Dynamically rendered by shop_controller.js -->
@@ -1617,7 +1733,8 @@
                 </div>
 
                 <div>
-                  <label class="block text-xs font-semibold text-[#475569] uppercase tracking-wider mb-1">District / Region *</label>
+                  <label class="block text-xs font-semibold text-[#475569] uppercase tracking-wider mb-1">District /
+                    Region *</label>
                   <select id="district" required
                     class="w-full px-3.5 py-2.5 rounded-md bg-[#f8fafc] border border-[#e2e8f0] text-[#0f172a] text-sm focus:border-blue-600 font-medium">
                     <option value="Colombo" selected>Colombo (Western)</option>
@@ -1661,12 +1778,14 @@
                   </div>
                   <div class="flex items-center space-x-2">
                     <span id="map-location-status-badge">
-                      <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-300">
+                      <span
+                        class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-300">
                         <span class="w-1.5 h-1.5 rounded-full bg-amber-500 mr-1.5"></span>
                         ⚠️ Pin Required to Checkout
                       </span>
                     </span>
-                    <span id="map-distance-badge" class="text-[11px] px-2.5 py-0.5 rounded-full font-mono font-bold bg-blue-50 text-blue-700 border border-blue-200">
+                    <span id="map-distance-badge"
+                      class="text-[11px] px-2.5 py-0.5 rounded-full font-mono font-bold bg-blue-50 text-blue-700 border border-blue-200">
                       Calculating distance...
                     </span>
                   </div>
@@ -1674,7 +1793,8 @@
 
                 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2.5">
                   <p class="text-[11px] text-[#64748b]">
-                    Click anywhere on the map or drag the <strong class="text-emerald-700">📍 green pin</strong> to your exact doorstep. Live geodesic distance to the nearest warehouse will calculate automatically.
+                    Click anywhere on the map or drag the <strong class="text-emerald-700">📍 green pin</strong> to your
+                    exact doorstep. Live geodesic distance to the nearest warehouse will calculate automatically.
                   </p>
                   <div class="flex items-center space-x-2 shrink-0">
                     <button type="button" id="btn-checkout-use-gps" onclick="useCustomerCurrentGeolocation()"
@@ -1688,10 +1808,14 @@
                   </div>
                 </div>
 
-                <div id="checkout-delivery-map" class="w-full h-64 rounded-lg border border-[#cbd5e1] overflow-hidden shadow-inner relative z-0"></div>
+                <div id="checkout-delivery-map"
+                  class="w-full h-64 rounded-lg border border-[#cbd5e1] overflow-hidden shadow-inner relative z-0">
+                </div>
                 <div id="map-route-summary" class="mt-2 text-xs text-[#475569] flex items-center justify-between">
-                  <span class="font-medium text-[11px]">Dispatch Hub: <strong id="nearest-hub-name" class="text-blue-700">Colombo Hub</strong></span>
-                  <span class="font-medium text-[11px]">Delivery Distance: <strong id="nearest-hub-distance" class="text-[#0f172a] font-mono">5 km</strong></span>
+                  <span class="font-medium text-[11px]">Dispatch Hub: <strong id="nearest-hub-name"
+                      class="text-blue-700">Colombo Hub</strong></span>
+                  <span class="font-medium text-[11px]">Delivery Distance: <strong id="nearest-hub-distance"
+                      class="text-[#0f172a] font-mono">5 km</strong></span>
                 </div>
               </div>
 
@@ -1707,7 +1831,8 @@
               <div class="grid grid-cols-2 gap-4">
                 <label id="label-pay-card"
                   class="relative flex items-center p-3.5 rounded-md bg-[#f8fafc] border border-blue-600 cursor-pointer space-x-3 shadow-sm">
-                  <input type="radio" name="payment-method" id="pay-method-card" value="card" checked class="text-blue-600 focus:ring-0">
+                  <input type="radio" name="payment-method" id="pay-method-card" value="card" checked
+                    class="text-blue-600 focus:ring-0">
                   <div class="flex flex-col">
                     <span class="text-xs font-bold text-[#0f172a]">PayHere / Card</span>
                     <span class="text-[10px] text-[#64748b]">Visa, Mastercard, AMEX</span>
@@ -1716,7 +1841,8 @@
 
                 <label id="label-pay-cod"
                   class="relative flex items-center p-3.5 rounded-md bg-[#f8fafc] border border-[#e2e8f0] hover:border-[#cbd5e1] cursor-pointer space-x-3">
-                  <input type="radio" name="payment-method" id="pay-method-cod" value="cod" class="text-blue-600 focus:ring-0">
+                  <input type="radio" name="payment-method" id="pay-method-cod" value="cod"
+                    class="text-blue-600 focus:ring-0">
                   <div class="flex flex-col">
                     <span class="text-xs font-bold text-[#0f172a]">Cash on Delivery</span>
                     <span class="text-[10px] text-[#64748b]">Pay on arrival</span>
@@ -1726,18 +1852,25 @@
 
               <div id="card-fields" class="space-y-3 pt-1">
                 <!-- Sandbox Notice Banner -->
-                <div class="p-2.5 bg-emerald-50 border border-emerald-200 rounded-md flex items-center justify-between text-xs">
+                <div
+                  class="p-2.5 bg-emerald-50 border border-emerald-200 rounded-md flex items-center justify-between text-xs">
                   <div class="flex items-center space-x-2">
-                    <span class="px-1.5 py-0.5 rounded bg-emerald-600 text-white font-mono font-bold text-[10px]">PAYHERE SANDBOX</span>
-                    <span class="text-[11px] text-emerald-800 font-medium">Secured with Sri Lanka's Central Bank approved gateway</span>
+                    <span
+                      class="px-1.5 py-0.5 rounded bg-emerald-600 text-white font-mono font-bold text-[10px]">PAYHERE
+                      SANDBOX</span>
+                    <span class="text-[11px] text-emerald-800 font-medium">Secured with Sri Lanka's Central Bank
+                      approved gateway</span>
                   </div>
                   <span class="text-[10px] text-emerald-700 font-mono font-bold">LKR TEST MODE</span>
                 </div>
 
                 <div>
                   <div class="flex items-center justify-between mb-1">
-                    <label class="block text-xs font-semibold text-[#475569] uppercase tracking-wider">Card Number *</label>
-                    <span id="card-brand-badge" class="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200">GENERIC CARD</span>
+                    <label class="block text-xs font-semibold text-[#475569] uppercase tracking-wider">Card Number
+                      *</label>
+                    <span id="card-brand-badge"
+                      class="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200">GENERIC
+                      CARD</span>
                   </div>
                   <div class="relative">
                     <input type="text" id="card-number" placeholder="4532 •••• •••• 8892" maxlength="19"
@@ -1749,12 +1882,14 @@
 
                 <div class="grid grid-cols-2 gap-4">
                   <div>
-                    <label class="block text-xs font-semibold text-[#475569] uppercase tracking-wider mb-1">Expiry Date *</label>
+                    <label class="block text-xs font-semibold text-[#475569] uppercase tracking-wider mb-1">Expiry Date
+                      *</label>
                     <input type="text" id="card-expiry" placeholder="MM/YY" maxlength="5"
                       class="w-full px-3.5 py-2.5 rounded-md bg-[#f8fafc] border border-[#e2e8f0] text-[#0f172a] placeholder-[#94a3b8] text-sm font-mono focus:border-blue-600">
                   </div>
                   <div>
-                    <label class="block text-xs font-semibold text-[#475569] uppercase tracking-wider mb-1">CVV / CVC *</label>
+                    <label class="block text-xs font-semibold text-[#475569] uppercase tracking-wider mb-1">CVV / CVC
+                      *</label>
                     <input type="password" id="card-cvv" placeholder="•••" maxlength="4"
                       class="w-full px-3.5 py-2.5 rounded-md bg-[#f8fafc] border border-[#e2e8f0] text-[#0f172a] placeholder-[#94a3b8] text-sm font-mono focus:border-blue-600">
                   </div>

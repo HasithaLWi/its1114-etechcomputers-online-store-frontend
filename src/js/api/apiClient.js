@@ -218,6 +218,13 @@ export function ajaxRequest({ endpoint, method = 'GET', data = null, headers = {
           handleSessionExpired(errorMessage);
         }
 
+        // Runtime Connectivity Guard: If server drops while user is browsing
+        if (endpoint !== '/test/ping' && xhr.status === 0) {
+          if (typeof window !== 'undefined' && typeof window.showOfflineBlocker === 'function') {
+            window.showOfflineBlocker('Connection lost. The backend server is unreachable.');
+          }
+        }
+
         console.error(`%c[API Error ${xhr.status || 0}] ${httpMethod} ${endpoint} (${duration}ms)`, 'color: #dc2626; font-weight: bold;', {
           status: xhr.status,
           statusText: xhr.statusText,

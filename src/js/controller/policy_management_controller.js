@@ -3,8 +3,7 @@
 // ============================================================
 import { 
   getBusinessInfo, saveBusinessInfo, getStoredPolicies, saveStoredPolicies, 
-  updatePolicyDocument, DEFAULT_BUSINESS_INFO, DEFAULT_LEGAL_POLICIES,
-  syncPoliciesFromApi
+  updatePolicyDocument, syncPoliciesFromApi
 } from '../models/policy-data.js';
 import {
   iconBuilding,
@@ -105,9 +104,6 @@ export async function renderPoliciesTab() {
             </h3>
             <p class="text-xs text-[#64748b] mt-0.5">Manage policy document titles, revision dates, and individual legal clause sections.</p>
           </div>
-          <button onclick="confirmResetPolicies()" class="px-3.5 py-1.5 bg-[#f8fafc] hover:bg-[#f1f5f9] text-[#64748b] hover:text-[#0f172a] rounded-xl text-xs font-semibold border border-[#e2e8f0] transition-all cursor-pointer whitespace-nowrap">
-            Restore Defaults
-          </button>
         </div>
 
         <div class="overflow-x-auto p-4 pt-0">
@@ -362,7 +358,7 @@ function renderPolicyModalContent(policyKey, policy) {
                   </div>
                   <input type="text" id="clause-heading-${idx}" value="${sec.heading || ''}" placeholder="Clause Heading (e.g. 1. Information We Collect)" class="w-full px-2.5 py-1.5 rounded bg-white border border-[#e2e8f0] text-[#0f172a] text-xs focus:border-blue-600 font-semibold">
                   <textarea id="clause-content-${idx}" rows="2" placeholder="Clause description..." class="w-full px-2.5 py-1.5 rounded bg-white border border-[#e2e8f0] text-[#475569] text-xs focus:border-blue-600">${sec.content || ''}</textarea>
-                  <input type="text" id="clause-bullets-${idx}" value="${(sec.bullets || []).join(' | ')}" placeholder="Bullet items separated by | (pipe)" class="w-full px-2.5 py-1.5 rounded bg-white border border-[#e2e8f0] text-[#64748b] text-xs focus:border-blue-600">
+                  <input type="text" id="clause-bullets-${idx}" value="${sec.bulletPoints || (sec.bullets || []).join(' | ')}" placeholder="Bullet items separated by | (pipe)" class="w-full px-2.5 py-1.5 rounded bg-white border border-[#e2e8f0] text-[#64748b] text-xs focus:border-blue-600">
                 </div>
               `).join('')}
             </div>
@@ -383,6 +379,7 @@ export function addClauseSection(policyKey) {
   editingPolicySections.push({
     heading: `${editingPolicySections.length + 1}. New Clause Heading`,
     content: "Detailed description of legal clause...",
+    bulletPoints: "",
     bullets: []
   });
   const policies = getStoredPolicies();
@@ -405,6 +402,7 @@ function syncCurrentModalClauses() {
     if (contEl) sec.content = contEl.value;
     if (bullEl) {
       const val = bullEl.value.trim();
+      sec.bulletPoints = val;
       sec.bullets = val ? val.split('|').map(s => s.trim()).filter(Boolean) : [];
     }
   });
@@ -432,21 +430,4 @@ export async function handleSavePolicySubmit(e, policyKey) {
   if (window.closeAdminModal) window.closeAdminModal();
   renderPoliciesTab();
   showToast(`${title} document saved successfully!`, 'success');
-}
-
-export async function confirmResetPolicies() {
-  const confirmed = await etechAlert.confirm({
-    title: 'Restore Policies to Factory Default?',
-    message: 'Are you sure you want to reset all legal policies, terms of service, and corporate business info to factory defaults?',
-    type: 'warning',
-    confirmText: 'Yes, Restore Defaults',
-    cancelText: 'Cancel'
-  });
-
-  if (!confirmed) return;
-
-  saveStoredPolicies(DEFAULT_LEGAL_POLICIES);
-  saveBusinessInfo(DEFAULT_BUSINESS_INFO);
-  renderPoliciesTab();
-  showToast('Policies and Business Profile restored to default.', 'info');
 }
