@@ -476,8 +476,21 @@
     <!-- ================= SECTION 1: HOME PAGE ================= -->
     <section id="home-page" class="page-section space-y-12 pb-16">
 
-      <!-- HERO SECTION -->
-      <div class="relative overflow-hidden bg-[#f8fafc] py-12 sm:py-16 lg:py-20 border-b border-[#e2e8f0]">
+      <!-- HERO SECTION — Dark Tech Showroom Theme -->
+      <div class="hero-dark-section py-14 sm:py-18 lg:py-22">
+
+        <!-- Dark Gradient Overlay -->
+        <div class="hero-dark-overlay"></div>
+
+        <!-- Subtle Ambient Glow Effects -->
+        <div class="hero-ambient-glow-1"></div>
+        <div class="hero-ambient-glow-2"></div>
+
+        <!-- Blue Particle Canvas -->
+        <canvas id="hero-particle-canvas" class="hero-particle-canvas"></canvas>
+
+        <!-- Bottom Transition Gradient (dark → light) -->
+        <div class="hero-bottom-fade"></div>
 
         <div class="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 xl:gap-1 items-center relative">
@@ -485,100 +498,89 @@
             <!-- Hero Left: Typography & CTAs -->
             <div class="lg:col-span-5 space-y-5 text-center lg:text-left">
               <span
-                class="inline-flex items-center space-x-2 px-3.5 py-1 rounded-full bg-blue-50 border border-blue-200/80 text-blue-600 text-[11px] font-mono font-bold tracking-wider uppercase shadow-sm">
+                class="hero-animate-in inline-flex items-center space-x-2 px-3.5 py-1 rounded-full bg-blue-600/20 border border-blue-500/30 text-blue-300 text-[11px] font-mono font-bold tracking-wider uppercase shadow-sm backdrop-blur-sm">
                 <span>PREMIUM HARDWARE. POWERFUL PERFORMANCE.</span>
               </span>
 
               <h1
-                class="text-3xl sm:text-4xl lg:text-[44px] xl:text-[48px] font-extrabold tracking-tight text-[#0f172a] leading-[1.20] sm:leading-[1.15] lg:leading-[1.18] xl:leading-[1.20]">
-                Built for Performance.<br class="hidden sm:inline"> Designed for <span class="text-blue-600">You.</span>
+                class="hero-animate-in hero-animate-in-delay-1 text-3xl sm:text-4xl lg:text-[44px] xl:text-[48px] font-extrabold tracking-tight text-white leading-[1.20] sm:leading-[1.15] lg:leading-[1.18] xl:leading-[1.20]">
+                Built for Performance.<br class="hidden sm:inline"> Designed for <span class="text-blue-400">You.</span>
               </h1>
 
-              <p class="text-[#475569] text-sm sm:text-base max-w-xl mx-auto lg:mx-0 leading-relaxed font-normal">
+              <p
+                class="hero-animate-in hero-animate-in-delay-2 text-slate-300 text-sm sm:text-base max-w-xl mx-auto lg:mx-0 leading-relaxed font-normal">
                 Explore high-performance laptops, powerful components, and premium <strong
-                  class="font-bold text-[#0f172a]">peripherals</strong> from <strong
-                  class="font-bold text-[#0f172a]">trusted brands</strong>.
+                  class="font-bold text-white">peripherals</strong> from <strong class="font-bold text-white">trusted
+                  brands</strong>.
               </p>
 
               <!-- Action Buttons -->
               <div
-                class="flex flex-col sm:flex-row items-center justify-center lg:justify-start space-y-2.5 sm:space-y-0 sm:space-x-3 pt-1">
+                class="hero-animate-in hero-animate-in-delay-3 flex flex-col sm:flex-row items-center justify-center lg:justify-start space-y-2.5 sm:space-y-0 sm:space-x-3 pt-1">
                 <a href="#shop"
-                  class="w-full sm:w-auto px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs sm:text-sm rounded-xl transition-all flex items-center justify-center space-x-2 shadow-lg shadow-blue-500/20 transform hover:-translate-y-0.5">
+                  class="w-full sm:w-auto px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs sm:text-sm rounded-xl transition-all flex items-center justify-center space-x-2 shadow-lg shadow-blue-600/30 transform hover:-translate-y-0.5 border border-blue-500/40">
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                       d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
                   </svg>
                   <span>Shop Catalog</span>
+                  <svg class="w-3.5 h-3.5 ml-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
+                      d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                  </svg>
                 </a>
               </div>
 
-              <!-- 3 Trust Indicators -->
+              <!-- 3 Trust Indicators (Dark Semi-Transparent Style) -->
               <div
-                class="grid grid-cols-3 gap-2 sm:gap-3 pt-5 border-t border-[#e2e8f0] max-w-lg mx-auto lg:mx-0 text-left">
+                class="hero-animate-in hero-animate-in-delay-4 hero-trust-indicators-dark grid grid-cols-3 gap-2 sm:gap-3 pt-5 max-w-lg mx-auto lg:mx-0 text-left">
                 <div class="flex items-center space-x-2">
-                  <div
-                    class="w-7 h-7 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center flex-shrink-0 border border-blue-100 shadow-sm">
+                  <div class="hero-trust-icon-dark">
                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                         d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
                     </svg>
                   </div>
                   <div>
-                    <p class="text-xs font-extrabold text-[#0f172a]">100%</p>
-                    <p class="text-[9px] text-[#64748b] uppercase tracking-wider font-bold">Genuine Products</p>
+                    <p class="text-xs font-extrabold text-white">100%</p>
+                    <p class="text-[9px] text-slate-400 uppercase tracking-wider font-bold">Genuine Products</p>
                   </div>
                 </div>
 
                 <div class="flex items-center space-x-2">
-                  <div
-                    class="w-7 h-7 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center flex-shrink-0 border border-blue-100 shadow-sm">
+                  <div class="hero-trust-icon-dark">
                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                         d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 100-6 3 3 0 000 6z" />
                     </svg>
                   </div>
                   <div>
-                    <p class="text-xs font-extrabold text-[#0f172a]">24/7</p>
-                    <p class="text-[9px] text-[#64748b] uppercase tracking-wider font-bold">Expert Support</p>
+                    <p class="text-xs font-extrabold text-white">24/7</p>
+                    <p class="text-[9px] text-slate-400 uppercase tracking-wider font-bold">Expert Support</p>
                   </div>
                 </div>
 
                 <div class="flex items-center space-x-2">
-                  <div
-                    class="w-7 h-7 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center flex-shrink-0 border border-blue-100 shadow-sm">
+                  <div class="hero-trust-icon-dark">
                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                         d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                   </div>
                   <div>
-                    <p class="text-xs font-extrabold text-[#0f172a]">2 Years</p>
-                    <p class="text-[9px] text-[#64748b] uppercase tracking-wider font-bold">Official Warranty</p>
+                    <p class="text-xs font-extrabold text-white">2 Years</p>
+                    <p class="text-[9px] text-slate-400 uppercase tracking-wider font-bold">Official Warranty</p>
                   </div>
                 </div>
               </div>
 
             </div>
-            <!-- left side include static image and 3d card -->
-            <div class="lg:col-span-7 flex items-center justify-center relative">
+            <!-- Right side: 3D card carousel -->
+            <div
+              class="card-container lg:col-span-7 flex items-center justify-center relative hero-animate-cards overflow-visible">
 
-              <!-- Hero Center & Right: Prominent Setup Image home-hero-image-1.png -->
-
-              <div class="relative flex items-center justify-center w-full transform lg:translate-x-[-20%]">
-                <!-- Glowing Ambient Light Blue Base Aura -->
-                <div
-                  class="absolute -bottom-4 left-1/2 -translate-x-1/2 w-4/5 h-24 bg-blue-400/25 blur-3xl rounded-full pointer-events-none">
-                </div>
-
-                <img src="public/images/home-hero-image-1.png" alt="ETech High Performance Gaming Workstation Setup"
-                  class="w-full max-w-[600px] min-w-[420px] 2xl:max-w-[760px] h-auto   object-contain drop-shadow-2xl ">
-              </div>
-
-
-              <!-- Hero Right: Interactive 3D Stacked Product Cards Deck (Absolute on Right) -->
-              <div class="relative lg:absolute  lg:right-0 z-20 flex justify-center lg:justify-end pointer-events-auto"
-                id="hero-carousel-container">
+              <!-- Hero Right: Interactive 3D Stacked Product Cards Deck -->
+              <div class="relative z-20 flex justify-center pointer-events-auto" id="hero-carousel-container">
                 <!-- Rendered dynamically by JS app.js -->
               </div>
             </div>
@@ -586,6 +588,108 @@
           </div>
         </div>
       </div>
+
+      <!-- Subtle Blue Particle Animation Script -->
+      <script>
+          (function initHeroParticles() {
+            const canvas = document.getElementById('hero-particle-canvas');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            let particles = [];
+            let animId = null;
+            let w, h;
+
+            function resize() {
+              const rect = canvas.parentElement.getBoundingClientRect();
+              w = canvas.width = rect.width;
+              h = canvas.height = rect.height;
+            }
+
+            function createParticles() {
+              particles = [];
+              const count = Math.min(Math.floor((w * h) / 18000), 60);
+              for (let i = 0; i < count; i++) {
+                particles.push({
+                  x: Math.random() * w,
+                  y: Math.random() * h,
+                  r: Math.random() * 1.8 + 0.5,
+                  dx: (Math.random() - 0.5) * 0.35,
+                  dy: (Math.random() - 0.5) * 0.25,
+                  alpha: Math.random() * 0.4 + 0.1,
+                  pulse: Math.random() * Math.PI * 2
+                });
+              }
+            }
+
+            function draw() {
+              ctx.clearRect(0, 0, w, h);
+              const time = Date.now() * 0.001;
+
+              particles.forEach(p => {
+                p.x += p.dx;
+                p.y += p.dy;
+                p.pulse += 0.015;
+
+                // Wrap around edges
+                if (p.x < -5) p.x = w + 5;
+                if (p.x > w + 5) p.x = -5;
+                if (p.y < -5) p.y = h + 5;
+                if (p.y > h + 5) p.y = -5;
+
+                const currentAlpha = p.alpha * (0.6 + 0.4 * Math.sin(p.pulse));
+
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+                ctx.fillStyle = `rgba(147, 197, 253, ${currentAlpha})`;
+                ctx.fill();
+              });
+
+              // Draw connections between nearby particles
+              for (let i = 0; i < particles.length; i++) {
+                for (let j = i + 1; j < particles.length; j++) {
+                  const dx = particles[i].x - particles[j].x;
+                  const dy = particles[i].y - particles[j].y;
+                  const dist = Math.sqrt(dx * dx + dy * dy);
+                  if (dist < 120) {
+                    const lineAlpha = (1 - dist / 120) * 0.08;
+                    ctx.beginPath();
+                    ctx.moveTo(particles[i].x, particles[i].y);
+                    ctx.lineTo(particles[j].x, particles[j].y);
+                    ctx.strokeStyle = `rgba(147, 197, 253, ${lineAlpha})`;
+                    ctx.lineWidth = 0.5;
+                    ctx.stroke();
+                  }
+                }
+              }
+
+              animId = requestAnimationFrame(draw);
+            }
+
+            // Only run if visible
+            const observer = new IntersectionObserver((entries) => {
+              entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                  if (!animId) {
+                    resize();
+                    createParticles();
+                    draw();
+                  }
+                } else {
+                  if (animId) {
+                    cancelAnimationFrame(animId);
+                    animId = null;
+                  }
+                }
+              });
+            }, { threshold: 0.1 });
+
+            observer.observe(canvas.parentElement);
+            window.addEventListener('resize', () => {
+              resize();
+              createParticles();
+            });
+          })();
+      </script>
 
       <!-- SERVICE / TRUST STRIP -->
       <div class="container mx-auto px-4 sm:px-6 lg:px-8">
