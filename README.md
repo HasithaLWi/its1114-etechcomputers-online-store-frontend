@@ -1,3 +1,4 @@
+![etech_logo](Create_ETech_Computers_logo_long_logo.jpeg)
 # 💻 ETech Computers — Next-Gen Enterprise E-Commerce & Hardware Management Platform
 
 [![ETech Version](https://img.shields.io/badge/Version-2.5.0--Enterprise-blue.svg?style=for-the-badge)](https://github.com/HasithaLWi/ITS1114-AAD-ETech-Computers-Online-Store-HTML)
