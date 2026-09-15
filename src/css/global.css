@@ -66,6 +66,18 @@ textarea:focus {
     }
 }
 
+/* ── Error Shake Animation for Offline Blocker ───────────────── */
+@keyframes et-shake {
+    0%, 100% { transform: translateX(0); }
+    20%, 60% { transform: translateX(-7px); }
+    40%, 80% { transform: translateX(7px); }
+}
+
+.et-shake {
+    animation: et-shake 0.4s ease-in-out !important;
+}
+
+
 /* ── Navigation Tab / Link Button Styles (Exact Mockup Match) ─────── */
 .nav-tab-btn {
     position: relative;
