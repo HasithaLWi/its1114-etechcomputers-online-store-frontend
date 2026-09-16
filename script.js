@@ -25,8 +25,13 @@ import {
     switchTab, togglePasswordVisibility, showAlert, handleLoginSubmit, handleSignupSubmit,
     updateUserProfile, changeUserPassword, openEditProfileModal, closeEditProfileModal,
     switchProfileModalTab, toggleModalPasswordVisibility, handleSaveProfileDetailsSubmit,
-    handleChangePasswordSubmit
+    handleChangePasswordSubmit,
+    openForgotPasswordModal, closeForgotPasswordModal, switchForgotStep,
+    showForgotModalAlert, startForgotCountdownTimer, startResendCooldown,
+    checkPasswordStrength, handleSendResetOtp, handleVerifyResetOtp,
+    handleResetPasswordSubmit, handleResendResetOtp
 } from './src/js/controller/login_controller.js';
+import { EmailService, EmailTemplates, showEmailPreviewModal, STORE_EMAIL, STORE_NAME } from './src/js/util/email_servise.js';
 import { getBranches, calculateShippingFee, autoSelectFulfillmentBranch } from './src/js/controller/branch_controller.js';
 import {
     getCart, saveCart, updateCartBadge, addToCart, addBundleToCart, showToast,
@@ -109,8 +114,12 @@ import {
     exportSubscribersCsv, openAddSubscriberModal,
     saveNewSubscriberManual, openCampaignModal,
     applyCampaignTemplate, handleSendCampaignSubmit,
-    closeNewsletterModal, handleStorefrontNewsletterSubmit
+    closeNewsletterModal, handleStorefrontNewsletterSubmit,
+    updateCampaignPreview, updateCampaignTargetAudienceCount,
+    reactivateAllSubscribersFromModal, reactivateAllSubscribersFromPage,
+    insertPlaceholder
 } from './src/js/controller/newsletter_management_controller.js';
+import { handleResubscribe, handleManualUnsubscribeSubmit } from './src/js/app/newsletter/unsubscribe.js';
 
 // Admin Dashboard Shell Imports
 import {
@@ -289,6 +298,11 @@ Object.assign(window, {
     updateUserProfile, changeUserPassword, openEditProfileModal, closeEditProfileModal,
     switchProfileModalTab, toggleModalPasswordVisibility, handleSaveProfileDetailsSubmit,
     handleChangePasswordSubmit,
+    openForgotPasswordModal, closeForgotPasswordModal, switchForgotStep,
+    showForgotModalAlert, startForgotCountdownTimer, startResendCooldown,
+    checkPasswordStrength, handleSendResetOtp, handleVerifyResetOtp,
+    handleResetPasswordSubmit, handleResendResetOtp,
+    EmailService, EmailTemplates, showEmailPreviewModal, STORE_EMAIL, STORE_NAME,
 
     // Cart & Checkout
     getCart, saveCart, updateCartBadge, addToCart, showToast,
@@ -415,5 +429,9 @@ Object.assign(window, {
     exportSubscribersCsv, openAddSubscriberModal,
     saveNewSubscriberManual, openCampaignModal,
     applyCampaignTemplate, handleSendCampaignSubmit,
-    closeNewsletterModal, handleStorefrontNewsletterSubmit
+    closeNewsletterModal, handleStorefrontNewsletterSubmit,
+    updateCampaignPreview, updateCampaignTargetAudienceCount,
+    reactivateAllSubscribersFromModal, reactivateAllSubscribersFromPage,
+    insertPlaceholder,
+    handleResubscribe, handleManualUnsubscribeSubmit
 });

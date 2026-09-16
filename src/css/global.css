@@ -230,8 +230,8 @@ textarea:focus {
 
 @media (max-width: 480px) {
     .card-container {
-        justify-content: left;
-        padding-left: 8vw;
+        justify-content: left !important;
+        padding-left: 10vw !important;
     }
 
     #et-panel {
@@ -424,6 +424,8 @@ textarea:focus {
 
 /* ── Responsive: Mobile (≤640px) ──────────────────────────── */
 @media (max-width: 640px) {
+
+
 
 
     .hero-card-3d {

@@ -53,6 +53,66 @@ export const AuthApi = {
       method: 'GET'
     });
     return (res && res.body !== undefined && res.body !== null) ? res.body : res;
+  },
+
+  /**
+   * Request 6-digit OTP code to reset password
+   * POST /api/v1/auth/forgot-password/request-otp
+   */
+  async requestPasswordResetOtp(identifier) {
+    console.log('[UserAPI] AuthApi.requestPasswordResetOtp() ->', identifier);
+    return ajaxRequest({
+      endpoint: '/auth/forgot-password/request-otp',
+      method: 'POST',
+      data: { identifier: (identifier || '').trim() }
+    });
+  },
+
+  /**
+   * Verify 6-digit OTP code
+   * POST /api/v1/auth/forgot-password/verify-otp
+   */
+  async verifyPasswordResetOtp(identifier, otp) {
+    console.log('[UserAPI] AuthApi.verifyPasswordResetOtp() ->', identifier, otp);
+    return ajaxRequest({
+      endpoint: '/auth/forgot-password/verify-otp',
+      method: 'POST',
+      data: {
+        identifier: (identifier || '').trim(),
+        otp: (otp || '').trim()
+      }
+    });
+  },
+
+  /**
+   * Reset account password with verified OTP or reset token
+   * POST /api/v1/auth/forgot-password/reset-password
+   */
+  async resetPasswordWithOtp(identifier, resetToken, newPassword) {
+    console.log('[UserAPI] AuthApi.resetPasswordWithOtp() ->', identifier);
+    return ajaxRequest({
+      endpoint: '/auth/forgot-password/reset-password',
+      method: 'POST',
+      data: {
+        identifier: (identifier || '').trim(),
+        resetToken: (resetToken || '').trim(),
+        newPassword: newPassword
+      }
+    });
+  }
+};
+
+export const EmailApi = {
+  /**
+   * Send Customer Support Inquiry
+   * POST /api/v1/email/support
+   */
+  async sendSupportInquiry(inquiryData) {
+    return ajaxRequest({
+      endpoint: '/email/support',
+      method: 'POST',
+      data: inquiryData
+    });
   }
 };
 

@@ -230,6 +230,13 @@ export const NewsletterApi = {
   },
 
   /**
+   * Alias for backward compatibility / controller convenience
+   */
+  async delete(id) {
+    return this.deleteSubscriber(id);
+  },
+
+  /**
    * Bulk update status for multiple subscribers
    * PATCH /api/v1/newsletter/subscribers/bulk-status?status={status}
    */

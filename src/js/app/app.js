@@ -22,6 +22,7 @@ import { initWishlistLogic, updateWishlistBadge, isInWishlist, toggleWishlist, s
 import { renderLoginPage } from './login/login.js';
 import { renderAdminPage } from './administrator/administrator.js';
 import { renderAboutPage } from './about/about.js';
+import { renderUnsubscribePage } from './newsletter/unsubscribe.js';
 import { etechAlert } from '../util/index.js';
 import { checkServerHealth, showAppLoading, setAppLoadingStatus, hideAppLoading, onServerReconnect } from '../util/server_health.js';
 
@@ -174,6 +175,19 @@ function handleRoute() {
       aboutSection.classList.remove('hidden');
       window.scrollTo(0, 0);
       renderAboutPage();
+    }
+    updateActiveNavLinks(pageName);
+    updateHeaderAuthUI();
+    return;
+  }
+
+  // Handle Newsletter Unsubscribe route (#unsubscribe or #unsubscribe?email=...)
+  if (['unsubscribe', 'newsletter-unsubscribe'].includes(pageName)) {
+    const unsubSection = document.getElementById('unsubscribe-page');
+    if (unsubSection) {
+      unsubSection.classList.remove('hidden');
+      window.scrollTo(0, 0);
+      renderUnsubscribePage(queryPart);
     }
     updateActiveNavLinks(pageName);
     updateHeaderAuthUI();

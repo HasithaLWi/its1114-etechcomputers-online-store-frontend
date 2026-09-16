@@ -114,6 +114,7 @@ export async function submitProductReview({ productId, userId, userName, userEma
     return { success: false, message: 'Review submission failed: ' + (err.message || 'Server offline') };
   }
 
+  let reviewRecord;
   if (isOverride) {
     allReviews[existingIndex] = {
       ...allReviews[existingIndex],
