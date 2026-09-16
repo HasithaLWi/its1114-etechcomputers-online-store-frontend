@@ -19,6 +19,20 @@ export const OrdersApi = {
   },
 
   /**
+   * Filter orders with pagination & query parameters
+   * GET /api/v1/orders/filter
+   */
+  async getFiltered(params = {}) {
+    console.log('[OrdersAPI] getFiltered() -> params:', params);
+    const res = await ajaxRequest({
+      endpoint: '/orders/filter',
+      method: 'GET',
+      data: params
+    });
+    return res.body || res;
+  },
+
+  /**
    * Fetch logged-in customer's order history
    * GET /api/v1/orders/my-orders
    */

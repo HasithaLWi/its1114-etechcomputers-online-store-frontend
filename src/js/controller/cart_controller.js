@@ -531,35 +531,15 @@ export function detectCardBrand(cardNumber) {
 }
 
 /**
- * Recalculates subtotal, tax (8%), shipping, and total amount
- * DYNAMIC FREE SHIPPING: Only orders containing promotional items marked isFreeShipping qualify for Rs. 0 delivery fee
+ * Recalculates cart subtotal and total amount
  */
 export function updateSummaryTotals(subtotal) {
   const subtotalEl = document.getElementById('summary-subtotal');
-  const shippingEl = document.getElementById('summary-shipping');
   const totalEl = document.getElementById('summary-total');
 
-  const cart = getCart();
-  const hasFreeShipping = cart.some(i => i.isFreeShipping);
-
-  const shipping = (hasFreeShipping || subtotal === 0) ? 0 : 2500;
-  const grandTotal = subtotal + shipping;
+  const grandTotal = subtotal;
 
   if (subtotalEl) subtotalEl.textContent = `Rs. ${subtotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-
-  if (shippingEl) {
-    if (subtotal === 0) {
-      shippingEl.textContent = 'Rs. 0.00';
-      shippingEl.className = 'font-bold text-[#0f172a] font-mono';
-    } else if (hasFreeShipping) {
-      shippingEl.innerHTML = '<span class="text-emerald-600 font-bold">FREE</span> <span class="text-[9px] font-mono font-bold bg-emerald-50 text-emerald-700 px-1.5 py-0.5 rounded border border-emerald-200 uppercase">PROMO APPLIED</span>';
-      shippingEl.className = 'flex items-center space-x-1.5 font-mono';
-    } else {
-      shippingEl.textContent = `Rs. ${shipping.toFixed(2)}`;
-      shippingEl.className = 'font-bold text-[#0f172a] font-mono';
-    }
-  }
-
   if (totalEl) totalEl.textContent = `Rs. ${grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 

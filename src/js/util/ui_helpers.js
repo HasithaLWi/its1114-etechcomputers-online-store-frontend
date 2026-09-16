@@ -294,3 +294,86 @@ export function renderUserStatusBadge(status) {
   </span>`;
 }
 
+/**
+ * Renders a standardized, responsive pagination footer bar
+ * 
+ * @param {object} options
+ * @param {string} options.containerId - HTML container ID
+ * @param {number} options.currentPage - 1-indexed current page
+ * @param {number} options.pageSize - items per page
+ * @param {number} options.totalItems - total item count
+ * @param {string} options.itemName - label e.g. 'products', 'orders', 'users'
+ * @param {string} options.onPageChange - JS function name to call with (newPage)
+ * @param {string} options.onPageSizeChange - JS function name to call with (newSize)
+ */
+export function renderTablePagination({
+  containerId,
+  currentPage = 1,
+  pageSize = 10,
+  totalItems = 0,
+  itemName = 'entries',
+  onPageChange = 'changePage',
+  onPageSizeChange = 'changePageSize'
+}) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+
+  const totalPages = Math.ceil(totalItems / pageSize) || 1;
+  const curr = Math.max(1, Math.min(currentPage, totalPages));
+  const startItem = totalItems === 0 ? 0 : (curr - 1) * pageSize + 1;
+  const endItem = Math.min(curr * pageSize, totalItems);
+
+  let pageButtonsHtml = '';
+  const maxButtons = 5;
+  let startPage = Math.max(1, curr - Math.floor(maxButtons / 2));
+  let endPage = Math.min(totalPages, startPage + maxButtons - 1);
+  if (endPage - startPage + 1 < maxButtons) {
+    startPage = Math.max(1, endPage - maxButtons + 1);
+  }
+
+  for (let p = startPage; p <= endPage; p++) {
+    const isActive = p === curr;
+    pageButtonsHtml += `
+      <button onclick="${onPageChange}(${p})"
+        class="w-7 h-7 flex items-center justify-center rounded text-xs font-mono font-bold transition shadow-xs ${
+          isActive
+            ? 'bg-blue-600 text-white shadow-sm'
+            : 'bg-white border border-[#e2e8f0] text-[#475569] hover:bg-[#f1f5f9]'
+        }">
+        ${p}
+      </button>
+    `;
+  }
+
+  container.innerHTML = `
+    <div class="px-4 py-3 bg-[#f8fafc] border-t border-[#e2e8f0] flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-[#64748b]">
+      <div class="flex items-center space-x-2 flex-wrap">
+        <span>Showing <strong class="text-[#0f172a] font-mono">${startItem}</strong> to <strong class="text-[#0f172a] font-mono">${endItem}</strong> of <strong class="text-[#0f172a] font-mono">${totalItems}</strong> ${itemName}</span>
+        <span class="text-[#cbd5e1]">|</span>
+        <div class="flex items-center space-x-1.5">
+          <span>Show</span>
+          <select onchange="${onPageSizeChange}(Number(this.value))"
+            class="px-2 py-1 bg-white border border-[#e2e8f0] rounded text-xs font-mono font-bold text-[#0f172a] focus:border-blue-600 cursor-pointer shadow-2xs">
+            <option value="5" ${pageSize === 5 ? 'selected' : ''}>5</option>
+            <option value="10" ${pageSize === 10 ? 'selected' : ''}>10</option>
+            <option value="20" ${pageSize === 20 ? 'selected' : ''}>20</option>
+            <option value="50" ${pageSize === 50 ? 'selected' : ''}>50</option>
+          </select>
+          <span>per page</span>
+        </div>
+      </div>
+      <div class="flex items-center space-x-1">
+        <button onclick="${onPageChange}(${curr - 1})" ${curr <= 1 ? 'disabled' : ''}
+          class="px-2.5 py-1 rounded bg-white border border-[#e2e8f0] font-semibold text-[#475569] hover:bg-[#f1f5f9] disabled:opacity-40 disabled:cursor-not-allowed transition shadow-2xs">
+          Previous
+        </button>
+        ${pageButtonsHtml}
+        <button onclick="${onPageChange}(${curr + 1})" ${curr >= totalPages ? 'disabled' : ''}
+          class="px-2.5 py-1 rounded bg-white border border-[#e2e8f0] font-semibold text-[#475569] hover:bg-[#f1f5f9] disabled:opacity-40 disabled:cursor-not-allowed transition shadow-2xs">
+          Next
+        </button>
+      </div>
+    </div>
+  `;
+}
+

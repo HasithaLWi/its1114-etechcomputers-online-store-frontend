@@ -291,22 +291,55 @@ export function renderAdminPage(queryPart) {
               </div>
 
               <!-- Top Action Bar -->
-              <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div class="flex flex-col xl:flex-row items-start xl:items-center justify-between gap-4">
                 <div>
                   <h3 class="text-lg font-bold text-[#0f172a]">Product Inventory Catalog</h3>
                   <p class="text-xs text-[#64748b] mt-0.5">Manage products and branch stock quantities across Colombo, Galle, Matara, and Kandy hubs.</p>
                 </div>
 
-                <div class="flex items-center space-x-2.5 w-full sm:w-auto">
+                <div class="flex items-center flex-wrap gap-2 w-full xl:w-auto">
+                  <div class="relative flex-1 sm:w-48">
+                    <input type="text" id="product-search-input" oninput="filterProductsTable()"
+                      placeholder="Search SKU or Product..."
+                      class="w-full pl-8 pr-3 py-2 rounded-md bg-[#f8fafc] border border-[#e2e8f0] text-[#0f172a] text-xs placeholder-[#94a3b8] focus:border-blue-600">
+                    <svg class="w-3.5 h-3.5 text-[#94a3b8] absolute left-2.5 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                  </div>
+                  <select id="product-category-filter" onchange="filterProductsTable()"
+                    class="px-2.5 py-2 rounded-md bg-[#f8fafc] border border-[#e2e8f0] text-[#0f172a] text-xs focus:border-blue-600 cursor-pointer font-medium">
+                    <option value="ALL">All Categories</option>
+                  </select>
+                  <select id="product-stock-filter" onchange="filterProductsTable()"
+                    class="px-2.5 py-2 rounded-md bg-[#f8fafc] border border-[#e2e8f0] text-[#0f172a] text-xs focus:border-blue-600 cursor-pointer font-medium">
+                    <option value="ALL">All Stock</option>
+                    <option value="IN_STOCK">In Stock (>5)</option>
+                    <option value="LOW_STOCK">Low Stock (1-5)</option>
+                    <option value="OUT_OF_STOCK">Out of Stock (0)</option>
+                  </select>
                   <select id="product-status-filter" onchange="filterProductsTable()"
                     class="px-2.5 py-2 rounded-md bg-[#f8fafc] border border-[#e2e8f0] text-[#0f172a] text-xs focus:border-blue-600 cursor-pointer font-medium">
                     <option value="ALL">All Statuses</option>
                     <option value="ACTIVE">Active Only</option>
                     <option value="INACTIVE">Inactive Only</option>
                   </select>
-                  <input type="text" id="product-search-input" onkeyup="filterProductsTable()"
-                    placeholder="Search SKU or Product..."
-                    class="px-3.5 py-2 rounded-md bg-[#f8fafc] border border-[#e2e8f0] text-[#0f172a] text-xs placeholder-[#94a3b8] focus:border-blue-600 w-full sm:w-60">
+                  <select id="product-sort-filter" onchange="filterProductsTable()"
+                    class="px-2.5 py-2 rounded-md bg-[#f8fafc] border border-[#e2e8f0] text-[#0f172a] text-xs focus:border-blue-600 cursor-pointer font-medium">
+                    <option value="id_desc">Newest First</option>
+                    <option value="price_asc">Price: Low to High</option>
+                    <option value="price_desc">Price: High to Low</option>
+                    <option value="name_asc">Name: A to Z</option>
+                  </select>
+                  <button onclick="filterProductsTable()" id="btn-apply-product-filter"
+                    class="px-3 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-md shadow-sm transition-all flex items-center space-x-1.5 flex-shrink-0 cursor-pointer"
+                    title="Apply dropdown and search filters">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/></svg>
+                    <span>Apply</span>
+                  </button>
+                  <button onclick="resetProductsFilter()" id="btn-reset-product-filter"
+                    class="px-2.5 py-2 bg-[#f1f5f9] hover:bg-[#e2e8f0] text-[#475569] text-xs font-bold rounded-md transition-all flex items-center space-x-1 flex-shrink-0 cursor-pointer"
+                    title="Reset all filters">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                    <span>Reset</span>
+                  </button>
                   <button onclick="openProductFormPage()"
                     class="px-3.5 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-md shadow-sm transition-all flex items-center space-x-1.5 flex-shrink-0">
                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -337,6 +370,9 @@ export function renderAdminPage(queryPart) {
                   </tbody>
                 </table>
               </div>
+
+              <!-- Products Pagination Footer -->
+              <div id="products-pagination-container"></div>
             </div>
           </div>
 
@@ -344,9 +380,45 @@ export function renderAdminPage(queryPart) {
           <div id="tab-panel-orders" class="dashboard-tab-panel hidden">
             <!-- 1. Orders List View -->
             <div id="orders-list-view" class="bg-white border border-[#e2e8f0] rounded-lg p-5 shadow-sm space-y-5">
-              <div>
-                <h3 class="text-lg font-bold text-[#0f172a]">Customer Order Fulfillment</h3>
-                <p class="text-xs text-[#64748b] mt-0.5">Process customer purchases, review delivery branch distances, and update shipping progress.</p>
+              <div class="flex flex-col xl:flex-row items-start xl:items-center justify-between gap-4">
+                <div>
+                  <h3 class="text-lg font-bold text-[#0f172a]">Customer Order Fulfillment</h3>
+                  <p class="text-xs text-[#64748b] mt-0.5">Process customer purchases, review delivery branch distances, and update shipping progress.</p>
+                </div>
+
+                <div class="flex items-center flex-wrap gap-2 w-full xl:w-auto">
+                  <div class="relative flex-1 sm:w-48">
+                    <input type="text" id="order-search-input" oninput="filterOrdersTable()"
+                      placeholder="Search Order ID, Customer..."
+                      class="w-full pl-8 pr-3 py-2 rounded-md bg-[#f8fafc] border border-[#e2e8f0] text-[#0f172a] text-xs placeholder-[#94a3b8] focus:border-blue-600">
+                    <svg class="w-3.5 h-3.5 text-[#94a3b8] absolute left-2.5 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                  </div>
+                  <select id="order-status-filter" onchange="filterOrdersTable()"
+                    class="px-2.5 py-2 rounded-md bg-[#f8fafc] border border-[#e2e8f0] text-[#0f172a] text-xs focus:border-blue-600 cursor-pointer font-medium">
+                    <option value="ALL">All Statuses</option>
+                    <option value="Pending">Pending</option>
+                    <option value="Processing">Processing</option>
+                    <option value="Shipped">Shipped</option>
+                    <option value="Delivered">Delivered</option>
+                    <option value="Cancelled">Cancelled</option>
+                  </select>
+                  <select id="order-branch-filter" onchange="filterOrdersTable()"
+                    class="px-2.5 py-2 rounded-md bg-[#f8fafc] border border-[#e2e8f0] text-[#0f172a] text-xs focus:border-blue-600 cursor-pointer font-medium">
+                    <option value="ALL">All Branches</option>
+                  </select>
+                  <select id="order-sort-filter" onchange="filterOrdersTable()"
+                    class="px-2.5 py-2 rounded-md bg-[#f8fafc] border border-[#e2e8f0] text-[#0f172a] text-xs focus:border-blue-600 cursor-pointer font-medium">
+                    <option value="date_desc">Newest First</option>
+                    <option value="date_asc">Oldest First</option>
+                    <option value="total_desc">Highest Total</option>
+                    <option value="total_asc">Lowest Total</option>
+                  </select>
+                  <button onclick="resetOrdersFilter()" title="Reset Filters"
+                    class="px-2.5 py-2 rounded-md bg-[#f8fafc] border border-[#e2e8f0] text-[#64748b] hover:text-[#0f172a] hover:bg-[#f1f5f9] transition text-xs font-bold flex items-center space-x-1">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                    <span>Reset</span>
+                  </button>
+                </div>
               </div>
 
               <div class="overflow-x-auto rounded-md border border-[#e2e8f0]">
@@ -367,6 +439,9 @@ export function renderAdminPage(queryPart) {
                   </tbody>
                 </table>
               </div>
+
+              <!-- Orders Pagination Footer -->
+              <div id="orders-pagination-container"></div>
             </div>
 
             <!-- 2. Order Detail View (hidden by default, rendered dynamically) -->
@@ -595,26 +670,62 @@ export function renderAdminPage(queryPart) {
                 </button>
               </div>
 
-              <!-- User Type Toggle -->
-              <div class="flex items-center space-x-1 bg-[#f1f5f9] p-1 rounded-lg border border-[#e2e8f0] w-fit">
-                <button id="user-filter-all" onclick="filterUsersByType('all')"
-                  class="px-4 py-1.5 text-xs font-bold rounded-md transition-all bg-white text-[#0f172a] shadow-sm border border-[#e2e8f0]">
-                  All Users
-                </button>
-                <button id="user-filter-employees" onclick="filterUsersByType('employees')"
-                  class="px-4 py-1.5 text-xs font-bold rounded-md transition-all text-[#64748b] hover:text-[#0f172a]">
-                  <span class="flex items-center space-x-1.5">
-                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
-                    <span>Employees</span>
-                  </span>
-                </button>
-                <button id="user-filter-customers" onclick="filterUsersByType('customers')"
-                  class="px-4 py-1.5 text-xs font-bold rounded-md transition-all text-[#64748b] hover:text-[#0f172a]">
-                  <span class="flex items-center space-x-1.5">
-                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
-                    <span>Customers</span>
-                  </span>
-                </button>
+              <!-- User Type Toggle & Filter Bar -->
+              <div class="flex flex-col xl:flex-row items-start xl:items-center justify-between gap-3">
+                <!-- User Type Toggle -->
+                <div class="flex items-center space-x-1 bg-[#f1f5f9] p-1 rounded-lg border border-[#e2e8f0] w-fit">
+                  <button id="user-filter-all" onclick="filterUsersByType('all')"
+                    class="px-4 py-1.5 text-xs font-bold rounded-md transition-all bg-white text-[#0f172a] shadow-sm border border-[#e2e8f0]">
+                    All Users
+                  </button>
+                  <button id="user-filter-employees" onclick="filterUsersByType('employees')"
+                    class="px-4 py-1.5 text-xs font-bold rounded-md transition-all text-[#64748b] hover:text-[#0f172a]">
+                    <span class="flex items-center space-x-1.5">
+                      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+                      <span>Employees</span>
+                    </span>
+                  </button>
+                  <button id="user-filter-customers" onclick="filterUsersByType('customers')"
+                    class="px-4 py-1.5 text-xs font-bold rounded-md transition-all text-[#64748b] hover:text-[#0f172a]">
+                    <span class="flex items-center space-x-1.5">
+                      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+                      <span>Customers</span>
+                    </span>
+                  </button>
+                </div>
+
+                <!-- Secondary Filters -->
+                <div class="flex items-center flex-wrap gap-2 w-full xl:w-auto">
+                  <div class="relative flex-1 sm:w-48">
+                    <input type="text" id="user-search-input" oninput="filterUsersDirectory()"
+                      placeholder="Search name, email, @user..."
+                      class="w-full pl-8 pr-3 py-2 rounded-md bg-[#f8fafc] border border-[#e2e8f0] text-[#0f172a] text-xs placeholder-[#94a3b8] focus:border-blue-600">
+                    <svg class="w-3.5 h-3.5 text-[#94a3b8] absolute left-2.5 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                  </div>
+                  <select id="user-role-filter" onchange="filterUsersDirectory()"
+                    class="px-2.5 py-2 rounded-md bg-[#f8fafc] border border-[#e2e8f0] text-[#0f172a] text-xs focus:border-blue-600 cursor-pointer font-medium">
+                    <option value="ALL">All Roles</option>
+                    <option value="SUPERADMIN">Superadmin</option>
+                    <option value="ADMIN">Admin</option>
+                    <option value="STAFF">Staff</option>
+                    <option value="CUSTOMER">Customer</option>
+                  </select>
+                  <select id="user-branch-filter" onchange="filterUsersDirectory()"
+                    class="px-2.5 py-2 rounded-md bg-[#f8fafc] border border-[#e2e8f0] text-[#0f172a] text-xs focus:border-blue-600 cursor-pointer font-medium">
+                    <option value="ALL">All Branches</option>
+                  </select>
+                  <select id="user-status-filter" onchange="filterUsersDirectory()"
+                    class="px-2.5 py-2 rounded-md bg-[#f8fafc] border border-[#e2e8f0] text-[#0f172a] text-xs focus:border-blue-600 cursor-pointer font-medium">
+                    <option value="ALL">All Statuses</option>
+                    <option value="ACTIVE">Active Only</option>
+                    <option value="INACTIVE">Inactive Only</option>
+                  </select>
+                  <button onclick="resetUsersFilter()" title="Reset Filters"
+                    class="px-2.5 py-2 rounded-md bg-[#f8fafc] border border-[#e2e8f0] text-[#64748b] hover:text-[#0f172a] hover:bg-[#f1f5f9] transition text-xs font-bold flex items-center space-x-1">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                    <span>Reset</span>
+                  </button>
+                </div>
               </div>
 
               <div class="overflow-x-auto rounded-md border border-[#e2e8f0]">
@@ -635,6 +746,9 @@ export function renderAdminPage(queryPart) {
                   </tbody>
                 </table>
               </div>
+
+              <!-- Users Pagination Footer -->
+              <div id="users-pagination-container"></div>
             </div>
           </div>
 

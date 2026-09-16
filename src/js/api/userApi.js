@@ -137,6 +137,20 @@ export const UserApi = {
   },
 
   /**
+   * Filter users with pagination & query parameters
+   * GET /api/v1/users/filter
+   */
+  async getFiltered(params = {}) {
+    console.log('[UserAPI] UserApi.getFiltered() -> params:', params);
+    const res = await ajaxRequest({
+      endpoint: '/users/filter',
+      method: 'GET',
+      data: params
+    });
+    return (res && res.body !== undefined && res.body !== null) ? res.body : res;
+  },
+
+  /**
    * Fetch single user record by database ID
    * GET /api/v1/users/{id}
    */

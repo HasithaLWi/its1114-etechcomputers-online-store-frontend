@@ -17,7 +17,14 @@ import { showToast } from './cart_controller.js';
 import { etechAlert } from '../util/index.js';
 
 // Controller Imports for Tabs
-import { renderProductsTab } from './product_management_controller.js';
+import { 
+  renderProductsTab, 
+  filterProductsTable, 
+  resetProductsFilter, 
+  changeProductPage, 
+  changeProductPageSize 
+} from './product_management_controller.js';
+export { filterProductsTable, resetProductsFilter, changeProductPage, changeProductPageSize };
 import { renderOrdersTab } from './order_management_controller.js';
 import { renderBranchesTab } from './branch_management_controller.js';
 import { renderUsersTab } from './user_management_controller.js';
@@ -1857,19 +1864,6 @@ export function handleAdminLogout() {
   window.location.hash = '#home';
 }
 
-export function filterProductsTable() {
-  const query = (document.getElementById('product-search-input')?.value || '').toLowerCase().trim();
-  const rows = document.querySelectorAll('#products-tbody tr');
-  rows.forEach(row => {
-    const text = row.textContent.toLowerCase();
-    if (text.includes(query)) {
-      row.removeAttribute('style');
-    } else {
-      row.style.display = 'none';
-    }
-  });
-}
-
 if (typeof window !== 'undefined') {
   Object.assign(window, {
     initAdminDashboard,
@@ -1879,6 +1873,9 @@ if (typeof window !== 'undefined') {
     toggleAdminSidebar,
     closeAdminModal,
     handleAdminLogout,
-    filterProductsTable
+    filterProductsTable,
+    resetProductsFilter,
+    changeProductPage,
+    changeProductPageSize
   });
 }

@@ -21,12 +21,29 @@ import {
   renderUserStatusBadge,
   formatLKR,
   showToast,
-  etechAlert
+  etechAlert,
+  renderTablePagination
 } from '../util/index.js';
 
 
 let productSearchQuery = '';
+let productCategoryFilter = 'ALL';
+let productStockFilter = 'ALL';
 let productStatusFilter = 'ALL';
+let productSortFilter = 'id_desc';
+let productCurrentPage = 1;
+let productPageSize = 10;
+
+export function changeProductPage(newPage) {
+  productCurrentPage = newPage;
+  renderProductsTab(false);
+}
+
+export function changeProductPageSize(newSize) {
+  productPageSize = newSize;
+  productCurrentPage = 1;
+  renderProductsTab(false);
+}
 
 /**
  * ============================================================
@@ -64,18 +81,65 @@ export function renderProductsTab(shouldSync = true) {
     }
   }
 
-  // Filter with live search and status dropdown
+  // Populate category select if options not yet populated
+  const categorySelect = document.getElementById('product-category-filter');
+  if (categorySelect && categorySelect.options.length <= 1) {
+    const categories = getCategories();
+    const catSet = new Set();
+    categories.forEach(c => {
+      const val = c.name || c.id;
+      if (val) catSet.add(val);
+    });
+    (products || []).forEach(p => {
+      if (p.category) catSet.add(p.category);
+    });
+    catSet.forEach(val => {
+      const opt = document.createElement('option');
+      opt.value = val;
+      opt.textContent = val;
+      categorySelect.appendChild(opt);
+    });
+  }
+
+  // Read filter values
   const searchInput = document.getElementById('product-search-input');
   if (searchInput && searchInput.value !== undefined) {
     productSearchQuery = searchInput.value.toLowerCase().trim();
+  }
+  if (categorySelect) {
+    productCategoryFilter = categorySelect.value || 'ALL';
+  }
+  const stockSelect = document.getElementById('product-stock-filter');
+  if (stockSelect) {
+    productStockFilter = stockSelect.value || 'ALL';
   }
   const statusSelect = document.getElementById('product-status-filter');
   if (statusSelect) {
     productStatusFilter = statusSelect.value || 'ALL';
   }
+  const sortSelect = document.getElementById('product-sort-filter');
+  if (sortSelect) {
+    productSortFilter = sortSelect.value || 'id_desc';
+  }
 
   const renderRows = (productList) => {
     let filtered = productList || [];
+    if (productCategoryFilter && productCategoryFilter !== 'ALL') {
+      filtered = filtered.filter(p => {
+        const cat = (p.category || '').toString().toLowerCase().trim();
+        const target = productCategoryFilter.toLowerCase().trim();
+        return cat === target || cat.includes(target) || target.includes(cat);
+      });
+    }
+    if (productStockFilter && productStockFilter !== 'ALL') {
+      filtered = filtered.filter(p => {
+        const s = p.totalStock || 0;
+        if (productStockFilter === 'IN_STOCK') return s > 5;
+        if (productStockFilter === 'LOW_STOCK') return s > 0 && s <= 5;
+        if (productStockFilter === 'OUT_OF_STOCK') return s <= 0;
+        return true;
+      });
+    }
     if (productStatusFilter && productStatusFilter !== 'ALL') {
       filtered = filtered.filter(p => {
         const s = (p.productStatus || p.status || 'ACTIVE').toUpperCase();
@@ -84,25 +148,53 @@ export function renderProductsTab(shouldSync = true) {
     }
     if (productSearchQuery) {
       filtered = filtered.filter(p => 
-        p.name.toLowerCase().includes(productSearchQuery) ||
+        (p.name && p.name.toLowerCase().includes(productSearchQuery)) ||
         (p.sku && p.sku.toLowerCase().includes(productSearchQuery)) ||
         (p.category && p.category.toLowerCase().includes(productSearchQuery)) ||
         (p.brand && p.brand.toLowerCase().includes(productSearchQuery))
       );
     }
 
+    // Sorting
+    if (productSortFilter === 'price_asc') {
+      filtered.sort((a, b) => (a.price || 0) - (b.price || 0));
+    } else if (productSortFilter === 'price_desc') {
+      filtered.sort((a, b) => (b.price || 0) - (a.price || 0));
+    } else if (productSortFilter === 'name_asc') {
+      filtered.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+    } else {
+      filtered.sort((a, b) => (b.id || 0) - (a.id || 0));
+    }
+
+    const totalItems = filtered.length;
+    const totalPages = Math.ceil(totalItems / productPageSize) || 1;
+    if (productCurrentPage > totalPages) productCurrentPage = totalPages;
+    if (productCurrentPage < 1) productCurrentPage = 1;
+
     if (filtered.length === 0) {
       tbody.innerHTML = `
         <tr>
           <td colspan="7" class="py-8 text-center text-[#64748b] text-xs">
-            ${productSearchQuery ? 'No catalog items matched your search query.' : 'No products found.'}
+            ${productSearchQuery || productCategoryFilter !== 'ALL' || productStockFilter !== 'ALL' ? 'No catalog items matched your filter criteria.' : 'No products found.'}
           </td>
         </tr>
       `;
+      renderTablePagination({
+        containerId: 'products-pagination-container',
+        currentPage: 1,
+        pageSize: productPageSize,
+        totalItems: 0,
+        itemName: 'products',
+        onPageChange: 'changeProductPage',
+        onPageSizeChange: 'changeProductPageSize'
+      });
       return;
     }
 
-    tbody.innerHTML = filtered.map(p => {
+    const startIndex = (productCurrentPage - 1) * productPageSize;
+    const pageItems = filtered.slice(startIndex, startIndex + productPageSize);
+
+    tbody.innerHTML = pageItems.map(p => {
       const status = (p.productStatus || p.status || 'ACTIVE').toUpperCase();
       const isActive = status === 'ACTIVE';
 
@@ -158,6 +250,16 @@ export function renderProductsTab(shouldSync = true) {
         </tr>
       `;
     }).join('');
+
+    renderTablePagination({
+      containerId: 'products-pagination-container',
+      currentPage: productCurrentPage,
+      pageSize: productPageSize,
+      totalItems: totalItems,
+      itemName: 'products',
+      onPageChange: 'changeProductPage',
+      onPageSizeChange: 'changeProductPageSize'
+    });
   };
 
   renderRows(products);
@@ -188,13 +290,43 @@ export async function toggleProductStatus(productId) {
 }
 
 /**
- * Filter Table via Search Input & Status Dropdown
+ * Filter Table via Search Input & Dropdowns
  */
 export function filterProductsTable() {
+  productCurrentPage = 1;
   const searchInput = document.getElementById('product-search-input');
   productSearchQuery = searchInput ? searchInput.value.toLowerCase().trim() : '';
+  const categorySelect = document.getElementById('product-category-filter');
+  productCategoryFilter = categorySelect ? categorySelect.value : 'ALL';
+  const stockSelect = document.getElementById('product-stock-filter');
+  productStockFilter = stockSelect ? stockSelect.value : 'ALL';
   const statusSelect = document.getElementById('product-status-filter');
   productStatusFilter = statusSelect ? statusSelect.value : 'ALL';
+  const sortSelect = document.getElementById('product-sort-filter');
+  productSortFilter = sortSelect ? sortSelect.value : 'id_desc';
+  renderProductsTab(false);
+}
+
+/**
+ * Reset all product filters to defaults and re-render
+ */
+export function resetProductsFilter() {
+  productCurrentPage = 1;
+  const searchInput = document.getElementById('product-search-input');
+  if (searchInput) searchInput.value = '';
+  const categorySelect = document.getElementById('product-category-filter');
+  if (categorySelect) categorySelect.value = 'ALL';
+  const stockSelect = document.getElementById('product-stock-filter');
+  if (stockSelect) stockSelect.value = 'ALL';
+  const statusSelect = document.getElementById('product-status-filter');
+  if (statusSelect) statusSelect.value = 'ALL';
+  const sortSelect = document.getElementById('product-sort-filter');
+  if (sortSelect) sortSelect.value = 'id_desc';
+  productSearchQuery = '';
+  productCategoryFilter = 'ALL';
+  productStockFilter = 'ALL';
+  productStatusFilter = 'ALL';
+  productSortFilter = 'id_desc';
   renderProductsTab(false);
 }
 
@@ -709,6 +841,9 @@ if (typeof window !== 'undefined') {
     renderProductsTab,
     toggleProductStatus,
     filterProductsTable,
+    resetProductsFilter,
+    changeProductPage,
+    changeProductPageSize,
     confirmDeleteProduct,
     openProductFormPage,
     triggerProductFormSubmit,

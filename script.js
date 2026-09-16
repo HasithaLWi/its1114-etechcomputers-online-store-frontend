@@ -124,7 +124,7 @@ import { handleResubscribe, handleManualUnsubscribeSubmit } from './src/js/app/n
 // Admin Dashboard Shell Imports
 import {
     initAdminDashboard, switchAdminTab, closeAdminModal,
-    handleAdminLogout, filterProductsTable, toggleAdminSidebar,
+    handleAdminLogout, toggleAdminSidebar,
     openAdminSidebar, closeAdminSidebar, setSalesChartRange,
     initSalesOrdersChart, filterStaffAlerts,
     renderOverviewTab
@@ -132,7 +132,9 @@ import {
 
 // Product Management Controller Imports
 import {
-    renderProductsTab, confirmDeleteProduct, openProductFormPage,
+    renderProductsTab, filterProductsTable, resetProductsFilter,
+    changeProductPage, changeProductPageSize,
+    confirmDeleteProduct, openProductFormPage,
     renderGalleryInputs, renderFormImageInputs, addGalleryImageInput, removeGalleryImage, removeGalleryImageInput, updateGalleryImage,
     renderSpecsInputs, renderFormSpecsInputs, addFormSpecInput, removeSpecItem, removeFormSpecInput, updateSpecItem,
     renderFeaturesInputs, renderFormFeaturesInputs, addFormFeatureInput, removeFeatureItem, removeFormFeatureInput, updateFeatureItem,
@@ -147,7 +149,8 @@ import {
     getOrderById, cancelCustomerOrder, renderCustomerOrderDetailPage,
     openOrderSupportEmail, handleCustomerCancelOrder, closeCancelOrderModal,
     confirmCancelOrder, renderAdminOrderDetailView, backToOrdersList,
-    handleAdminOrderStatusUpdate
+    handleAdminOrderStatusUpdate,
+    filterOrdersTable, resetOrdersFilter, changeOrderPage, changeOrderPageSize
 } from './src/js/controller/order_management_controller.js';
 import { handleUserOrderSearch, handleUserOrderStatusFilter } from './src/js/app/app.js';
 
@@ -167,7 +170,8 @@ import {
 import {
     renderUsersTab, changeUserRole, changeUserStatus, confirmDeleteUser,
     openUserModal, handleSaveUserSubmit, handleUserModalRoleChange,
-    filterUsersByType
+    filterUsersByType, filterUsersDirectory, resetUsersFilter,
+    changeUserPage, changeUserPageSize
 } from './src/js/controller/user_management_controller.js';
 
 // Analytics and Reports Controller Imports
@@ -348,13 +352,15 @@ Object.assign(window, {
 
     // Admin Dashboard Shell
     initAdminDashboard, switchAdminTab, closeAdminModal,
-    handleAdminLogout, filterProductsTable, toggleAdminSidebar,
+    handleAdminLogout, toggleAdminSidebar,
     openAdminSidebar, closeAdminSidebar, setSalesChartRange,
     initSalesOrdersChart, filterStaffAlerts,
     renderOverviewTab,
 
     // Product Management
-    renderProductsTab, confirmDeleteProduct, openProductFormPage,
+    renderProductsTab, filterProductsTable, resetProductsFilter,
+    changeProductPage, changeProductPageSize,
+    confirmDeleteProduct, openProductFormPage,
     renderGalleryInputs, renderFormImageInputs, addGalleryImageInput, removeGalleryImage, removeGalleryImageInput, updateGalleryImage,
     renderSpecsInputs, renderFormSpecsInputs, addFormSpecInput, removeSpecItem, removeFormSpecInput, updateSpecItem,
     renderFeaturesInputs, renderFormFeaturesInputs, addFormFeatureInput, removeFeatureItem, removeFormFeatureInput, updateFeatureItem,
@@ -366,6 +372,7 @@ Object.assign(window, {
     getOrderById, cancelCustomerOrder, renderCustomerOrderDetailPage, openOrderSupportEmail,
     handleCustomerCancelOrder, closeCancelOrderModal, confirmCancelOrder,
     renderAdminOrderDetailView, backToOrdersList, handleAdminOrderStatusUpdate,
+    filterOrdersTable, resetOrdersFilter, changeOrderPage, changeOrderPageSize,
     handleUserOrderSearch, handleUserOrderStatusFilter,
 
     // Branch Management
@@ -378,7 +385,8 @@ Object.assign(window, {
     // User Management
     renderUsersTab, changeUserRole, changeUserStatus, confirmDeleteUser,
     openUserModal, handleSaveUserSubmit, handleUserModalRoleChange,
-    filterUsersByType,
+    filterUsersByType, filterUsersDirectory, resetUsersFilter,
+    changeUserPage, changeUserPageSize,
 
     // Dynamic Page Generators (SPA)
     renderLoginPage, initLoginPage,

@@ -6,7 +6,7 @@ import { getCurrentUser, isLoggedIn, logoutUser } from '../controller/login_cont
 import { getRoleBadge } from '../models/user_model.js';
 import { 
   getUserOrders, getOrderById, renderCustomerOrderDetailPage, 
-  openOrderSupportEmail, handleCustomerCancelOrder, getStatusStyle,
+  handleCustomerCancelOrder, getStatusStyle,
   syncOrdersFromApi, parseCurrencyAmount
 } from '../controller/order_management_controller.js';
 import { formatLKR } from '../util/formatters.js';
@@ -824,11 +824,6 @@ export function renderUserOrderHistory(userOrEmail) {
                   </button>
                 ` : ''}
 
-                <button type="button" onclick="openOrderSupportEmail('${order.orderId}')" class="px-2.5 py-1 text-[11px] font-bold text-[#475569] hover:bg-[#f1f5f9] border border-[#e2e8f0] rounded transition-colors flex items-center space-x-1 shadow-2xs">
-                  <svg class="w-3 h-3 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
-                  <span>Email Support</span>
-                </button>
-
                 <a href="#order-detail?id=${order.orderId}" class="px-3.5 py-1 text-[11px] font-bold text-white bg-blue-600 hover:bg-blue-500 rounded shadow-xs transition-colors flex items-center space-x-1">
                   <span>Track &amp; Details</span>
                   <span>&rarr;</span>
@@ -1466,18 +1461,6 @@ async function renderPolicyPage(policyKey = 'privacy') {
             </div>
           `;
         }).join('')}
-      </div>
-
-      <!-- Policy Footer Assistance Callout -->
-      <div class="pt-4 border-t border-[#e2e8f0] flex flex-col sm:flex-row items-center justify-between gap-4 bg-[#f8fafc] p-4 rounded-md border border-[#e2e8f0]">
-        <div>
-          <h4 class="text-xs font-bold text-[#0f172a]">Have questions regarding our ${policy.title}?</h4>
-          <p class="text-[11px] text-[#64748b] mt-0.5">Our support team is ready to assist you anytime.</p>
-        </div>
-        <a href="mailto:support@etechcomputers.com" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-md text-xs font-bold shadow-sm transition-all flex items-center space-x-1.5 flex-shrink-0">
-          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
-          <span>Contact Support</span>
-        </a>
       </div>
 
     </div>
