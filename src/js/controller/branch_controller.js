@@ -3,6 +3,7 @@
 //  Leaflet.js + OpenStreetMap Geodesic Distance Engine
 // ============================================================
 import { BranchesApi } from '../api/branchesApi.js';
+import { getProductBranchStock } from '../models/data.js';
 
 export const DEFAULT_BRANCHES = [];
 export const BRANCHES_STORAGE_KEY = 'etech_branches';
@@ -324,8 +325,8 @@ export function autoSelectFulfillmentBranch(cartItems, customerDestination, prod
       if (item.isBundle && Array.isArray(item.bundleComponents)) {
         for (const comp of item.bundleComponents) {
           const compProduct = productsList.find(p => p.id === Number(comp.productId));
-          if (compProduct && compProduct.branchStock) {
-            const compStock = compProduct.branchStock[branch.id] || 0;
+          if (compProduct) {
+            const compStock = getProductBranchStock(compProduct, branch.id);
             if (compStock < ((comp.qty || 1) * item.quantity)) {
               hasStockForAll = false;
               break;
@@ -336,8 +337,8 @@ export function autoSelectFulfillmentBranch(cartItems, customerDestination, prod
         // Individual product or composite bundle line item
         const targetId = Number(item.productId || item.id);
         const product = productsList.find(p => p.id === targetId);
-        if (product && product.branchStock) {
-          const stockInBranch = product.branchStock[branch.id] || 0;
+        if (product) {
+          const stockInBranch = getProductBranchStock(product, branch.id);
           if (stockInBranch < item.quantity) {
             hasStockForAll = false;
             break;
@@ -357,8 +358,11 @@ export function autoSelectFulfillmentBranch(cartItems, customerDestination, prod
     }
   }
 
-  // Fallback to closest branch regardless of stock if no single branch has 100%
+  let hasSufficientStock = true;
+
+  // Fallback to closest branch if no single branch has 100% stock
   if (!bestBranch) {
+    hasSufficientStock = false;
     for (const branch of branches) {
       const bCoords = getBranchCoords(branch);
       const dist = calculateHaversineDistanceKm(bCoords.lat, bCoords.lng, destCoords.lat, destCoords.lng);
@@ -377,6 +381,7 @@ export function autoSelectFulfillmentBranch(cartItems, customerDestination, prod
 
   return {
     branch: bestBranch,
+    hasSufficientStock: hasSufficientStock,
     distanceKm: shippingCalc.distanceKm,
     shippingFee: shippingCalc.fee,
     coords: destCoords

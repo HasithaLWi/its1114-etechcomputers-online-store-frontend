@@ -102,7 +102,17 @@ function handleRoute() {
   const pageName = routePart || 'home';
 
   // ROUTE GUARDS: Protected pages require signup/login first
-  if ((pageName === 'checkout' || pageName === 'account') && !isLoggedIn()) {
+  if (pageName === 'checkout') {
+    if (!isLoggedIn()) {
+      window.location.hash = `#login?redirect=${pageName}`;
+      return;
+    }
+    const cart = getCart();
+    if (!cart.length) {
+      window.location.hash = '#cart';
+      return;
+    }
+  } else if (pageName === 'account' && !isLoggedIn()) {
     window.location.hash = `#login?redirect=${pageName}`;
     return;
   }

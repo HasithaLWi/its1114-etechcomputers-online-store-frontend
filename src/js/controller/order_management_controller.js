@@ -54,7 +54,8 @@ export function normalizeOrderFromApi(dto) {
       quantity: Number(item.quantity) || 1,
       image: item.productImage || item.image || 'https://images.unsplash.com/photo-1587202372775-e229f172b9d7?auto=format&fit=crop&w=600&q=80',
       isBundleItem: !!item.bundleId,
-      bundleId: item.bundleId || null
+      bundleId: item.bundleId || null,
+      warranty: item.warranty || 'Official Hardware Warranty'
     })) : [],
     subtotal: formatLKR(numSubtotal),
     tax: formatLKR(numTax),
@@ -175,8 +176,9 @@ export async function saveOrder(orderData) {
     subtotalAmount: numSubtotal,
     taxAmount: numTax,
     shippingAmount: numShipping,
-    total: numTotal,
-    paymentMethod: orderData.paymentMethod === 'card' ? 'Credit / Debit Card' : 'Cash on Delivery',
+    paymentMethod: orderData.paymentMethod ? (orderData.paymentMethod === 'card' ? 'Credit / Debit Card' : orderData.paymentMethod) : 'Cash on Delivery',
+    paymentReference: orderData.paymentReference || null,
+    paymentStatus: orderData.paymentStatus || (orderData.paymentMethod && orderData.paymentMethod.toLowerCase().includes('cash') ? 'PENDING_ON_DELIVERY' : 'PAID'),
     status: 'Pending'
   };
 
@@ -222,6 +224,9 @@ export async function updateOrderStatus(orderId, newStatus) {
   const nextStatus = (newStatus || '').toLowerCase();
 
   order.status = newStatus;
+  if (nextStatus === 'delivered') {
+    order.paymentStatus = 'PAID';
+  }
 
   // Restore inventory if status changed to Cancelled
   if (prevStatus !== 'cancelled' && nextStatus === 'cancelled') {
@@ -689,10 +694,11 @@ export async function renderCustomerOrderDetailPage(orderId) {
                   <div class="min-w-0 flex-1">
                     <h4 class="text-xs sm:text-sm font-bold text-[#0f172a] group-hover:text-blue-600 transition-colors line-clamp-2">${item.name}</h4>
                     <p class="text-xs text-[#64748b] font-mono mt-0.5">Rs. ${parseFloat(item.price || 0).toLocaleString()} &times; <span class="font-bold text-[#0f172a]">Qty: ${item.quantity}</span></p>
-                    <span class="inline-flex items-center space-x-1 text-[10px] text-blue-600 font-semibold mt-1">
-                      <span>View Specifications &amp; Warranty</span>
-                      <span>&rarr;</span>
-                    </span>
+                    <div class="mt-1 flex items-center space-x-2">
+                      <span class="inline-block px-2 py-0.5 bg-blue-50 text-blue-700 text-[10px] font-bold rounded border border-blue-200">
+                        ${item.warranty || 'Official Hardware Warranty'}
+                      </span>
+                    </div>
                   </div>
                 </a>
 
@@ -759,12 +765,6 @@ export async function renderCustomerOrderDetailPage(orderId) {
               <span>Delivery Fee:</span>
               <span class="font-mono font-semibold text-[#0f172a]">${shippingNum > 0 ? `Rs. ${shippingNum.toLocaleString()}` : 'Free'}</span>
             </div>
-            ${taxNum > 0 ? `
-              <div class="flex justify-between text-[#64748b]">
-                <span>Estimated Tax:</span>
-                <span class="font-mono font-semibold text-[#0f172a]">Rs. ${taxNum.toLocaleString()}</span>
-              </div>
-            ` : ''}
             <div class="pt-2 border-t border-[#e2e8f0] flex justify-between items-center">
               <span class="text-sm font-black text-[#0f172a]">Total Amount:</span>
               <span class="text-base font-black text-blue-600 font-mono">Rs. ${totalNum.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>

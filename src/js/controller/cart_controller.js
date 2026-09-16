@@ -1,6 +1,6 @@
 // ETech Computers - Shopping Cart & Order Checkout System
-import { products, getStoredProducts, deductBranchStock } from '../models/data.js';
-import { autoSelectFulfillmentBranch, initCheckoutMap, setCheckoutMapDestination, resolveLocationCoords, getCheckoutDeliveryLocation, resetCheckoutDeliveryLocation } from './branch_controller.js';
+import { products, getStoredProducts, deductBranchStock, getProductBranchStock, getMaxStockInAnyBranch } from '../models/data.js';
+import { autoSelectFulfillmentBranch, getBranches, initCheckoutMap, setCheckoutMapDestination, resolveLocationCoords, getCheckoutDeliveryLocation, resetCheckoutDeliveryLocation } from './branch_controller.js';
 import { saveOrder } from './order_management_controller.js';
 import { getCurrentUser } from './login_controller.js';
 import { recordBundleSale, getDealBundles, getHotDealByProductId, isBundleAvailable } from '../models/deals_data.js';
@@ -35,18 +35,34 @@ export function updateCartBadge() {
 export function addToCart(productId, quantity = 1) {
   const storedProducts = getStoredProducts();
   const product = storedProducts.find(p => p.id === Number(productId));
-  if (!product) return;
+  if (!product) return false;
+
+  const maxStock = getMaxStockInAnyBranch(product);
+  if (maxStock <= 0) {
+    etechAlert.warning('Out of Stock', `"${product.name}" is currently out of stock across all fulfillment branches.`);
+    return false;
+  }
+
+  let cart = getCart();
+  const existingItem = cart.find(item => item.id === product.id && !item.isBundleItem);
+  const currentCartQty = existingItem ? existingItem.quantity : 0;
+  const targetQty = currentCartQty + quantity;
+
+  if (targetQty > maxStock) {
+    etechAlert.warning(
+      'Branch Stock Limit Exceeded',
+      `Cannot add ${quantity} unit${quantity > 1 ? 's' : ''} to your cart. An order is fulfilled from a single branch, and our highest-stocked branch currently has ${maxStock} unit${maxStock > 1 ? 's' : ''} of "${product.name}" in stock${currentCartQty > 0 ? ` (you already have ${currentCartQty} in your cart)` : ''}.`
+    );
+    return false;
+  }
 
   const hotDeal = getHotDealByProductId(product.id);
   const effectivePrice = hotDeal ? hotDeal.dealPrice : product.price;
   const isHotDeal = !!hotDeal;
   const isFreeShipping = isHotDeal ? Boolean(hotDeal.isFreeShipping) : false;
 
-  let cart = getCart();
-  const existingItem = cart.find(item => item.id === product.id && !item.isBundleItem);
-
   if (existingItem) {
-    existingItem.quantity += quantity;
+    existingItem.quantity = targetQty;
     existingItem.price = effectivePrice;
     existingItem.isHotDeal = isHotDeal;
     existingItem.isFreeShipping = isFreeShipping;
@@ -72,6 +88,7 @@ export function addToCart(productId, quantity = 1) {
   } else {
     showToast(`Added "${product.name}" to cart!`);
   }
+  return true;
 }
 
 /**
@@ -231,14 +248,66 @@ export function initCartLogic() {
 
   const clearCartBtn = document.getElementById('clear-cart-btn');
   if (clearCartBtn) {
-    clearCartBtn.addEventListener('click', async () => {
+    clearCartBtn.onclick = async () => {
       const confirmed = await etechAlert.confirmDelete('all items from your shopping cart');
       if (confirmed) {
         saveCart([]);
         renderCart();
         modernShowToast('Shopping cart cleared.', 'info');
       }
-    });
+    };
+  }
+
+  // Intercept Proceed to Checkout button to enforce single-branch fulfillment constraints
+  const proceedBtn = document.getElementById('proceed-checkout-btn');
+  if (proceedBtn) {
+    proceedBtn.onclick = (e) => {
+      const cart = getCart();
+      if (!cart.length) {
+        e.preventDefault();
+        etechAlert.warning('Empty Cart', 'Your shopping cart is empty. Please add products to cart before proceeding.');
+        return;
+      }
+
+      const storedProducts = getStoredProducts();
+
+      // Step 1: Check individual item limits against highest-stocked branch
+      for (const item of cart) {
+        const targetId = Number(item.productId || item.id);
+        const prod = storedProducts.find(p => p.id === targetId);
+        if (prod) {
+          const maxStock = getMaxStockInAnyBranch(prod);
+          if (item.quantity > maxStock) {
+            e.preventDefault();
+            etechAlert.warning(
+              'Insufficient Branch Stock',
+              `Cannot proceed to checkout. The requested quantity (${item.quantity}) for "${item.name}" exceeds the maximum available stock at any single fulfillment branch (${maxStock} unit${maxStock > 1 ? 's' : ''}). Please adjust the quantity in your cart.`
+            );
+            return;
+          }
+        }
+      }
+
+      // Step 2: Check if ANY single active branch has sufficient inventory for all items combined
+      const branches = getBranches().filter(b => (b.status || 'Active').toLowerCase() === 'active');
+      const branchWithFullStock = branches.find(branch => {
+        return cart.every(item => {
+          const targetId = Number(item.productId || item.id);
+          const prod = storedProducts.find(p => p.id === targetId);
+          if (!prod) return false;
+          return getProductBranchStock(prod, branch.id) >= item.quantity;
+        });
+      });
+
+      if (!branchWithFullStock) {
+        e.preventDefault();
+        etechAlert.warning(
+          'Single-Branch Fulfillment Constraint',
+          'We could not find a single fulfillment branch that has all items in your cart in stock simultaneously. Because each order is dispatched from a single regional branch, please adjust item quantities to continue.'
+        );
+        return;
+      }
+    };
   }
 }
 
@@ -353,6 +422,27 @@ export function updateItemQuantity(cartItemId, delta) {
       cart = cart.filter(i => i.bundleGroupId !== item.bundleGroupId);
       showToast(`📦 Bundle "${item.bundleTitle}" was removed from your cart.`);
     } else {
+      // If incrementing, validate all bundle components against max branch stock
+      if (delta > 0) {
+        const bundleItems = cart.filter(i => i.bundleGroupId === item.bundleGroupId);
+        const storedProds = getStoredProducts();
+        for (const bItem of bundleItems) {
+          const targetId = Number(bItem.productId || bItem.id);
+          const bProd = storedProds.find(p => p.id === targetId);
+          if (bProd) {
+            const bMax = getMaxStockInAnyBranch(bProd);
+            const reqCompQty = (bItem.bundleQtyMultiplier || 1) * newBundleCount;
+            if (reqCompQty > bMax) {
+              etechAlert.warning(
+                'Bundle Stock Limit Reached',
+                `Cannot increase bundle quantity. Stock limit reached for component "${bProd.name}" (${bMax} unit${bMax > 1 ? 's' : ''} available at highest-stocked branch).`
+              );
+              return;
+            }
+          }
+        }
+      }
+
       // Scale all items in this bundle group together
       cart.forEach(i => {
         if (i.bundleGroupId === item.bundleGroupId) {
@@ -361,6 +451,21 @@ export function updateItemQuantity(cartItemId, delta) {
       });
     }
   } else {
+    if (delta > 0) {
+      const targetId = Number(item.productId || item.id);
+      const prod = getStoredProducts().find(p => p.id === targetId);
+      if (prod) {
+        const maxStock = getMaxStockInAnyBranch(prod);
+        if (item.quantity + delta > maxStock) {
+          etechAlert.warning(
+            'Branch Stock Limit Reached',
+            `Cannot increase quantity. An order is fulfilled from a single branch, and our highest-stocked branch currently has ${maxStock} unit${maxStock > 1 ? 's' : ''} for "${prod.name}".`
+          );
+          return;
+        }
+      }
+    }
+
     item.quantity += delta;
     if (item.quantity <= 0) {
       cart = cart.filter(i => String(i.id) !== String(cartItemId));
@@ -431,19 +536,16 @@ export function detectCardBrand(cardNumber) {
  */
 export function updateSummaryTotals(subtotal) {
   const subtotalEl = document.getElementById('summary-subtotal');
-  const taxEl = document.getElementById('summary-tax');
   const shippingEl = document.getElementById('summary-shipping');
   const totalEl = document.getElementById('summary-total');
 
   const cart = getCart();
   const hasFreeShipping = cart.some(i => i.isFreeShipping);
 
-  const tax = subtotal * 0.08;
   const shipping = (hasFreeShipping || subtotal === 0) ? 0 : 2500;
-  const grandTotal = subtotal + tax + shipping;
+  const grandTotal = subtotal + shipping;
 
   if (subtotalEl) subtotalEl.textContent = `Rs. ${subtotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-  if (taxEl) taxEl.textContent = `Rs. ${tax.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
   if (shippingEl) {
     if (subtotal === 0) {
@@ -487,8 +589,7 @@ export function initCheckoutLogic() {
   }
 
   const districtSelect = document.getElementById('district');
-  const cityInput = document.getElementById('city');
-  const initialDestination = (districtSelect ? districtSelect.value : '') || (cityInput ? cityInput.value.trim() : '') || 'Colombo';
+  const initialDestination = (districtSelect ? districtSelect.value : '') || 'Colombo';
 
   // 1. Initialize Interactive Leaflet Map
   initCheckoutMap('checkout-delivery-map', (locInfo) => {
@@ -504,21 +605,6 @@ export function initCheckoutLogic() {
         currentCheckoutLocation = locInfo;
         renderCheckoutSummary(getCart(), locInfo);
       });
-      if (cityInput && !cityInput.value) {
-        cityInput.value = selectedDistrict;
-      }
-    });
-  }
-
-  if (cityInput) {
-    cityInput.addEventListener('change', () => {
-      const cityVal = cityInput.value.trim();
-      if (cityVal) {
-        setCheckoutMapDestination(cityVal, (locInfo) => {
-          currentCheckoutLocation = locInfo;
-          renderCheckoutSummary(getCart(), locInfo);
-        });
-      }
     });
   }
 
@@ -632,7 +718,6 @@ export function renderCheckoutSummary(cart, customerDestination = 'Colombo') {
 
   const itemsContainer = document.getElementById('checkout-items-list');
   const subtotalEl = document.getElementById('checkout-subtotal');
-  const taxEl = document.getElementById('checkout-tax');
   const shippingEl = document.getElementById('checkout-shipping');
   const totalEl = document.getElementById('checkout-total');
   const branchInfoEl = document.getElementById('checkout-branch-info');
@@ -681,13 +766,11 @@ export function renderCheckoutSummary(cart, customerDestination = 'Colombo') {
   const productsList = getStoredProducts();
   const fulfillment = autoSelectFulfillmentBranch(currentCart, customerDestination, productsList);
 
-  const tax = subtotal * 0.08;
   // DYNAMIC FREE SHIPPING: Waived if cart has any promotional free-shipping bundle/deal
   const shipping = hasFreeShipping ? 0 : (fulfillment ? fulfillment.shippingFee : 450);
-  const grandTotal = subtotal + tax + shipping;
+  const grandTotal = subtotal + shipping;
 
   if (subtotalEl) subtotalEl.textContent = `Rs. ${subtotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-  if (taxEl) taxEl.textContent = `Rs. ${tax.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
   if (shippingEl) {
     if (hasFreeShipping) {
@@ -704,15 +787,27 @@ export function renderCheckoutSummary(cart, customerDestination = 'Colombo') {
   if (totalEl) totalEl.textContent = `Rs. ${grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
   if (branchInfoEl && fulfillment) {
-    branchInfoEl.innerHTML = `
-      <div class="p-2.5 bg-blue-50 border border-blue-200 rounded-md text-xs space-y-1">
-        <div class="flex items-center justify-between font-bold text-blue-700">
-          <span>Dispatch Hub: ${fulfillment.branch.name}</span>
-          <span class="text-[10px] font-mono bg-blue-100 px-2 py-0.5 rounded text-blue-800">${fulfillment.distanceKm} km (Geodesic)</span>
+    if (fulfillment.hasSufficientStock) {
+      branchInfoEl.innerHTML = `
+        <div class="p-2.5 bg-blue-50 border border-blue-200 rounded-md text-xs space-y-1">
+          <div class="flex items-center justify-between font-bold text-blue-700">
+            <span>Dispatch Hub: ${fulfillment.branch.name}</span>
+            <span class="text-[10px] font-mono bg-blue-100 px-2 py-0.5 rounded text-blue-800">${fulfillment.distanceKm} km (Geodesic)</span>
+          </div>
+          <p class="text-[10px] text-[#64748b]">Real-time nearest fulfillment warehouse with verified inventory for your delivery location.</p>
         </div>
-        <p class="text-[10px] text-[#64748b]">Real-time nearest fulfillment warehouse with sufficient inventory for your destination.</p>
-      </div>
-    `;
+      `;
+    } else {
+      branchInfoEl.innerHTML = `
+        <div class="p-2.5 bg-rose-50 border border-rose-200 rounded-md text-xs space-y-1">
+          <div class="flex items-center justify-between font-bold text-rose-700">
+            <span>⚠️ Regional Stock Constraint</span>
+            <span class="text-[10px] font-mono bg-rose-100 px-2 py-0.5 rounded text-rose-800">Insufficient Stock</span>
+          </div>
+          <p class="text-[10px] text-rose-600">No single fulfillment branch has all requested items in stock. Please adjust quantities in your cart.</p>
+        </div>
+      `;
+    }
   }
 }
 
@@ -732,7 +827,7 @@ export async function handleCheckoutSubmit(e) {
   const email = document.getElementById('email')?.value.trim();
   const address = document.getElementById('address')?.value.trim();
   const district = document.getElementById('district')?.value || 'Colombo';
-  const city = document.getElementById('city')?.value.trim() || district;
+  const city = district;
   const phone = document.getElementById('phone')?.value.trim() || '';
 
   if (!fullName || !email || !address || !phone) {
@@ -787,15 +882,22 @@ export async function handleCheckoutSubmit(e) {
     }
   }
 
-  const destination = currentCheckoutLocation || district || city;
+  const destination = currentCheckoutLocation || district;
   const productsList = getStoredProducts();
   const fulfillment = autoSelectFulfillmentBranch(cart, destination, productsList);
 
+  if (!fulfillment || !fulfillment.hasSufficientStock) {
+    etechAlert.error(
+      'Insufficient Regional Stock',
+      'No single fulfillment branch in our store network currently has enough inventory to fulfill all items in this order. Please adjust your cart quantities to continue.'
+    );
+    return;
+  }
+
   const subtotal = cart.reduce((sum, i) => sum + (i.price * i.quantity), 0);
-  const tax = subtotal * 0.08;
   const hasFreeShipping = cart.some(i => i.isFreeShipping);
   const shipping = hasFreeShipping ? 0 : (fulfillment ? fulfillment.shippingFee : 450);
-  const grandTotal = subtotal + tax + shipping;
+  const grandTotal = subtotal + shipping;
 
   const deliveryLat = locState.lat;
   const deliveryLng = locState.lng;
@@ -804,7 +906,7 @@ export async function handleCheckoutSubmit(e) {
   const isOrderConfirmed = await etechAlert.confirm({
     title: 'Confirm Order & Delivery Destination',
     message: 'Please review and confirm your delivery details before placing your order:',
-    details: `📍 Destination: ${address}, ${city} (${district}) | GPS Pin: ${deliveryLat.toFixed(4)}, ${deliveryLng.toFixed(4)} | Dispatch Hub: ${fulfillment ? fulfillment.branch.name : 'Colombo Main Hub'} (${fulfillment ? fulfillment.distanceKm : 5} km) | Order Total: Rs. ${grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
+    details: `📍 Destination: ${address}, ${district} | GPS Pin: ${deliveryLat.toFixed(4)}, ${deliveryLng.toFixed(4)} | Dispatch Hub: ${fulfillment ? fulfillment.branch.name : 'Colombo Main Hub'} (${fulfillment ? fulfillment.distanceKm : 5} km) | Order Total: Rs. ${grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
     type: 'update',
     confirmText: 'Confirm & Place Order',
     cancelText: 'Review Details'
@@ -831,6 +933,10 @@ export async function handleCheckoutSubmit(e) {
     }));
 
     try {
+      const isCod = paymentMethodTitle.toLowerCase().includes('cash') || paymentMethodTitle.toLowerCase().includes('delivery');
+      const paymentRef = transactionRef || (isCod ? `COD-REF-${Math.floor(100000 + Math.random() * 900000)}` : `PAY-LKR-${Math.floor(100000 + Math.random() * 900000)}`);
+      const paymentStatus = isCod ? 'PENDING_ON_DELIVERY' : 'PAID';
+
       // Save order through controller (which syncs to backend API)
       const savedOrder = await saveOrder({
         orderId: orderId,
@@ -841,7 +947,7 @@ export async function handleCheckoutSubmit(e) {
         phone: phone,
         shippingAddress: address,
         address: address,
-        city: `${district}, ${city}`,
+        city: district,
         fulfillmentBranch: fulfillment ? fulfillment.branch.name : 'Colombo Main Hub',
         fulfillmentBranchId: fulfillment ? fulfillment.branch.id : 'BR-COL',
         distanceKm: fulfillment ? fulfillment.distanceKm : 5,
@@ -849,10 +955,12 @@ export async function handleCheckoutSubmit(e) {
         deliveryLongitude: deliveryLng,
         items: orderItems,
         subtotal: `Rs. ${subtotal.toFixed(2)}`,
-        tax: `Rs. ${tax.toFixed(2)}`,
+        tax: `Rs. 0.00`,
         shipping: shipping === 0 ? 'FREE' : `Rs. ${shipping.toFixed(2)}`,
         totalAmount: `Rs. ${grandTotal.toFixed(2)}`,
-        paymentMethod: paymentMethodTitle
+        paymentMethod: paymentMethodTitle,
+        paymentReference: paymentRef,
+        paymentStatus: paymentStatus
       });
 
       // Deduct inventory stock from assigned branch & record bundle sales
@@ -899,7 +1007,8 @@ export async function handleCheckoutSubmit(e) {
       // Refresh badges & triggers
       window.dispatchEvent(new Event('productsUpdated'));
     } catch (err) {
-      etechAlert.error('Order Submission Failed', 'Unable to complete your order. Please check your connection and try again.');
+      const errorMsg = (err && err.response && err.response.message) || (err && err.message) || 'Unable to complete your order. Please check your connection and try again.';
+      etechAlert.error('Order Submission Failed', errorMsg);
     }
   }
 
@@ -1091,7 +1200,7 @@ export async function handleCheckoutSubmit(e) {
       customerName: fullName,
       onSuccess: (txnId) => {
         showToast(`🎉 Sandbox Payment Approved! (${txnId})`, 'success');
-        executeOrderFinalization(`Credit / Debit Card (Sandbox: ${txnId})`);
+        executeOrderFinalization(`Credit / Debit Card (PayHere Sandbox)`, txnId);
       },
       onCancel: () => {
         showToast('Payment authorization was cancelled.', 'warning');
@@ -1108,7 +1217,7 @@ export async function handleCheckoutSubmit(e) {
  */
 export function clearCheckoutFields() {
   const fields = [
-    'full-name', 'email', 'phone', 'address', 'city', 'postal-code',
+    'full-name', 'email', 'phone', 'address', 'postal-code',
     'card-number', 'card-expiry', 'card-cvv'
   ];
   fields.forEach(id => {

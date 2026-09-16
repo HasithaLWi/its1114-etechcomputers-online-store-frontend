@@ -7,7 +7,7 @@
 //  can resolve them at runtime.
 // ============================================================
 
-import { products, getProductById, getFeaturedProducts, getNewArrivalProducts, getStoredProducts, saveProduct, deleteProduct } from './src/js/models/data.js';
+import { products, getProductById, getFeaturedProducts, getNewArrivalProducts, getStoredProducts, saveProduct, deleteProduct, getProductBranchStock, getMaxStockInAnyBranch } from './src/js/models/data.js';
 import {
     legalPolicies, getPolicyData, getBusinessInfo, saveBusinessInfo,
     getStoredPolicies, saveStoredPolicies, updatePolicyDocument,
@@ -269,6 +269,7 @@ Object.assign(window, {
     isBundleAvailable,
     addBundleToCart, validateCartBundles,
     products, getProductById, getFeaturedProducts, getNewArrivalProducts, getStoredProducts, saveProduct, deleteProduct,
+    getProductBranchStock, getMaxStockInAnyBranch,
     updateProductStockSettings, quickAdjustStock, transferBranchStock,
 
     // Branches & Shipping
