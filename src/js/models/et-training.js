@@ -11,10 +11,12 @@
  * ============================================================
  */
 
+import { GEMINI_API_KEY } from '../util/localstorage.js';
+
 export const ET_CONFIG = {
 
   // ── Gemini API ──────────────────────────────────────────────
-  API_KEY: "",
+  API_KEY: GEMINI_API_KEY,
   MODEL: "gemini-3.1-flash-lite",
 
   // ── Bot Identity ────────────────────────────────────────────

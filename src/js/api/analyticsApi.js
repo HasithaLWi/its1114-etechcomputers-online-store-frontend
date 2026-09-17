@@ -1,13 +1,9 @@
-// ============================================================
-//  src/js/api/analyticsApi.js — Enterprise Financial Analytics & Reports API Client
-// ============================================================
-import { ajaxRequest, API_BASE_URL, getToken } from './apiClient.js';
+import { API_BASE_URL } from '../util/localstorage.js';
+import { ajaxRequest, getToken } from './apiClient.js';
 
 export const AnalyticsApi = {
-  /**
-   * Fetch executive summary KPIs (Gross Rev, Net Rev, Orders, AOV, Units Sold, Fulfillment Rate)
-   * GET /api/v1/analytics/summary?from={from}&to={to}&branchId={branchId}
-   */
+
+  // GET /api/v1/analytics/summary?from={from}&to={to}&branchId={branchId}
   async getSummary(from = null, to = null, branchId = 'ALL') {
     const params = new URLSearchParams();
     if (from) params.append('from', from);
@@ -21,10 +17,7 @@ export const AnalyticsApi = {
     return res.body || res;
   },
 
-  /**
-   * Fetch daily sales trend time series data
-   * GET /api/v1/analytics/sales-trends?from={from}&to={to}&branchId={branchId}
-   */
+  // GET /api/v1/analytics/sales-trends?from={from}&to={to}&branchId={branchId}
   async getSalesTrends(from = null, to = null, branchId = 'ALL') {
     const params = new URLSearchParams();
     if (from) params.append('from', from);
@@ -38,10 +31,7 @@ export const AnalyticsApi = {
     return res.body || res;
   },
 
-  /**
-   * Fetch regional branch performance matrix
-   * GET /api/v1/analytics/branch-performance?from={from}&to={to}
-   */
+  // GET /api/v1/analytics/branch-performance?from={from}&to={to}
   async getBranchPerformance(from = null, to = null) {
     const params = new URLSearchParams();
     if (from) params.append('from', from);
@@ -54,10 +44,7 @@ export const AnalyticsApi = {
     return res.body || res;
   },
 
-  /**
-   * Fetch category performance & revenue market share
-   * GET /api/v1/analytics/category-performance?from={from}&to={to}&branchId={branchId}
-   */
+  // GET /api/v1/analytics/category-performance?from={from}&to={to}&branchId={branchId}
   async getCategoryPerformance(from = null, to = null, branchId = 'ALL') {
     const params = new URLSearchParams();
     if (from) params.append('from', from);
@@ -71,10 +58,7 @@ export const AnalyticsApi = {
     return res.body || res;
   },
 
-  /**
-   * Fetch top-selling hardware products by units & revenue
-   * GET /api/v1/analytics/top-products?from={from}&to={to}&branchId={branchId}&limit={limit}
-   */
+  // GET /api/v1/analytics/top-products?from={from}&to={to}&branchId={branchId}&limit={limit}
   async getTopProducts(from = null, to = null, branchId = 'ALL', limit = 10) {
     const params = new URLSearchParams();
     if (from) params.append('from', from);
@@ -89,10 +73,7 @@ export const AnalyticsApi = {
     return res.body || res;
   },
 
-  /**
-   * Fetch inventory stock units, low stock alerts and out of stock counts
-   * GET /api/v1/analytics/inventory-health?branchId={branchId}
-   */
+  // GET /api/v1/analytics/inventory-health?branchId={branchId}
   async getInventoryHealth(branchId = 'ALL') {
     const params = new URLSearchParams();
     if (branchId) params.append('branchId', branchId);
@@ -104,10 +85,7 @@ export const AnalyticsApi = {
     return res.body || res;
   },
 
-  /**
-   * Trigger direct binary download of official PDF, Excel, or CSV report
-   * GET /api/v1/reports/export?format={format}&from={from}&to={to}&branchId={branchId}
-   */
+  // GET /api/v1/reports/export?format={format}&from={from}&to={to}&branchId={branchId}
   async exportReport(format = 'PDF', from = null, to = null, branchId = 'ALL') {
     const params = new URLSearchParams();
     params.append('format', format);

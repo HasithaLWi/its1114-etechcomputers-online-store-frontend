@@ -5,8 +5,9 @@ import { saveOrder } from './order_management_controller.js';
 import { getCurrentUser } from './login_controller.js';
 import { recordBundleSale, getDealBundles, getHotDealByProductId, isBundleAvailable } from '../models/deals_data.js';
 import { etechAlert, showToast as modernShowToast } from '../util/index.js';
+import { CART_STORAGE_KEY } from '../util/localstorage.js';
 
-const CART_STORAGE_KEY = 'etech_cart';
+// const CART_STORAGE_KEY = 'etech_cart';
 
 export function getCart() {
   const data = localStorage.getItem(CART_STORAGE_KEY);

@@ -1,6 +1,3 @@
-// ============================================================
-//  src/js/api/newsletterApi.js — Newsletter & Marketing API Client (Single-Mode)
-// ============================================================
 import { ajaxRequest } from './apiClient.js';
 import {
   Subscriber,
@@ -229,17 +226,14 @@ export const NewsletterApi = {
     };
   },
 
-  /**
-   * Alias for backward compatibility / controller convenience
-   */
+
   async delete(id) {
     return this.deleteSubscriber(id);
   },
 
-  /**
-   * Bulk update status for multiple subscribers
-   * PATCH /api/v1/newsletter/subscribers/bulk-status?status={status}
-   */
+
+
+  // PATCH /api/v1/newsletter/subscribers/bulk-status?status={status}
   async bulkUpdateStatus(ids, status) {
     const numericIds = (ids || []).map(id => Number(id)).filter(n => !isNaN(n));
     const res = await ajaxRequest({
@@ -268,10 +262,9 @@ export const NewsletterApi = {
     };
   },
 
-  /**
-   * Bulk delete multiple subscribers
-   * DELETE /api/v1/newsletter/subscribers/bulk-delete
-   */
+
+
+  // DELETE /api/v1/newsletter/subscribers/bulk-delete
   async bulkDelete(ids) {
     const numericIds = (ids || []).map(id => Number(id)).filter(n => !isNaN(n));
     const res = await ajaxRequest({
@@ -290,10 +283,9 @@ export const NewsletterApi = {
     };
   },
 
-  /**
-   * Broadcast newsletter campaign
-   * POST /api/v1/newsletter/campaigns/send
-   */
+
+
+  // POST /api/v1/newsletter/campaigns/send
   async sendCampaign(campaignData) {
     const payload = {
       subject: campaignData.subject,
@@ -318,10 +310,7 @@ export const NewsletterApi = {
     };
   },
 
-  /**
-   * Fetch campaign broadcast history
-   * GET /api/v1/newsletter/campaigns
-   */
+  // GET /api/v1/newsletter/campaigns
   async getCampaigns() {
     const res = await ajaxRequest({
       endpoint: '/newsletter/campaigns',

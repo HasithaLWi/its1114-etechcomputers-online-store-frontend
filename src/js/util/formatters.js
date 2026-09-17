@@ -6,20 +6,14 @@
  * Formats a numeric amount or string into Sri Lankan Rupees (LKR)
  * Example: formatLKR(1250000) => "Rs. 1,250,000.00"
  *          formatLKR(1250, { decimals: 0 }) => "Rs. 1,250"
- * 
- * @param {number|string} amount
- * @param {object} options
- * @param {number} [options.decimals] - Minimum/maximum fractional digits (default: 2 if has decimals or exact, 0 if integer)
- * @param {boolean} [options.showCurrency=true] - Whether to prefix with "Rs. "
- * @returns {string} Formatted currency string
  */
 export function formatLKR(amount, options = {}) {
   if (amount === null || amount === undefined || amount === '') {
     return options.showCurrency === false ? '0.00' : 'Rs. 0.00';
   }
 
-  const cleanNum = typeof amount === 'number' 
-    ? amount 
+  const cleanNum = typeof amount === 'number'
+    ? amount
     : parseFloat(String(amount).replace(/[^0-9.-]/g, ''));
 
   if (isNaN(cleanNum)) {
@@ -27,8 +21,8 @@ export function formatLKR(amount, options = {}) {
   }
 
   const hasDecimals = cleanNum % 1 !== 0;
-  const defaultDecimals = options.decimals !== undefined 
-    ? options.decimals 
+  const defaultDecimals = options.decimals !== undefined
+    ? options.decimals
     : (hasDecimals ? 2 : 0);
 
   const formattedNum = cleanNum.toLocaleString('en-LK', {

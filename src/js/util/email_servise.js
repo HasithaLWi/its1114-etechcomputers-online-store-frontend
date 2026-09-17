@@ -10,10 +10,11 @@
 // ============================================================
 
 import { showToast } from './toast.js';
+import { SENT_EMAILS_STORAGE_KEY } from './localstorage.js';
 
 export let STORE_EMAIL = 'eteccomputers38@gmail.com';
 export let STORE_NAME = 'ETech Computers';
-export const SENT_EMAILS_STORAGE_KEY = 'etech_sent_emails';
+// export const SENT_EMAILS_STORAGE_KEY = 'etech_sent_emails';
 
 export function getStoreEmail() {
   return STORE_EMAIL;

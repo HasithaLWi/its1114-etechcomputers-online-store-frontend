@@ -1,6 +1,3 @@
-// ============================================================
-//  src/js/api/chatApi.js — AI Chatbot & Support Assistant API Client
-// ============================================================
 import { ajaxRequest } from './apiClient.js';
 
 export const ChatApi = {

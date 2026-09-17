@@ -1,13 +1,7 @@
-// ============================================================
-//  src/js/api/badgesApi.js — Badge & Rules Engine Backend API Client
-// ============================================================
 import { ajaxRequest } from './apiClient.js';
 
 export const BadgesApi = {
-  /**
-   * Fetch all non-deleted badges ordered by priority
-   * GET /api/v1/badges/all
-   */
+
   async getAll() {
     console.log('[BadgesAPI] getAll() -> fetching all badges');
     const res = await ajaxRequest({
@@ -17,10 +11,7 @@ export const BadgesApi = {
     return res.body || res;
   },
 
-  /**
-   * Fetch active badges
-   * GET /api/v1/badges/active
-   */
+
   async getActive() {
     console.log('[BadgesAPI] getActive() -> fetching active badges');
     const res = await ajaxRequest({
@@ -30,10 +21,7 @@ export const BadgesApi = {
     return res.body || res;
   },
 
-  /**
-   * Fetch single badge by ID
-   * GET /api/v1/badges/{id}
-   */
+  // GET /api/v1/badges/{id}
   async getById(id) {
     console.log('[BadgesAPI] getById() -> ID:', id);
     const res = await ajaxRequest({
@@ -43,10 +31,9 @@ export const BadgesApi = {
     return res.body || res;
   },
 
-  /**
-   * Fetch single badge by slug
-   * GET /api/v1/badges/slug/{slug}
-   */
+
+  // GET /api/v1/badges/slug/{slug}
+
   async getBySlug(slug) {
     console.log('[BadgesAPI] getBySlug() -> slug:', slug);
     const res = await ajaxRequest({
@@ -56,10 +43,7 @@ export const BadgesApi = {
     return res.body || res;
   },
 
-  /**
-   * Fetch single badge by name
-   * GET /api/v1/badges/name/{name}
-   */
+  // GET /api/v1/badges/name/{name}
   async getByName(name) {
     console.log('[BadgesAPI] getByName() -> name:', name);
     const res = await ajaxRequest({
@@ -69,10 +53,7 @@ export const BadgesApi = {
     return res.body || res;
   },
 
-  /**
-   * Filter badges by search keyword
-   * GET /api/v1/badges/filter?search={search}
-   */
+  // GET /api/v1/badges/filter?search={search}
   async filter(search) {
     console.log('[BadgesAPI] filter() -> search:', search);
     const res = await ajaxRequest({
@@ -82,10 +63,7 @@ export const BadgesApi = {
     return res.body || res;
   },
 
-  /**
-   * Create a new badge tag (Admin/Superadmin)
-   * POST /api/v1/badges/create
-   */
+  // POST /api/v1/badges/create
   async create(badgeData) {
     console.log('[BadgesAPI] create() -> payload:', badgeData);
     return ajaxRequest({
@@ -95,10 +73,7 @@ export const BadgesApi = {
     });
   },
 
-  /**
-   * Update badge properties (Admin/Superadmin)
-   * PUT /api/v1/badges/update/{id}
-   */
+  // PUT /api/v1/badges/update/{id}
   async update(id, badgeData) {
     console.log('[BadgesAPI] update() -> ID:', id, badgeData);
     return ajaxRequest({
@@ -120,10 +95,10 @@ export const BadgesApi = {
     });
   },
 
-  /**
-   * Soft delete badge (enforces canDelete flag)
-   * DELETE /api/v1/badges/delete/{id}
-   */
+
+
+  // DELETE /api/v1/badges/delete/{id}
+
   async delete(id) {
     console.log('[BadgesAPI] delete() [Soft Delete] -> ID:', id);
     return ajaxRequest({

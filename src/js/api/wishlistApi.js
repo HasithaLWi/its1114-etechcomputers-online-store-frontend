@@ -1,13 +1,8 @@
-// ============================================================
-//  src/js/api/wishlistApi.js — Customer Wishlist Backend API Client
-// ============================================================
 import { ajaxRequest, getToken } from './apiClient.js';
 
 export const WishlistApi = {
-  /**
-   * Fetch customer's full wishlist items with product details
-   * GET /api/v1/wishlist
-   */
+
+  // GET /api/v1/wishlist
   async getWishlist() {
     if (!getToken()) {
       return { success: true, items: [] };
@@ -25,10 +20,8 @@ export const WishlistApi = {
     }
   },
 
-  /**
-   * Toggle product in customer wishlist (adds if not present, removes if present)
-   * POST /api/v1/wishlist/toggle/{productId}
-   */
+
+  // POST /api/v1/wishlist/toggle/{productId}
   async toggleWishlist(productId) {
     if (!getToken()) {
       return { success: true, guest: true };
@@ -46,10 +39,8 @@ export const WishlistApi = {
     }
   },
 
-  /**
-   * Explicitly add product to wishlist
-   * POST /api/v1/wishlist/add/{productId}
-   */
+
+  // POST /api/v1/wishlist/add/{productId}
   async addToWishlist(productId) {
     if (!getToken()) {
       return { success: true, guest: true };
@@ -67,10 +58,8 @@ export const WishlistApi = {
     }
   },
 
-  /**
-   * Remove single product from customer wishlist
-   * DELETE /api/v1/wishlist/remove/{productId}
-   */
+
+  // DELETE /api/v1/wishlist/remove/{productId}
   async removeFromWishlist(productId) {
     if (!getToken()) {
       return { success: true, guest: true };
@@ -88,10 +77,8 @@ export const WishlistApi = {
     }
   },
 
-  /**
-   * Clear all items in customer wishlist
-   * DELETE /api/v1/wishlist/clear
-   */
+
+  // DELETE /api/v1/wishlist/clear
   async clearWishlist() {
     if (!getToken()) {
       return { success: true, guest: true };
@@ -109,10 +96,8 @@ export const WishlistApi = {
     }
   },
 
-  /**
-   * Move item from wishlist to cart
-   * POST /api/v1/wishlist/move-to-cart
-   */
+
+  // POST /api/v1/wishlist/move-to-cart
   async moveToCart(productId, branchId = 'BR-COL', quantity = 1) {
     if (!getToken()) {
       return { success: true, guest: true };

@@ -1,6 +1,3 @@
-// ============================================================
-//  src/js/models/data.js — Product Inventory In-Memory Model Layer
-// ============================================================
 import { ProductsApi } from '../api/productsApi.js';
 import { InventoryApi } from '../api/inventoryApi.js';
 import { getCategories, getBadges } from './taxonomy_data.js';
@@ -325,7 +322,7 @@ export async function updateProductStockSettings(productId, { alertEnabled, lowS
 
         try {
             await InventoryApi.updateSettings(productId, { alertEnabled, lowStockMargin });
-        } catch (e) {}
+        } catch (e) { }
 
         return product;
     }
@@ -390,9 +387,9 @@ function resolveBrandInfo(p, cachedBrands) {
     const list = Array.isArray(cachedBrands) ? cachedBrands : [];
     if (p.brand && typeof p.brand === 'string' && p.brand.trim() !== '') {
         const trimmed = p.brand.trim();
-        const found = list.find(b => 
-            b.name?.toLowerCase() === trimmed.toLowerCase() || 
-            b.slug?.toLowerCase() === trimmed.toLowerCase() || 
+        const found = list.find(b =>
+            b.name?.toLowerCase() === trimmed.toLowerCase() ||
+            b.slug?.toLowerCase() === trimmed.toLowerCase() ||
             b.id?.toLowerCase() === trimmed.toLowerCase()
         );
         return {
@@ -403,8 +400,8 @@ function resolveBrandInfo(p, cachedBrands) {
     }
     if (p.brandId && typeof p.brandId === 'string' && p.brandId.trim() !== '') {
         const trimmedId = p.brandId.trim();
-        const found = list.find(b => 
-            b.id?.toLowerCase() === trimmedId.toLowerCase() || 
+        const found = list.find(b =>
+            b.id?.toLowerCase() === trimmedId.toLowerCase() ||
             b.slug?.toLowerCase() === trimmedId.toLowerCase() ||
             b.name?.toLowerCase() === trimmedId.toLowerCase()
         );
@@ -434,9 +431,9 @@ function resolveCategoryInfo(p, cachedCategories) {
     const list = Array.isArray(cachedCategories) ? cachedCategories : [];
     if (p.category && typeof p.category === 'string' && p.category.trim() !== '') {
         const trimmed = p.category.trim();
-        const found = list.find(c => 
-            c.slug?.toLowerCase() === trimmed.toLowerCase() || 
-            c.id?.toLowerCase() === trimmed.toLowerCase() || 
+        const found = list.find(c =>
+            c.slug?.toLowerCase() === trimmed.toLowerCase() ||
+            c.id?.toLowerCase() === trimmed.toLowerCase() ||
             c.name?.toLowerCase() === trimmed.toLowerCase()
         );
         return {
@@ -448,8 +445,8 @@ function resolveCategoryInfo(p, cachedCategories) {
     }
     if (p.categoryId && typeof p.categoryId === 'string' && p.categoryId.trim() !== '') {
         const trimmedId = p.categoryId.trim();
-        const found = list.find(c => 
-            c.id?.toLowerCase() === trimmedId.toLowerCase() || 
+        const found = list.find(c =>
+            c.id?.toLowerCase() === trimmedId.toLowerCase() ||
             c.slug?.toLowerCase() === trimmedId.toLowerCase() ||
             c.name?.toLowerCase() === trimmedId.toLowerCase()
         );
@@ -481,9 +478,9 @@ function resolveBadgeInfo(p, cachedBadges) {
     const list = Array.isArray(cachedBadges) ? cachedBadges : [];
     if (p.badge && typeof p.badge === 'string' && p.badge.trim() !== '') {
         const trimmed = p.badge.trim();
-        const found = list.find(b => 
-            b.name?.toLowerCase() === trimmed.toLowerCase() || 
-            b.slug?.toLowerCase() === trimmed.toLowerCase() || 
+        const found = list.find(b =>
+            b.name?.toLowerCase() === trimmed.toLowerCase() ||
+            b.slug?.toLowerCase() === trimmed.toLowerCase() ||
             b.id?.toLowerCase() === trimmed.toLowerCase()
         );
         return {
@@ -493,8 +490,8 @@ function resolveBadgeInfo(p, cachedBadges) {
     }
     if (p.badgeId && typeof p.badgeId === 'string' && p.badgeId.trim() !== '') {
         const trimmedId = p.badgeId.trim();
-        const found = list.find(b => 
-            b.id?.toLowerCase() === trimmedId.toLowerCase() || 
+        const found = list.find(b =>
+            b.id?.toLowerCase() === trimmedId.toLowerCase() ||
             b.slug?.toLowerCase() === trimmedId.toLowerCase() ||
             b.name?.toLowerCase() === trimmedId.toLowerCase()
         );
@@ -543,8 +540,8 @@ export async function syncProductsFromApi(options = {}) {
         if (options.category) {
             const catList = getCategories({ includeDeleted: true });
             const normCat = String(options.category).trim().toLowerCase();
-            const found = catList.find(c => 
-                (c.id && c.id.toLowerCase() === normCat) || 
+            const found = catList.find(c =>
+                (c.id && c.id.toLowerCase() === normCat) ||
                 (c.slug && c.slug.toLowerCase() === normCat) ||
                 (c.name && c.name.toLowerCase() === normCat)
             );
@@ -553,8 +550,8 @@ export async function syncProductsFromApi(options = {}) {
         if (options.brand) {
             const brandList = getBrands({ includeDeleted: true });
             const normBrand = String(options.brand).trim().toLowerCase();
-            const found = brandList.find(b => 
-                (b.id && b.id.toLowerCase() === normBrand) || 
+            const found = brandList.find(b =>
+                (b.id && b.id.toLowerCase() === normBrand) ||
                 (b.slug && b.slug.toLowerCase() === normBrand) ||
                 (b.name && b.name.toLowerCase() === normBrand)
             );
@@ -563,8 +560,8 @@ export async function syncProductsFromApi(options = {}) {
         if (options.badge) {
             const badgeList = getBadges({ includeDeleted: true });
             const normBadge = String(options.badge).trim().toLowerCase();
-            const found = badgeList.find(b => 
-                (b.id && b.id.toLowerCase() === normBadge) || 
+            const found = badgeList.find(b =>
+                (b.id && b.id.toLowerCase() === normBadge) ||
                 (b.slug && b.slug.toLowerCase() === normBadge) ||
                 (b.name && b.name.toLowerCase() === normBadge)
             );

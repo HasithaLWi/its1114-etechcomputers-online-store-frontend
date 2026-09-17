@@ -1,13 +1,8 @@
-// ============================================================
-//  src/js/api/productsApi.js — Products Backend API Client
-// ============================================================
 import { ajaxRequest } from './apiClient.js';
 
 export const ProductsApi = {
-  /**
-   * Fetch all non-deleted products
-   * GET /api/v1/products/all
-   */
+
+  // GET /api/v1/products/all
   async getAll() {
     console.log('[ProductsAPI] getAll() -> fetching all catalog products');
     const res = await ajaxRequest({
@@ -17,10 +12,8 @@ export const ProductsApi = {
     return res.body || res;
   },
 
-  /**
-   * Filter active products with pagination & query parameters
-   * GET /api/v1/products/filter
-   */
+
+  // GET /api/v1/products/filter
   async getFiltered(params = {}) {
     console.log('[ProductsAPI] getFiltered() -> params:', params);
     const res = await ajaxRequest({
@@ -31,10 +24,8 @@ export const ProductsApi = {
     return res.body || res;
   },
 
-  /**
-   * Fetch single product details by numeric database ID
-   * GET /api/v1/products/{id}
-   */
+
+  // GET /api/v1/products/{id}
   async getById(id) {
     console.log('[ProductsAPI] getById() -> ID:', id);
     const res = await ajaxRequest({
@@ -44,10 +35,8 @@ export const ProductsApi = {
     return res.body || res;
   },
 
-  /**
-   * Fetch product details by SKU
-   * GET /api/v1/products/sku/{sku}
-   */
+
+  // GET /api/v1/products/sku/{sku}
   async getBySku(sku) {
     console.log('[ProductsAPI] getBySku() -> SKU:', sku);
     const res = await ajaxRequest({

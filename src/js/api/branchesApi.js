@@ -1,13 +1,7 @@
-// ============================================================
-//  src/js/api/branchesApi.js — Regional Warehouses & Logistics API Client
-// ============================================================
 import { ajaxRequest } from './apiClient.js';
 
 export const BranchesApi = {
-  /**
-   * Fetch all warehouse branches
-   * GET /api/v1/branches
-   */
+  // GET /api/v1/branches
   async getAll(activeOnly = false) {
     console.log('[BranchesAPI] getAll() -> activeOnly:', activeOnly);
     const query = activeOnly ? '?activeOnly=true' : '';
@@ -18,10 +12,8 @@ export const BranchesApi = {
     return res.body || res;
   },
 
-  /**
-   * Fetch single branch by ID
-   * GET /api/v1/branches/{id}
-   */
+  // GET /api/v1/branches/{id}
+
   async getById(id) {
     console.log('[BranchesAPI] getById() -> ID:', id);
     const res = await ajaxRequest({
@@ -69,10 +61,7 @@ export const BranchesApi = {
     });
   },
 
-  /**
-   * Calculate nearest branch and distance shipping fee
-   * POST /api/v1/branches/nearest
-   */
+  // POST /api/v1/branches/nearest
   async findNearest(coordinatesOrCity) {
     console.log('[BranchesAPI] findNearest() -> query:', coordinatesOrCity);
     const payload = typeof coordinatesOrCity === 'string'

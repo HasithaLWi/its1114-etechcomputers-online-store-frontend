@@ -4,9 +4,10 @@
 // ============================================================
 import { BranchesApi } from '../api/branchesApi.js';
 import { getProductBranchStock } from '../models/data.js';
+import { BRANCHES_STORAGE_KEY } from '../util/localstorage.js';
 
 export const DEFAULT_BRANCHES = [];
-export const BRANCHES_STORAGE_KEY = 'etech_branches';
+// export const BRANCHES_STORAGE_KEY = 'etech_branches';
 
 /**
  * Standard Sri Lankan Districts GPS Coordinates (Centroids)
@@ -140,7 +141,7 @@ export function getBranchById(branchId) {
 export async function saveBranch(branchData) {
   const branches = memoryBranches;
   const index = branches.findIndex(b => b.id === branchData.id);
-  
+
   const lat = (branchData.latitude !== undefined && branchData.latitude !== null && !isNaN(branchData.latitude))
     ? parseFloat(branchData.latitude)
     : 6.9271;
@@ -186,7 +187,7 @@ export async function saveBranch(branchData) {
       console.warn('[BranchController] Backend create fallback:', err);
     }
   }
-  
+
   saveBranches(branches);
   return payload;
 }
@@ -210,10 +211,10 @@ export async function deleteBranch(branchId) {
  */
 export function getBranchCoords(branch) {
   if (!branch) return { lat: 6.9271, lng: 79.8612, name: 'Colombo Main Hub', city: 'Colombo' };
-  
+
   // 1. Check real saved coordinates on branch object
   if (branch.latitude !== undefined && branch.latitude !== null && !isNaN(branch.latitude) &&
-      branch.longitude !== undefined && branch.longitude !== null && !isNaN(branch.longitude)) {
+    branch.longitude !== undefined && branch.longitude !== null && !isNaN(branch.longitude)) {
     return {
       lat: parseFloat(branch.latitude),
       lng: parseFloat(branch.longitude),
@@ -272,8 +273,8 @@ export function calculateHaversineDistanceKm(lat1, lon1, lat2, lon2) {
   const dLat = (lat2 - lat1) * Math.PI / 180;
   const dLon = (lon2 - lon1) * Math.PI / 180;
   const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-            Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-            Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   const dist = R * c;
   return Math.max(2, Math.round(dist * 10) / 10);

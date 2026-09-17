@@ -14,10 +14,13 @@ import {
     DEFAULT_BUSINESS_INFO, DEFAULT_LEGAL_POLICIES
 } from './src/js/models/policy-data.js';
 import { ET_CONFIG } from './src/js/models/et-training.js';
-import { 
-    User, CURRENT_USER_STORAGE_KEY, DEFAULT_ROLE, USER_ROLE, USER_STATUS, getRoleBadge, getStatusBadge, buildRoleOptionsHtml, buildStatusOptionsHtml
+import {
+    User, DEFAULT_ROLE, USER_ROLE, USER_STATUS, getRoleBadge, getStatusBadge, buildRoleOptionsHtml, buildStatusOptionsHtml
 } from './src/js/models/user_model.js';
 import { AuthApi, UserApi } from './src/js/api/userApi.js';
+import {
+    TOKEN_STORAGE_KEY, CURRENT_USER_STORAGE_KEY, API_BASE_URL
+} from './src/js/api/apiClient.js';
 import {
     getToken, setToken, removeToken,
     registerUser, loginUser, setCurrentUser,
@@ -49,7 +52,7 @@ import {
     getAllReviews, getProductReviews, getUserReviewForProduct, hasUserReviewedProduct, submitProductReview,
     getAllRatings, getProductRatings, getUserRatingForProduct, hasUserRatedProduct, submitProductRating
 } from './src/js/models/rating_data.js';
-import { 
+import {
     initShopLogic, renderFilteredProducts, applyProductFilters, resetProductFilters,
     addCategoryFilter, removeCategoryFilter, clearCategoryFilters, getSelectedCategories,
     addBrandFilter, removeBrandFilter, clearBrandFilters, getSelectedBrands
@@ -59,7 +62,7 @@ import {
     renderFlashDealsGrid, toggleDealWishlist, buyFeaturedDeal,
     handleDealsNewsletter, HOT_DEALS_DATA
 } from './src/js/controller/hot_deal_controller.js';
-import { 
+import {
     handleLogout, updateHeaderAuthUI, renderHomeNewArrivalsGrid, renderHomeBrandsShowcase, scrollHomeBrands,
     toggleMobileMenu, openMobileMenu, closeMobileMenu, handleMobileSearchSubmit, handleHeaderSearchSubmit,
     refreshHomePageData
@@ -225,7 +228,7 @@ import {
 // Inter-Branch Stock Transfers Controller & Model Imports
 import {
     renderTransfersTab, filterTransfersByStatus, handleTransferSearch,
-    handleApproveDispatchTransfer, handleReceiveTransfer, handleCancelTransfer, 
+    handleApproveDispatchTransfer, handleReceiveTransfer, handleCancelTransfer,
     openInitiateTransferModal, updateTransferProductDetails, validateTransferSourceStock,
     handleSaveTransferSubmit, viewTransferManifestModal
 } from './src/js/controller/transfer_management_controller.js';
@@ -401,7 +404,7 @@ Object.assign(window, {
 
     // Transfers
     renderTransfersTab, filterTransfersByStatus, handleTransferSearch,
-    handleApproveDispatchTransfer, handleReceiveTransfer, handleCancelTransfer, 
+    handleApproveDispatchTransfer, handleReceiveTransfer, handleCancelTransfer,
     openInitiateTransferModal, updateTransferProductDetails, validateTransferSourceStock,
     handleSaveTransferSubmit, viewTransferManifestModal,
     getStockTransfers, saveStockTransfers, createStockTransfer,

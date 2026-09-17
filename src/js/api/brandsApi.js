@@ -1,13 +1,8 @@
-// ============================================================
-//  src/js/api/brandsApi.js — Hardware Brands Backend API Client
-// ============================================================
 import { ajaxRequest } from './apiClient.js';
 
 export const BrandsApi = {
-  /**
-   * Fetch all non-deleted hardware brands ordered by display order
-   * GET /api/v1/brands/all
-   */
+
+  // GET /api/v1/brands/all
   async getAll() {
     console.log('[BrandsAPI] getAll() -> fetching all brands');
     const res = await ajaxRequest({
@@ -17,10 +12,7 @@ export const BrandsApi = {
     return res.body || res;
   },
 
-  /**
-   * Fetch featured brands for homepage showcase
-   * GET /api/v1/brands/featured
-   */
+  // GET /api/v1/brands/featured
   async getFeatured() {
     console.log('[BrandsAPI] getFeatured() -> fetching featured brands');
     const res = await ajaxRequest({
@@ -30,10 +22,7 @@ export const BrandsApi = {
     return res.body || res;
   },
 
-  /**
-   * Fetch single brand by ID
-   * GET /api/v1/brands/{id}
-   */
+  // GET /api/v1/brands/{id}
   async getById(id) {
     console.log('[BrandsAPI] getById() -> ID:', id);
     const res = await ajaxRequest({
@@ -43,10 +32,7 @@ export const BrandsApi = {
     return res.body || res;
   },
 
-  /**
-   * Fetch single brand by slug
-   * GET /api/v1/brands/slug/{slug}
-   */
+  // GET /api/v1/brands/slug/{slug}
   async getBySlug(slug) {
     console.log('[BrandsAPI] getBySlug() -> slug:', slug);
     const res = await ajaxRequest({
@@ -56,10 +42,7 @@ export const BrandsApi = {
     return res.body || res;
   },
 
-  /**
-   * Fetch single brand by name
-   * GET /api/v1/brands/name/{name}
-   */
+  // GET /api/v1/brands/name/{name}
   async getByName(name) {
     console.log('[BrandsAPI] getByName() -> name:', name);
     const res = await ajaxRequest({
@@ -69,10 +52,7 @@ export const BrandsApi = {
     return res.body || res;
   },
 
-  /**
-   * Filter brands by search keyword
-   * GET /api/v1/brands/filter?search={search}
-   */
+  // GET /api/v1/brands/filter?search={search}
   async filter(search) {
     console.log('[BrandsAPI] filter() -> search:', search);
     const res = await ajaxRequest({

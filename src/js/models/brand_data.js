@@ -3,9 +3,11 @@
 // ============================================================
 import { getStoredProducts } from './data.js';
 import { BrandsApi } from '../api/brandsApi.js';
+import { BRANDS_STORAGE_KEY } from '../util/localstorage.js';
+
 
 export const DEFAULT_BRANDS = [];
-export const BRANDS_STORAGE_KEY = 'etech_brands_data';
+// export const BRANDS_STORAGE_KEY = 'etech_brands_data';
 
 // Reactive In-Memory Store
 let memoryBrands = [];

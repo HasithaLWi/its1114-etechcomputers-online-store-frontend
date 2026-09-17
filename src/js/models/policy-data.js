@@ -1,17 +1,16 @@
-// ============================================================
-//  policy-data.js — Store Business Profile & Legal Policies In-Memory Layer
-// ============================================================
-import {
-  DEFAULT_BUSINESS_INFO,
-  DEFAULT_LEGAL_POLICIES,
-  legalPolicies
-} from '../../data/policies.js';
 import { PoliciesApi } from '../api/policiesApi.js';
+import { POLICIES_STORAGE_KEY, BUSINESS_INFO_STORAGE_KEY } from '../util/localstorage.js';
 
-export { DEFAULT_BUSINESS_INFO, DEFAULT_LEGAL_POLICIES, legalPolicies };
+// export { DEFAULT_BUSINESS_INFO, DEFAULT_LEGAL_POLICIES, legalPolicies };
 
-export const POLICIES_STORAGE_KEY = 'etech_policies';
-export const BUSINESS_INFO_STORAGE_KEY = 'etech_business_info';
+export const DEFAULT_BUSINESS_INFO = {};
+
+export const DEFAULT_LEGAL_POLICIES = {};
+
+export const legalPolicies = DEFAULT_LEGAL_POLICIES;
+
+// export const POLICIES_STORAGE_KEY = 'etech_policies';
+// export const BUSINESS_INFO_STORAGE_KEY = 'etech_business_info';
 
 // Reactive In-Memory Stores
 let memoryBusinessInfo = { ...DEFAULT_BUSINESS_INFO };

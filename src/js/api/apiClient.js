@@ -1,41 +1,48 @@
-// ============================================================
-//  src/js/api/apiClient.js — Centralized jQuery AJAX API Client
-// ============================================================
+import {
+  TOKEN_STORAGE_KEY,
+  CURRENT_USER_STORAGE_KEY,
+  API_BASE_URL
+} from '../util/localstorage.js';
 
-// export const API_BASE_URL = (typeof window !== 'undefined' && window.API_BASE_URL) ? window.API_BASE_URL : 'https://its1114-etechcomputers-online-store.onrender.com/api/v1';
-export const API_BASE_URL = 'http://localhost:8080/api/v1';
-export const TOKEN_STORAGE_KEY = 'etech_jwt_token';
-export const CURRENT_USER_STORAGE_KEY = 'etech_current_user';
+// export const TOKEN_STORAGE_KEY = 'etech_jwt_token';
+// export const CURRENT_USER_STORAGE_KEY = 'etech_current_user';
+// export const API_BASE_URL =
+//   (typeof window !== 'undefined' && window.__ENV__?.API_BASE_URL)
+//     ? window.__ENV__.API_BASE_URL
+//     : 'http://localhost:8080/api/v1';
 
-/**
- * Retrieve active JWT Bearer Token from localStorage
- */
+export {
+  TOKEN_STORAGE_KEY,
+  CURRENT_USER_STORAGE_KEY,
+  API_BASE_URL
+} from '../util/localstorage.js';
+
+
+// Retrieve active JWT Bearer Token from localStorage
+
 export function getToken() {
   if (typeof localStorage === 'undefined') return null;
   return localStorage.getItem(TOKEN_STORAGE_KEY);
 }
 
-/**
- * Persist JWT Bearer Token into localStorage
- */
+//Persist JWT Bearer Token into localStorage
+
 export function setToken(token) {
   if (typeof localStorage !== 'undefined' && token) {
     localStorage.setItem(TOKEN_STORAGE_KEY, token);
   }
 }
 
-/**
- * Clear JWT Bearer Token from localStorage
- */
+//Clear JWT Bearer Token from localStorage
+
 export function removeToken() {
   if (typeof localStorage !== 'undefined') {
     localStorage.removeItem(TOKEN_STORAGE_KEY);
   }
 }
 
-/**
- * Safely sanitizes request/response payload for debug logging (strips passwords, tokens, credentials)
- */
+//Safely sanitizes request/response payload for debug logging (strips passwords, tokens, credentials)
+
 export function sanitizeForLogging(payload) {
   if (!payload) return payload;
   try {

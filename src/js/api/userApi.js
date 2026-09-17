@@ -1,13 +1,9 @@
-// ============================================================
-//  src/js/api/userApi.js — User & Authentication Backend API Client
-// ============================================================
 import { ajaxRequest } from './apiClient.js';
 
+
 export const AuthApi = {
-  /**
-   * Authenticate user credentials and retrieve JWT token + sanitized profile
-   * POST /api/v1/auth/login
-   */
+
+  // POST /api/v1/auth/login
   async login(username, password) {
     console.log('[UserAPI] AuthApi.login() -> username/email:', (username || '').trim());
     return ajaxRequest({
@@ -20,15 +16,12 @@ export const AuthApi = {
     });
   },
 
-  /**
-   * Register a new customer storefront user
-   * POST /api/v1/auth/register
-   */
+  // POST /api/v1/auth/register
   async register({ name, username, email, password }) {
-    console.log('[UserAPI] AuthApi.register() -> new user:', { 
-      name: (name || '').trim(), 
-      username: (username || '').trim().toLowerCase(), 
-      email: (email || '').trim().toLowerCase() 
+    console.log('[UserAPI] AuthApi.register() -> new user:', {
+      name: (name || '').trim(),
+      username: (username || '').trim().toLowerCase(),
+      email: (email || '').trim().toLowerCase()
     });
     return ajaxRequest({
       endpoint: '/auth/register',
@@ -42,10 +35,7 @@ export const AuthApi = {
     });
   },
 
-  /**
-   * Retrieve currently authenticated user profile from active JWT session
-   * GET /api/v1/auth/me
-   */
+  // GET /api/v1/auth/me
   async getCurrentUser() {
     console.log('[UserAPI] AuthApi.getCurrentUser() -> verifying active session');
     const res = await ajaxRequest({
@@ -55,10 +45,8 @@ export const AuthApi = {
     return (res && res.body !== undefined && res.body !== null) ? res.body : res;
   },
 
-  /**
-   * Request 6-digit OTP code to reset password
-   * POST /api/v1/auth/forgot-password/request-otp
-   */
+
+  // POST /api/v1/auth/forgot-password/request-otp
   async requestPasswordResetOtp(identifier) {
     console.log('[UserAPI] AuthApi.requestPasswordResetOtp() ->', identifier);
     return ajaxRequest({
@@ -68,10 +56,8 @@ export const AuthApi = {
     });
   },
 
-  /**
-   * Verify 6-digit OTP code
-   * POST /api/v1/auth/forgot-password/verify-otp
-   */
+
+  // POST /api/v1/auth/forgot-password/verify-otp
   async verifyPasswordResetOtp(identifier, otp) {
     console.log('[UserAPI] AuthApi.verifyPasswordResetOtp() ->', identifier, otp);
     return ajaxRequest({
@@ -84,10 +70,7 @@ export const AuthApi = {
     });
   },
 
-  /**
-   * Reset account password with verified OTP or reset token
-   * POST /api/v1/auth/forgot-password/reset-password
-   */
+  // POST /api/v1/auth/forgot-password/reset-password
   async resetPasswordWithOtp(identifier, resetToken, newPassword) {
     console.log('[UserAPI] AuthApi.resetPasswordWithOtp() ->', identifier);
     return ajaxRequest({
@@ -103,10 +86,8 @@ export const AuthApi = {
 };
 
 export const EmailApi = {
-  /**
-   * Send Customer Support Inquiry
-   * POST /api/v1/email/support
-   */
+
+  // POST /api/v1/email/support
   async sendSupportInquiry(inquiryData) {
     return ajaxRequest({
       endpoint: '/email/support',
@@ -117,10 +98,8 @@ export const EmailApi = {
 };
 
 export const UserApi = {
-  /**
-   * Fetch system user directory with optional filtering (Admin/Superadmin only)
-   * GET /api/v1/users
-   */
+
+  // GET /api/v1/users
   async getUsers(params = {}) {
     const query = {};
     if (params.role) query.role = params.role;
@@ -136,10 +115,8 @@ export const UserApi = {
     return (res && res.body !== undefined && res.body !== null) ? res.body : res;
   },
 
-  /**
-   * Filter users with pagination & query parameters
-   * GET /api/v1/users/filter
-   */
+
+  // GET /api/v1/users/filter
   async getFiltered(params = {}) {
     console.log('[UserAPI] UserApi.getFiltered() -> params:', params);
     const res = await ajaxRequest({
@@ -150,10 +127,8 @@ export const UserApi = {
     return (res && res.body !== undefined && res.body !== null) ? res.body : res;
   },
 
-  /**
-   * Fetch single user record by database ID
-   * GET /api/v1/users/{id}
-   */
+
+  // GET /api/v1/users/{id}
   async getUserById(id) {
     console.log('[UserAPI] UserApi.getUserById() -> user ID:', id);
     const res = await ajaxRequest({
@@ -163,10 +138,8 @@ export const UserApi = {
     return (res && res.body !== undefined && res.body !== null) ? res.body : res;
   },
 
-  /**
-   * Create a new user account (Admin/Superadmin only)
-   * POST /api/v1/users
-   */
+
+  // POST /api/v1/users
   async createUser(userData) {
     console.log('[UserAPI] UserApi.createUser() -> new user account:', {
       name: (userData.name || '').trim(),
@@ -190,10 +163,8 @@ export const UserApi = {
     });
   },
 
-  /**
-   * Update user details and optionally override password
-   * PUT /api/v1/users/{id}
-   */
+
+  // PUT /api/v1/users/{id}
   async updateUser(id, userData) {
     console.log('[UserAPI] UserApi.updateUser() -> ID:', id, {
       name: (userData.name || '').trim(),
@@ -223,10 +194,8 @@ export const UserApi = {
     });
   },
 
-  /**
-   * Assign / change a user's system role and branch
-   * PATCH /api/v1/users/{id}/role
-   */
+
+  // PATCH /api/v1/users/{id}/role
   async updateUserRole(id, { role, assignedBranch = null }) {
     console.log('[UserAPI] UserApi.updateUserRole() -> ID:', id, { role, assignedBranch });
     return ajaxRequest({
@@ -239,10 +208,9 @@ export const UserApi = {
     });
   },
 
-  /**
-   * Update a user's status (ACTIVE / INACTIVE)
-   * PATCH /api/v1/users/{id}/status (with fallback to PUT /api/v1/users/{id})
-   */
+
+  // Update a user's status (ACTIVE / INACTIVE)
+  // PATCH /api/v1/users/{id}/status (with fallback to PUT /api/v1/users/{id})
   async updateUserStatus(id, status) {
     console.log('[UserAPI] UserApi.updateUserStatus() -> ID:', id, { status });
     try {
@@ -260,10 +228,8 @@ export const UserApi = {
     }
   },
 
-  /**
-   * Delete user account from system
-   * DELETE /api/v1/users/{id}
-   */
+
+  // DELETE /api/v1/users/{id}
   async deleteUser(id) {
     console.log('[UserAPI] UserApi.deleteUser() -> ID:', id);
     return ajaxRequest({
@@ -272,10 +238,9 @@ export const UserApi = {
     });
   },
 
-  /**
-   * Update logged-in user's personal profile (Name, Username, Email)
-   * PUT /api/v1/users/me/profile
-   */
+
+  // Update logged-in user's personal profile (Name, Username, Email)
+  // PUT /api/v1/users/me/profile
   async updateSelfProfile({ name, username, email }) {
     console.log('[UserAPI] UserApi.updateSelfProfile() -> profile:', {
       name: (name || '').trim(),
@@ -295,10 +260,8 @@ export const UserApi = {
     return (res && res.body !== undefined && res.body !== null) ? res.body : res;
   },
 
-  /**
-   * Change logged-in user's account password
-   * PUT /api/v1/users/me/password
-   */
+
+  // PUT /api/v1/users/me/password
   async changeSelfPassword({ currentPassword, newPassword }) {
     console.log('[UserAPI] UserApi.changeSelfPassword() -> password update request');
     return ajaxRequest({

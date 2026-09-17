@@ -1,6 +1,3 @@
-// ============================================================
-//  src/js/api/ordersApi.js — Customer Orders & Fulfillment API Client
-// ============================================================
 import { ajaxRequest } from './apiClient.js';
 
 export const OrdersApi = {
