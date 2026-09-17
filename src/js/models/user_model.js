@@ -2,8 +2,9 @@
 //  src/js/models/user_model.js — User Entity & Role Model
 // ============================================================
 import { getToken, setToken, removeToken } from '../api/apiClient.js';
+export { CURRENT_USER_STORAGE_KEY } from '../util/localstorage.js';
 
-export const CURRENT_USER_STORAGE_KEY = 'etech_current_user';
+
 export const DEFAULT_ROLE = 'CUSTOMER';
 export const USER_ROLE = {
     CUSTOMER: 'CUSTOMER',

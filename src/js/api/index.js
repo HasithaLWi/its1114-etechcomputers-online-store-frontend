@@ -1,7 +1,3 @@
-// ============================================================
-//  src/js/api/index.js — Unified API Client Barrel Export
-// ============================================================
-
 export { ajaxRequest, API_BASE_URL, getToken, setToken, removeToken, sanitizeForLogging } from './apiClient.js';
 export { AuthApi, UserApi } from './userApi.js';
 export { ProductsApi } from './productsApi.js';

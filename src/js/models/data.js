@@ -1,6 +1,3 @@
-// ============================================================
-//  src/js/models/data.js — Product Inventory In-Memory Model Layer
-// ============================================================
 import { ProductsApi } from '../api/productsApi.js';
 import { InventoryApi } from '../api/inventoryApi.js';
 import { getCategories, getBadges } from './taxonomy_data.js';
@@ -218,14 +215,84 @@ export async function saveProduct(productData) {
 }
 
 /**
+ * Resolves available stock for a product at a specific branch ID
+ * Handles both branchStock object and branchInventories array formats, with alias matching
+ */
+export function getProductBranchStock(product, branchId) {
+    if (!product) return 0;
+    const targetId = String(branchId || '').trim().toUpperCase();
+
+    // 1. Check branchStock map: { "BR-COL": 5, "BR-GAL": 2, ... }
+    if (product.branchStock && typeof product.branchStock === 'object') {
+        if (product.branchStock[branchId] !== undefined) {
+            return Math.max(0, parseInt(product.branchStock[branchId], 10) || 0);
+        }
+        for (const [key, val] of Object.entries(product.branchStock)) {
+            const normKey = String(key || '').trim().toUpperCase();
+            if (normKey === targetId) {
+                return Math.max(0, parseInt(val, 10) || 0);
+            }
+            // Branch alias handling: BR-KAN vs BR-KND
+            if ((normKey === 'BR-KAN' && targetId === 'BR-KND') || (normKey === 'BR-KND' && targetId === 'BR-KAN')) {
+                return Math.max(0, parseInt(val, 10) || 0);
+            }
+        }
+    }
+
+    // 2. Check branchInventories array if present
+    if (Array.isArray(product.branchInventories) && product.branchInventories.length > 0) {
+        const bi = product.branchInventories.find(item => {
+            const bId = String(item.branchId || (item.branch && item.branch.id) || '').trim().toUpperCase();
+            return bId === targetId || ((bId === 'BR-KAN' && targetId === 'BR-KND') || (bId === 'BR-KND' && targetId === 'BR-KAN'));
+        });
+        if (bi) {
+            return Math.max(0, parseInt(bi.quantity, 10) || 0);
+        }
+    }
+
+    return 0;
+}
+
+/**
+ * Returns the maximum quantity available for a product in ANY single fulfillment branch.
+ * Since an order is fulfilled by a single branch, a customer order cannot exceed this limit.
+ */
+export function getMaxStockInAnyBranch(product) {
+    if (!product) return 0;
+
+    // 1. If branchStock map is populated
+    if (product.branchStock && typeof product.branchStock === 'object') {
+        const vals = Object.values(product.branchStock).map(v => parseInt(v, 10) || 0);
+        if (vals.length > 0) {
+            return Math.max(0, ...vals);
+        }
+    }
+
+    // 2. If branchInventories array is populated
+    if (Array.isArray(product.branchInventories) && product.branchInventories.length > 0) {
+        const vals = product.branchInventories.map(bi => parseInt(bi.quantity, 10) || 0);
+        if (vals.length > 0) {
+            return Math.max(0, ...vals);
+        }
+    }
+
+    // 3. Fallback to totalStock if single-branch inventory is not loaded
+    if (product.totalStock !== undefined && product.totalStock !== null) {
+        return Math.max(0, parseInt(product.totalStock, 10) || 0);
+    }
+
+    return product.inStock ? 1 : 0;
+}
+
+/**
  * Deduct stock from a specific branch when an order is placed
  */
 export function deductBranchStock(productId, branchId, quantity) {
     const product = memoryProducts.find(p => p.id === parseInt(productId));
     if (product && product.branchStock) {
-        const current = product.branchStock[branchId] || 0;
+        const current = getProductBranchStock(product, branchId);
         product.branchStock[branchId] = Math.max(0, current - quantity);
-        product.totalStock = Object.values(product.branchStock).reduce((a, b) => a + b, 0);
+        product.totalStock = Object.values(product.branchStock).reduce((a, b) => a + (parseInt(b, 10) || 0), 0);
         product.inStock = product.totalStock > 0;
     }
 }
@@ -237,9 +304,9 @@ export function restoreBranchStock(productId, branchId, quantity) {
     const product = memoryProducts.find(p => p.id === parseInt(productId));
     if (product) {
         if (!product.branchStock) product.branchStock = { "BR-COL": 0, "BR-GAL": 0, "BR-MAT": 0, "BR-KAN": 0 };
-        const current = parseInt(product.branchStock[branchId] || 0);
-        product.branchStock[branchId] = current + parseInt(quantity || 0);
-        product.totalStock = Object.values(product.branchStock).reduce((a, b) => a + parseInt(b || 0), 0);
+        const current = getProductBranchStock(product, branchId);
+        product.branchStock[branchId] = current + parseInt(quantity || 0, 10);
+        product.totalStock = Object.values(product.branchStock).reduce((a, b) => a + parseInt(b || 0, 10), 0);
         product.inStock = product.totalStock > 0;
     }
 }
@@ -255,7 +322,7 @@ export async function updateProductStockSettings(productId, { alertEnabled, lowS
 
         try {
             await InventoryApi.updateSettings(productId, { alertEnabled, lowStockMargin });
-        } catch (e) {}
+        } catch (e) { }
 
         return product;
     }
@@ -320,9 +387,9 @@ function resolveBrandInfo(p, cachedBrands) {
     const list = Array.isArray(cachedBrands) ? cachedBrands : [];
     if (p.brand && typeof p.brand === 'string' && p.brand.trim() !== '') {
         const trimmed = p.brand.trim();
-        const found = list.find(b => 
-            b.name?.toLowerCase() === trimmed.toLowerCase() || 
-            b.slug?.toLowerCase() === trimmed.toLowerCase() || 
+        const found = list.find(b =>
+            b.name?.toLowerCase() === trimmed.toLowerCase() ||
+            b.slug?.toLowerCase() === trimmed.toLowerCase() ||
             b.id?.toLowerCase() === trimmed.toLowerCase()
         );
         return {
@@ -333,8 +400,8 @@ function resolveBrandInfo(p, cachedBrands) {
     }
     if (p.brandId && typeof p.brandId === 'string' && p.brandId.trim() !== '') {
         const trimmedId = p.brandId.trim();
-        const found = list.find(b => 
-            b.id?.toLowerCase() === trimmedId.toLowerCase() || 
+        const found = list.find(b =>
+            b.id?.toLowerCase() === trimmedId.toLowerCase() ||
             b.slug?.toLowerCase() === trimmedId.toLowerCase() ||
             b.name?.toLowerCase() === trimmedId.toLowerCase()
         );
@@ -364,9 +431,9 @@ function resolveCategoryInfo(p, cachedCategories) {
     const list = Array.isArray(cachedCategories) ? cachedCategories : [];
     if (p.category && typeof p.category === 'string' && p.category.trim() !== '') {
         const trimmed = p.category.trim();
-        const found = list.find(c => 
-            c.slug?.toLowerCase() === trimmed.toLowerCase() || 
-            c.id?.toLowerCase() === trimmed.toLowerCase() || 
+        const found = list.find(c =>
+            c.slug?.toLowerCase() === trimmed.toLowerCase() ||
+            c.id?.toLowerCase() === trimmed.toLowerCase() ||
             c.name?.toLowerCase() === trimmed.toLowerCase()
         );
         return {
@@ -378,8 +445,8 @@ function resolveCategoryInfo(p, cachedCategories) {
     }
     if (p.categoryId && typeof p.categoryId === 'string' && p.categoryId.trim() !== '') {
         const trimmedId = p.categoryId.trim();
-        const found = list.find(c => 
-            c.id?.toLowerCase() === trimmedId.toLowerCase() || 
+        const found = list.find(c =>
+            c.id?.toLowerCase() === trimmedId.toLowerCase() ||
             c.slug?.toLowerCase() === trimmedId.toLowerCase() ||
             c.name?.toLowerCase() === trimmedId.toLowerCase()
         );
@@ -411,9 +478,9 @@ function resolveBadgeInfo(p, cachedBadges) {
     const list = Array.isArray(cachedBadges) ? cachedBadges : [];
     if (p.badge && typeof p.badge === 'string' && p.badge.trim() !== '') {
         const trimmed = p.badge.trim();
-        const found = list.find(b => 
-            b.name?.toLowerCase() === trimmed.toLowerCase() || 
-            b.slug?.toLowerCase() === trimmed.toLowerCase() || 
+        const found = list.find(b =>
+            b.name?.toLowerCase() === trimmed.toLowerCase() ||
+            b.slug?.toLowerCase() === trimmed.toLowerCase() ||
             b.id?.toLowerCase() === trimmed.toLowerCase()
         );
         return {
@@ -423,8 +490,8 @@ function resolveBadgeInfo(p, cachedBadges) {
     }
     if (p.badgeId && typeof p.badgeId === 'string' && p.badgeId.trim() !== '') {
         const trimmedId = p.badgeId.trim();
-        const found = list.find(b => 
-            b.id?.toLowerCase() === trimmedId.toLowerCase() || 
+        const found = list.find(b =>
+            b.id?.toLowerCase() === trimmedId.toLowerCase() ||
             b.slug?.toLowerCase() === trimmedId.toLowerCase() ||
             b.name?.toLowerCase() === trimmedId.toLowerCase()
         );
@@ -473,8 +540,8 @@ export async function syncProductsFromApi(options = {}) {
         if (options.category) {
             const catList = getCategories({ includeDeleted: true });
             const normCat = String(options.category).trim().toLowerCase();
-            const found = catList.find(c => 
-                (c.id && c.id.toLowerCase() === normCat) || 
+            const found = catList.find(c =>
+                (c.id && c.id.toLowerCase() === normCat) ||
                 (c.slug && c.slug.toLowerCase() === normCat) ||
                 (c.name && c.name.toLowerCase() === normCat)
             );
@@ -483,8 +550,8 @@ export async function syncProductsFromApi(options = {}) {
         if (options.brand) {
             const brandList = getBrands({ includeDeleted: true });
             const normBrand = String(options.brand).trim().toLowerCase();
-            const found = brandList.find(b => 
-                (b.id && b.id.toLowerCase() === normBrand) || 
+            const found = brandList.find(b =>
+                (b.id && b.id.toLowerCase() === normBrand) ||
                 (b.slug && b.slug.toLowerCase() === normBrand) ||
                 (b.name && b.name.toLowerCase() === normBrand)
             );
@@ -493,8 +560,8 @@ export async function syncProductsFromApi(options = {}) {
         if (options.badge) {
             const badgeList = getBadges({ includeDeleted: true });
             const normBadge = String(options.badge).trim().toLowerCase();
-            const found = badgeList.find(b => 
-                (b.id && b.id.toLowerCase() === normBadge) || 
+            const found = badgeList.find(b =>
+                (b.id && b.id.toLowerCase() === normBadge) ||
                 (b.slug && b.slug.toLowerCase() === normBadge) ||
                 (b.name && b.name.toLowerCase() === normBadge)
             );

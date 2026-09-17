@@ -6,7 +6,7 @@ import { getCurrentUser, isLoggedIn, logoutUser } from '../controller/login_cont
 import { getRoleBadge } from '../models/user_model.js';
 import { 
   getUserOrders, getOrderById, renderCustomerOrderDetailPage, 
-  openOrderSupportEmail, handleCustomerCancelOrder, getStatusStyle,
+  handleCustomerCancelOrder, getStatusStyle,
   syncOrdersFromApi, parseCurrencyAmount
 } from '../controller/order_management_controller.js';
 import { formatLKR } from '../util/formatters.js';
@@ -18,10 +18,11 @@ import { getFeaturedBrands, syncBrandsFromApi } from '../models/brand_data.js';
 import { syncCategoriesFromApi, syncBadgesFromApi } from '../models/taxonomy_data.js';
 import { syncBranchesFromApi } from '../controller/branch_controller.js';
 import { syncNewsletterFromApi } from '../models/newsletter_model.js';
-import { initWishlistLogic, updateWishlistBadge, isInWishlist, toggleWishlist, syncWishlistFromApi } from '../controller/wishlist_controller.js';
+import { initWishlistLogic, updateWishlistBadge, isInWishlist, toggleWishlist, syncWishlistFromApi, refreshAllWishlistButtons } from '../controller/wishlist_controller.js';
 import { renderLoginPage } from './login/login.js';
 import { renderAdminPage } from './administrator/administrator.js';
 import { renderAboutPage } from './about/about.js';
+import { renderUnsubscribePage } from './newsletter/unsubscribe.js';
 import { etechAlert } from '../util/index.js';
 import { checkServerHealth, showAppLoading, setAppLoadingStatus, hideAppLoading, onServerReconnect } from '../util/server_health.js';
 
@@ -50,6 +51,8 @@ export async function syncLiveBackendData() {
       syncWishlistFromApi(),
       syncNewsletterFromApi()
     ]);
+    updateWishlistBadge();
+    refreshAllWishlistButtons();
     const hash = window.location.hash || '#home';
     const [routePart, queryPart] = hash.substring(1).split('?');
     triggerPageHooks(routePart || 'home', queryPart);
@@ -64,12 +67,15 @@ export async function syncLiveBackendData() {
 export async function initApp() {
   // 1. Show pre-boot splash loading screen
   showAppLoading('Connecting to ETech Services...');
+  updateWishlistBadge();
+  refreshAllWishlistButtons();
 
   // 2. Register auto-reconnect listener: resync data automatically when server comes back
   onServerReconnect(async () => {
     await syncLiveBackendData();
     updateCartBadge();
     updateWishlistBadge();
+    refreshAllWishlistButtons();
     updateHeaderAuthUI();
     handleRoute();
   });
@@ -101,7 +107,17 @@ function handleRoute() {
   const pageName = routePart || 'home';
 
   // ROUTE GUARDS: Protected pages require signup/login first
-  if ((pageName === 'checkout' || pageName === 'account') && !isLoggedIn()) {
+  if (pageName === 'checkout') {
+    if (!isLoggedIn()) {
+      window.location.hash = `#login?redirect=${pageName}`;
+      return;
+    }
+    const cart = getCart();
+    if (!cart.length) {
+      window.location.hash = '#cart';
+      return;
+    }
+  } else if (pageName === 'account' && !isLoggedIn()) {
     window.location.hash = `#login?redirect=${pageName}`;
     return;
   }
@@ -174,6 +190,19 @@ function handleRoute() {
       aboutSection.classList.remove('hidden');
       window.scrollTo(0, 0);
       renderAboutPage();
+    }
+    updateActiveNavLinks(pageName);
+    updateHeaderAuthUI();
+    return;
+  }
+
+  // Handle Newsletter Unsubscribe route (#unsubscribe or #unsubscribe?email=...)
+  if (['unsubscribe', 'newsletter-unsubscribe'].includes(pageName)) {
+    const unsubSection = document.getElementById('unsubscribe-page');
+    if (unsubSection) {
+      unsubSection.classList.remove('hidden');
+      window.scrollTo(0, 0);
+      renderUnsubscribePage(queryPart);
     }
     updateActiveNavLinks(pageName);
     updateHeaderAuthUI();
@@ -314,6 +343,9 @@ function triggerPageHooks(pageName, queryPart) {
   } else if (pageName === 'account') {
     initAccountLogic();
   }
+
+  // Refresh visual state of wishlist heart buttons across active page views
+  setTimeout(refreshAllWishlistButtons, 100);
 }
 
 // ============================================================
@@ -800,11 +832,6 @@ export function renderUserOrderHistory(userOrEmail) {
                   </button>
                 ` : ''}
 
-                <button type="button" onclick="openOrderSupportEmail('${order.orderId}')" class="px-2.5 py-1 text-[11px] font-bold text-[#475569] hover:bg-[#f1f5f9] border border-[#e2e8f0] rounded transition-colors flex items-center space-x-1 shadow-2xs">
-                  <svg class="w-3 h-3 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
-                  <span>Email Support</span>
-                </button>
-
                 <a href="#order-detail?id=${order.orderId}" class="px-3.5 py-1 text-[11px] font-bold text-white bg-blue-600 hover:bg-blue-500 rounded shadow-xs transition-colors flex items-center space-x-1">
                   <span>Track &amp; Details</span>
                   <span>&rarr;</span>
@@ -1085,6 +1112,7 @@ let carouselTouchStartX = 0;
 
 /**
  * Renders dynamic 3D Stacked Product Card Mockup Carousel in Hero Section
+ * Redesigned: Wider cards, varied badges, category labels, proper 3D spread
  */
 export function renderHomeNewArrivalsCarousel() {
   const container = document.getElementById('hero-carousel-container');
@@ -1092,10 +1120,7 @@ export function renderHomeNewArrivalsCarousel() {
 
   const arrivals = getNewArrivalProducts();
   if (!arrivals || arrivals.length === 0) {
-    container.innerHTML = `
-      <div class="relative rounded-2xl overflow-hidden border border-[#e2e8f0] bg-white shadow-xl p-4 text-center">
-        <img src="public/images/home-hero-image-1.png" alt="ETech PC Workstation Setup" class="w-full h-auto object-contain rounded-xl">
-      </div>`;
+    container.innerHTML = '';
     return;
   }
 
@@ -1113,28 +1138,50 @@ export function renderHomeNewArrivalsCarousel() {
   const product1 = arrivals[idx1];
   const product2 = arrivals[idx2];
 
-  // Helper renderer for clean vertical card in the 3D deck
-  const renderCardItem = (p, slotClass, slideIdx, isFront) => `
-    <div class="absolute top-0  w-[100px] h-[280px] sm:w-[160px] sm:h-[320px] card-3d-deck-item ${slotClass} cursor-pointer select-none" 
+  // Badge style variants for visual distinction
+  const badgeStyles = [
+    { bg: 'bg-emerald-500', text: 'NEW ARRIVAL' },
+    { bg: 'bg-violet-500', text: 'POPULAR' },
+    { bg: 'bg-amber-500', text: 'BEST SELLER' }
+  ];
+
+  // Resolve category display name from product data
+  const getCategoryLabel = (p) => {
+    if (p.categoryName) return p.categoryName.toUpperCase();
+    if (p.category) {
+      const cat = typeof p.category === 'string' ? p.category : (p.category.name || p.category.categoryName || '');
+      return cat.replace(/^cat-/i, '').replace(/-/g, ' ').toUpperCase();
+    }
+    return '';
+  };
+
+  // Helper renderer for wider product cards in the 3D deck
+  const renderCardItem = (p, slotClass, slideIdx, isFront, badgeIdx) => {
+    const badge = badgeStyles[badgeIdx % badgeStyles.length];
+    const badgeLabel = p.badge || badge.text;
+    const badgeBg = badgeIdx === 0 ? 'bg-emerald-500' : (badgeIdx === 1 ? 'bg-violet-500' : 'bg-amber-500');
+    const categoryLabel = getCategoryLabel(p);
+
+    return `
+    <div class="absolute top-0 hero-card-3d card-3d-deck-item ${slotClass} cursor-pointer select-none" 
          onclick="${isFront ? `viewProductDetails(${p.id})` : `goToHeroCarouselSlide(${slideIdx})`}">
-      <div class="relative h-full flex flex-col justify-between p-3 rounded-2xl bg-white border border-slate-200/80 shadow-xl overflow-hidden group">
+      <div class="relative h-full flex flex-col justify-between p-3.5 sm:p-4 rounded-2xl bg-white/95 backdrop-blur-sm border border-white/60 shadow-2xl overflow-hidden group">
         
         <!-- Top Pill Badge -->
-        <div class="flex items-center justify-between z-10 mb-1">
-          <span class="px-2.5 py-0.5 rounded-full bg-blue-600 text-white text-[9.5px] font-extrabold uppercase tracking-wider shadow-sm">
-            ${p.badge || 'NEW ARRIVAL'}
+        <div class="flex items-center justify-between z-10 mb-1.5">
+          <span class="px-2.5 py-[3px] rounded-full ${badgeBg} text-white text-[9px] sm:text-[10px] font-extrabold uppercase tracking-wider shadow-sm">
+            ${badgeLabel}
           </span>
-          ${isFront ? '<span class="w-2 h-2 rounded-full bg-blue-600 animate-pulse"></span>' : ''}
+          ${isFront ? '<span class="w-2 h-2 rounded-full bg-blue-600 animate-pulse shadow-sm shadow-blue-400"></span>' : ''}
         </div>
 
-        <!-- Product Image Showcase Container -->
-        <div class="relative w-full flex items-center justify-center py-3 px-0 my-1 rounded-xl bg-white border border-slate-100 group-hover:border-blue-100 transition-colors">
-          <div class="flex justify-center items-center w-full h-36 overflow-hidden">
-          <img src="${p.image}" alt="${p.name}" class="max-w-full w-full object-cover drop-shadow-sm transition-transform duration-300 group-hover:scale-105">
+        <!-- Product Image Showcase -->
+        <div class="relative w-full flex items-center justify-center py-2 sm:py-3 my-1 rounded-xl bg-slate-50/80 border border-slate-100 group-hover:border-blue-100 transition-colors">
+          <div class="flex justify-center items-center w-full hero-card-img-container overflow-hidden">
+            <img src="${p.image}" alt="${p.name}" class="max-w-full max-h-full object-contain drop-shadow-sm transition-transform duration-300 group-hover:scale-105">
           </div>
           ${isFront ? `
-          <!-- Hover View Specs overlay -->
-          <div class="absolute inset-0 bg-[#0f172a]/10 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center rounded-xl pointer-events-none">
+          <div class="absolute inset-0 bg-[#0f172a]/8 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center rounded-xl pointer-events-none">
             <span class="px-3 py-1.5 rounded-lg bg-blue-600 text-white text-[10px] font-bold shadow-md flex items-center space-x-1">
               <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
               <span>View Specs</span>
@@ -1142,18 +1189,15 @@ export function renderHomeNewArrivalsCarousel() {
           </div>` : ''}
         </div>
 
-        <!-- Product Title & Pricing -->
-        <div class="space-y-0.5 z-10">
-          <p class="text-[9.5px] font-bold text-[#94a3b8] uppercase tracking-wider truncate">
-            ${p.brand || (p.category === 'laptops' ? 'ASUS ROG' : p.name.includes('Intel') ? 'Intel Core' : 'ASUS GeForce')}
-          </p>
-          <h3 class="text-xs sm:text-[13px] font-extrabold text-[#0f172a] line-clamp-2 leading-tight group-hover:text-blue-600 transition-colors">
+        <!-- Product Info -->
+        <div class="space-y-0.5 z-10 mt-1">
+          ${categoryLabel ? `<p class="text-[9px] sm:text-[10px] font-bold text-[#94a3b8] uppercase tracking-wider truncate">${categoryLabel}</p>` : ''}
+          <h3 class="text-[11px] sm:text-[13px] font-extrabold text-[#0f172a] line-clamp-2 leading-snug group-hover:text-blue-600 transition-colors">
             ${p.name}
           </h3>
-
-          <div class="pt-1.5 flex flex-col items-start">
-            ${p.originalPrice ? `<span class="text-[9.5px] text-[#94a3b8] line-through font-semibold font-mono">Rs. ${p.originalPrice.toLocaleString()}</span>` : ''}
-            <span class="text-sm sm:text-base font-black text-blue-600 font-mono tracking-tight">
+          <div class="pt-1 flex flex-col items-start">
+            ${p.originalPrice ? `<span class="text-[9px] sm:text-[10px] text-[#94a3b8] line-through font-semibold font-mono">Rs. ${p.originalPrice.toLocaleString()}</span>` : ''}
+            <span class="text-sm sm:text-[15px] font-black text-blue-600 font-mono tracking-tight">
               Rs. ${p.price.toLocaleString()}
             </span>
           </div>
@@ -1162,29 +1206,30 @@ export function renderHomeNewArrivalsCarousel() {
       </div>
     </div>
   `;
+  };
 
   container.innerHTML = `
-    <div class="relative w-full max-w-[340px] sm:max-w-[360px] pt-1 pb-4" id="hero-carousel-wrapper"
+    <div class="relative w-full max-w-[520px] sm:max-w-[560px] lg:max-w-[580px] pt-1 pb-4" id="hero-carousel-wrapper"
          onmouseenter="pauseHeroCarousel()" 
          onmouseleave="startHeroCarouselAutoPlay()">
       
       <!-- Top Right Counter Badge -->
       <div class="flex items-center justify-end mb-2 pr-1">
-        <span class="text-[11px] font-mono font-extrabold text-[#64748b] bg-white/90 backdrop-blur px-2.5 py-0.5 rounded-md border border-[#e2e8f0] shadow-sm">
+        <span class="text-[11px] font-mono font-extrabold text-slate-300 bg-white/10 backdrop-blur px-2.5 py-0.5 rounded-md border border-white/15 shadow-sm">
           ${currentCarouselIndex + 1}/${arrivals.length}
         </span>
       </div>
 
       <!-- 3D Card Deck Viewport -->
-      <div class="relative h-[330px] sm:h-[345px] w-full hero-carousel-container-3d overflow-visible">
+      <div class="relative hero-card-deck-viewport w-full hero-carousel-container-3d overflow-visible">
         <!-- Back Card (Slot 2) -->
-        ${renderCardItem(product2, 'card-deck-slot-2', idx2, false)}
+        ${renderCardItem(product2, 'card-deck-slot-2', idx2, false, 2)}
 
         <!-- Middle Card (Slot 1) -->
-        ${renderCardItem(product1, 'card-deck-slot-1', idx1, false)}
+        ${renderCardItem(product1, 'card-deck-slot-1', idx1, false, 1)}
 
         <!-- Front Active Card (Slot 0) -->
-        ${renderCardItem(product0, 'card-deck-slot-0', idx0, true)}
+        ${renderCardItem(product0, 'card-deck-slot-0', idx0, true, 0)}
       </div>
 
       <!-- Bottom Controls Row -->
@@ -1192,13 +1237,13 @@ export function renderHomeNewArrivalsCarousel() {
         <!-- Navigation Arrow Buttons -->
         <div class="flex items-center space-x-2">
           <button onclick="prevHeroCarouselSlide()" 
-                  class="w-8 h-8 rounded-full bg-white hover:bg-blue-600 hover:text-white text-[#0f172a] border border-[#cbd5e1] flex items-center justify-center shadow-md transition-all transform hover:scale-105 active:scale-95" 
+                  class="w-8 h-8 rounded-full bg-white/90 hover:bg-blue-600 hover:text-white text-[#0f172a] border border-white/40 flex items-center justify-center shadow-lg backdrop-blur-sm transition-all transform hover:scale-105 active:scale-95" 
                   title="Previous Card">
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"/></svg>
           </button>
           
           <button onclick="nextHeroCarouselSlide()" 
-                  class="w-8 h-8 rounded-full bg-white hover:bg-blue-600 hover:text-white text-[#0f172a] border border-[#cbd5e1] flex items-center justify-center shadow-md transition-all transform hover:scale-105 active:scale-95" 
+                  class="w-8 h-8 rounded-full bg-blue-600 hover:bg-blue-500 text-white border border-blue-500/40 flex items-center justify-center shadow-lg shadow-blue-600/30 transition-all transform hover:scale-105 active:scale-95" 
                   title="Next Card">
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg>
           </button>
@@ -1208,7 +1253,7 @@ export function renderHomeNewArrivalsCarousel() {
         <div class="flex items-center space-x-1.5 ml-1">
           ${arrivals.map((_, idx) => `
             <button onclick="goToHeroCarouselSlide(${idx})" 
-                    class="hero-carousel-indicator h-2 rounded-full transition-all duration-300 ${idx === currentCarouselIndex ? 'active w-5 bg-blue-600' : 'w-2 bg-[#cbd5e1] hover:bg-[#94a3b8]'}"
+                    class="hero-carousel-indicator h-2 rounded-full transition-all duration-300 ${idx === currentCarouselIndex ? 'active w-5 bg-blue-600' : 'w-2 bg-white/40 hover:bg-white/70'}"
                     title="Go to card ${idx + 1}"></button>
           `).join('')}
         </div>
@@ -1424,18 +1469,6 @@ async function renderPolicyPage(policyKey = 'privacy') {
             </div>
           `;
         }).join('')}
-      </div>
-
-      <!-- Policy Footer Assistance Callout -->
-      <div class="pt-4 border-t border-[#e2e8f0] flex flex-col sm:flex-row items-center justify-between gap-4 bg-[#f8fafc] p-4 rounded-md border border-[#e2e8f0]">
-        <div>
-          <h4 class="text-xs font-bold text-[#0f172a]">Have questions regarding our ${policy.title}?</h4>
-          <p class="text-[11px] text-[#64748b] mt-0.5">Our support team is ready to assist you anytime.</p>
-        </div>
-        <a href="mailto:support@etechcomputers.com" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-md text-xs font-bold shadow-sm transition-all flex items-center space-x-1.5 flex-shrink-0">
-          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
-          <span>Contact Support</span>
-        </a>
       </div>
 
     </div>

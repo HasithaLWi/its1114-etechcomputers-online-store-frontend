@@ -1,15 +1,9 @@
-// ============================================================
-//  src/js/api/policiesApi.js — Legal Policies & Store Profile API Client
-// ============================================================
 import { ajaxRequest } from './apiClient.js';
 
 export const PoliciesApi = {
   // ── Store Business Profile ─────────────────────────────────
 
-  /**
-   * Fetch store business profile & credentials
-   * GET /api/v1/business-profile
-   */
+  // GET /api/v1/business-profile
   async getBusinessProfile() {
     console.log('[PoliciesAPI] getBusinessProfile() -> fetching profile');
     const res = await ajaxRequest({
@@ -34,10 +28,8 @@ export const PoliciesApi = {
 
   // ── Legal Policies ─────────────────────────────────────────
 
-  /**
-   * Fetch all legal policy documents
-   * GET /api/v1/policies
-   */
+
+  // GET /api/v1/policies
   async getAll() {
     console.log('[PoliciesAPI] getAll() -> fetching all legal policies');
     const res = await ajaxRequest({
@@ -47,10 +39,8 @@ export const PoliciesApi = {
     return res.body || res;
   },
 
-  /**
-   * Fetch single legal policy by slug ('privacy-policy', 'terms-of-service', 'warranty-guarantee')
-   * GET /api/v1/policies/{slug}
-   */
+
+  // GET /api/v1/policies/{slug}
   async getBySlug(slug) {
     console.log('[PoliciesAPI] getBySlug() -> slug:', slug);
     const res = await ajaxRequest({
@@ -60,10 +50,8 @@ export const PoliciesApi = {
     return res.body || res;
   },
 
-  /**
-   * Update a legal policy document (Admin / SuperAdmin)
-   * PUT /api/v1/policies/{slug}
-   */
+  // Update a legal policy document (Admin / SuperAdmin)
+  // PUT /api/v1/policies/{slug}
   async updatePolicy(slug, policyData) {
     console.log('[PoliciesAPI] updatePolicy() -> slug:', slug, policyData);
     return ajaxRequest({
@@ -73,10 +61,8 @@ export const PoliciesApi = {
     });
   },
 
-  /**
-   * Create a new legal policy document (Admin / SuperAdmin)
-   * POST /api/v1/policies
-   */
+  // Create a new legal policy document (Admin / SuperAdmin)
+  // POST /api/v1/policies
   async createPolicy(policyData) {
     console.log('[PoliciesAPI] createPolicy() -> payload:', policyData);
     return ajaxRequest({

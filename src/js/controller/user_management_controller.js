@@ -15,12 +15,63 @@ import {
   renderUserRoleBadge,
   renderUserStatusBadge,
   showToast,
-  etechAlert
+  etechAlert,
+  renderTablePagination
 } from '../util/index.js';
 
 
 let cachedUsers = [];
 let userTypeFilter = 'all'; // 'all' | 'employees' | 'customers'
+let userSearchQuery = '';
+let userRoleFilter = 'ALL';
+let userBranchFilter = 'ALL';
+let userStatusFilter = 'ALL';
+let userCurrentPage = 1;
+let userPageSize = 10;
+let totalUserItems = 0;
+
+export function changeUserPage(newPage) {
+  userCurrentPage = newPage;
+  renderUsersTab();
+}
+
+export function changeUserPageSize(newSize) {
+  userPageSize = newSize;
+  userCurrentPage = 1;
+  renderUsersTab();
+}
+
+export function filterUsersDirectory() {
+  userCurrentPage = 1;
+  const searchInput = document.getElementById('user-search-input');
+  userSearchQuery = searchInput ? searchInput.value.toLowerCase().trim() : '';
+  const roleSelect = document.getElementById('user-role-filter');
+  userRoleFilter = roleSelect ? roleSelect.value : 'ALL';
+  const branchSelect = document.getElementById('user-branch-filter');
+  userBranchFilter = branchSelect ? branchSelect.value : 'ALL';
+  const statusSelect = document.getElementById('user-status-filter');
+  userStatusFilter = statusSelect ? statusSelect.value : 'ALL';
+  renderUsersTab();
+}
+
+export function resetUsersFilter() {
+  userCurrentPage = 1;
+  userSearchQuery = '';
+  userRoleFilter = 'ALL';
+  userBranchFilter = 'ALL';
+  userStatusFilter = 'ALL';
+
+  const searchInput = document.getElementById('user-search-input');
+  if (searchInput) searchInput.value = '';
+  const roleSelect = document.getElementById('user-role-filter');
+  if (roleSelect) roleSelect.value = 'ALL';
+  const branchSelect = document.getElementById('user-branch-filter');
+  if (branchSelect) branchSelect.value = 'ALL';
+  const statusSelect = document.getElementById('user-status-filter');
+  if (statusSelect) statusSelect.value = 'ALL';
+
+  renderUsersTab();
+}
 
 const EMPLOYEE_ROLES = ['SUPERADMIN', 'SUPER_ADMIN', 'ADMIN', 'STAFF'];
 
@@ -29,6 +80,7 @@ const EMPLOYEE_ROLES = ['SUPERADMIN', 'SUPER_ADMIN', 'ADMIN', 'STAFF'];
  */
 export function filterUsersByType(type) {
   userTypeFilter = type || 'all';
+  userCurrentPage = 1;
 
   // Update toggle button styles
   const allBtn = document.getElementById('user-filter-all');
@@ -51,8 +103,8 @@ export function filterUsersByType(type) {
   if (activeBtn) activeClass.split(' ').forEach(c => activeBtn.classList.add(c));
   inactiveBtns.forEach(btn => { if (btn) inactiveClass.split(' ').forEach(c => btn.classList.add(c)); });
 
-  // Filter and re-render tbody
-  reRenderUsersTableBody();
+  // Refresh via server filter
+  renderUsersTab();
 }
 
 /**
@@ -155,7 +207,7 @@ function renderUserRow(u, activeUser, branches) {
 
 /**
  * Renders the User Directory Table inside Admin Dashboard
- * Fetches directory directly from database via backend API.
+ * Fetches directory directly from database via backend API with filtering & pagination.
  */
 export async function renderUsersTab() {
   const tbody = document.getElementById('users-tbody');
@@ -163,6 +215,35 @@ export async function renderUsersTab() {
 
   const activeUser = getCurrentUser();
   if (!activeUser) return;
+
+  // Populate branch select if not populated yet
+  const branchSelect = document.getElementById('user-branch-filter');
+  if (branchSelect && branchSelect.options.length <= 1) {
+    const branches = (typeof getBranches === 'function') ? getBranches() : [];
+    branches.forEach(b => {
+      const opt = document.createElement('option');
+      opt.value = b.id;
+      opt.textContent = b.name || b.id;
+      branchSelect.appendChild(opt);
+    });
+  }
+
+  // Read filter values from DOM
+  const searchInput = document.getElementById('user-search-input');
+  if (searchInput && searchInput.value !== undefined) {
+    userSearchQuery = searchInput.value.toLowerCase().trim();
+  }
+  const roleSelect = document.getElementById('user-role-filter');
+  if (roleSelect) {
+    userRoleFilter = roleSelect.value || 'ALL';
+  }
+  if (branchSelect) {
+    userBranchFilter = branchSelect.value || 'ALL';
+  }
+  const statusSelect = document.getElementById('user-status-filter');
+  if (statusSelect) {
+    userStatusFilter = statusSelect.value || 'ALL';
+  }
 
   // Show loading skeleton / indicator
   tbody.innerHTML = `
@@ -179,24 +260,59 @@ export async function renderUsersTab() {
     </tr>
   `;
 
+  const params = {
+    page: userCurrentPage - 1,
+    size: userPageSize,
+    sortBy: 'id',
+    sortDir: 'desc'
+  };
+  if (userTypeFilter && userTypeFilter !== 'all') params.userType = userTypeFilter;
+  if (userRoleFilter && userRoleFilter !== 'ALL') params.role = userRoleFilter;
+  if (userBranchFilter && userBranchFilter !== 'ALL') params.branch = userBranchFilter;
+  if (userStatusFilter && userStatusFilter !== 'ALL') params.status = userStatusFilter;
+  if (userSearchQuery) params.search = userSearchQuery;
+
   try {
-    const res = await UserApi.getUsers();
-    const userList = Array.isArray(res) ? res : (res?.body || res?.data || []);
+    const res = await UserApi.getFiltered(params);
+    const pageData = res?.body || res || {};
+    const userList = Array.isArray(pageData) ? pageData : (pageData.content || []);
     cachedUsers = (Array.isArray(userList) ? userList : []).map(u => u instanceof User ? u : new User(u));
+    totalUserItems = pageData.totalElements !== undefined ? pageData.totalElements : cachedUsers.length;
+
+    const branches = getBranches();
 
     if (cachedUsers.length === 0) {
+      const label = userTypeFilter === 'employees' ? 'employee' : (userTypeFilter === 'customers' ? 'customer' : 'user');
       tbody.innerHTML = `
         <tr>
           <td colspan="6" class="py-8 text-center text-xs text-[#64748b]">
-            No user accounts found.
+            ${userSearchQuery || userRoleFilter !== 'ALL' || userBranchFilter !== 'ALL' || userStatusFilter !== 'ALL' ? 'No accounts matched your filter criteria.' : `No ${label} accounts found.`}
           </td>
         </tr>
       `;
+      renderTablePagination({
+        containerId: 'users-pagination-container',
+        currentPage: 1,
+        pageSize: userPageSize,
+        totalItems: 0,
+        itemName: 'users',
+        onPageChange: 'changeUserPage',
+        onPageSizeChange: 'changeUserPageSize'
+      });
       return;
     }
 
-    // Apply current filter and render using shared row renderer
-    reRenderUsersTableBody();
+    tbody.innerHTML = cachedUsers.map(u => renderUserRow(u, activeUser, branches)).join('');
+
+    renderTablePagination({
+      containerId: 'users-pagination-container',
+      currentPage: userCurrentPage,
+      pageSize: userPageSize,
+      totalItems: totalUserItems,
+      itemName: 'users',
+      onPageChange: 'changeUserPage',
+      onPageSizeChange: 'changeUserPageSize'
+    });
   } catch (err) {
     console.error('[UserController] Failed to fetch users:', err);
     etechAlert.error('Connection Error', 'Unable to load users. Please try again.');
@@ -496,4 +612,20 @@ export async function handleSaveUserSubmit(e, userId) {
       submitBtn.classList.remove('opacity-70', 'cursor-wait');
     }
   }
+}
+
+if (typeof window !== 'undefined') {
+  Object.assign(window, {
+    renderUsersTab,
+    filterUsersByType,
+    filterUsersDirectory,
+    resetUsersFilter,
+    changeUserPage,
+    changeUserPageSize,
+    changeUserStatus,
+    changeUserRole,
+    confirmDeleteUser,
+    openUserModal,
+    handleSaveUserSubmit
+  });
 }

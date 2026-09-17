@@ -1,13 +1,8 @@
-// ============================================================
-//  src/js/api/inventoryApi.js — Stock Health & Inventory Alerts API Client
-// ============================================================
 import { ajaxRequest } from './apiClient.js';
 
 export const InventoryApi = {
-  /**
-   * Fetch comprehensive stock health report across branches
-   * GET /api/v1/inventory/health-report
-   */
+
+  // GET /api/v1/inventory/health-report
   async getHealthReport(branchId = null) {
     console.log('[InventoryAPI] getHealthReport() -> branchId:', branchId);
     const query = branchId ? `?branchId=${encodeURIComponent(branchId)}` : '';
@@ -18,10 +13,8 @@ export const InventoryApi = {
     return res.body || res;
   },
 
-  /**
-   * Update product inventory alert settings (alertEnabled, lowStockMargin)
-   * PATCH /api/v1/inventory/{productId}/settings
-   */
+
+  // PATCH /api/v1/inventory/{productId}/settings
   async updateSettings(productId, { alertEnabled, lowStockMargin }) {
     console.log('[InventoryAPI] updateSettings() -> Product ID:', productId, { alertEnabled, lowStockMargin });
     return ajaxRequest({

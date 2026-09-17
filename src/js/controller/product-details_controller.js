@@ -1,12 +1,14 @@
 // ETech Computers - Product Details Page Renderer & Logic
-import { getProductById, products } from '../models/data.js';
+import { getProductById, products, getMaxStockInAnyBranch } from '../models/data.js';
 import { addToCart, showToast } from './cart_controller.js';
 import { getCurrentUser } from './login_controller.js';
+import { etechAlert } from '../util/index.js';
 import { 
   submitProductReview, getUserReviewForProduct, getProductReviews, syncProductReviewsFromApi 
 } from '../models/rating_data.js';
 import renderProductDetails from '../components/product_detail_cart.js';
 
+let currentDetailProductId = null;
 let selectedProductQuantity = 1;
 let currentRatingSelection = 5;
 
@@ -21,6 +23,7 @@ export function viewProductDetails(productId) {
  * Renders full product details page inside #product-details-page section
  */
 export function renderProductDetailsPage(productId) {
+  currentDetailProductId = Number(productId);
   selectedProductQuantity = 1;
   const currentUser = getCurrentUser();
   const existingReview = currentUser ? getUserReviewForProduct(productId, currentUser.id) : null;
@@ -34,9 +37,27 @@ export function renderProductDetailsPage(productId) {
 }
 
 /**
- * Change quantity stepper
+ * Change quantity stepper with single-branch stock limit check
  */
 export function changeProductQuantity(delta) {
+  if (delta > 0 && currentDetailProductId) {
+    const product = getProductById(currentDetailProductId);
+    if (product) {
+      const maxStock = getMaxStockInAnyBranch(product);
+      if (maxStock <= 0) {
+        etechAlert.warning('Out of Stock', `"${product.name}" is currently out of stock across all fulfillment branches.`);
+        return;
+      }
+      if (selectedProductQuantity + delta > maxStock) {
+        etechAlert.warning(
+          'Maximum Branch Stock Reached',
+          `Cannot increase quantity. The maximum available stock for "${product.name}" in any single fulfillment branch is ${maxStock} unit${maxStock > 1 ? 's' : ''}.`
+        );
+        return;
+      }
+    }
+  }
+
   selectedProductQuantity = Math.max(1, selectedProductQuantity + delta);
   const display = document.getElementById('product-quantity-display');
   if (display) display.textContent = selectedProductQuantity;
@@ -50,11 +71,29 @@ export function handleAddToCartFromDetails(productId) {
 }
 
 /**
- * Buy now from product details page
+ * Buy now from product details page with single-branch stock check
  */
 export function handleBuyNowFromDetails(productId) {
-  addToCart(productId, selectedProductQuantity);
-  window.location.hash = '#checkout';
+  const product = getProductById(productId);
+  if (product) {
+    const maxStock = getMaxStockInAnyBranch(product);
+    if (maxStock <= 0) {
+      etechAlert.warning('Out of Stock', `"${product.name}" is currently out of stock across all fulfillment branches.`);
+      return;
+    }
+    if (selectedProductQuantity > maxStock) {
+      etechAlert.warning(
+        'Branch Stock Limit Exceeded',
+        `Cannot purchase ${selectedProductQuantity} units directly. The maximum available stock for "${product.name}" in any single fulfillment branch is ${maxStock} unit${maxStock > 1 ? 's' : ''}.`
+      );
+      return;
+    }
+  }
+
+  const success = addToCart(productId, selectedProductQuantity);
+  if (success !== false) {
+    window.location.hash = '#checkout';
+  }
 }
 
 const RATING_HINTS = {

@@ -4,10 +4,9 @@
 import { getStoredProducts, saveStoredProducts } from './data.js';
 import { getBranches } from '../controller/branch_controller.js';
 import { TransfersApi } from '../api/transfersApi.js';
+import { TRANSFERS_STORAGE_KEY } from '../util/localstorage.js';
 
 export const DEFAULT_TRANSFERS = [];
-
-export const TRANSFERS_STORAGE_KEY = 'etech_stock_transfers';
 
 // Reactive In-Memory Transfers Store
 let memoryTransfers = [];
@@ -72,9 +71,9 @@ export async function createStockTransfer(transferData) {
   const availableAtSource = (product.branchStock && product.branchStock[fromBranch.id]) || 0;
 
   if (availableAtSource < qty) {
-    return { 
-      success: false, 
-      message: `Insufficient stock at ${fromBranch.name}. Available: ${availableAtSource}, requested: ${qty}.` 
+    return {
+      success: false,
+      message: `Insufficient stock at ${fromBranch.name}. Available: ${availableAtSource}, requested: ${qty}.`
     };
   }
 
@@ -147,9 +146,9 @@ export async function dispatchStockTransfer(transferId, dispatchedBy = 'Branch D
 
   const availableAtSource = (product.branchStock && product.branchStock[transfer.fromBranchId]) || 0;
   if (availableAtSource < transfer.quantity) {
-    return { 
-      success: false, 
-      message: `Cannot dispatch: Insufficient stock at source branch (${availableAtSource} available, ${transfer.quantity} requested).` 
+    return {
+      success: false,
+      message: `Cannot dispatch: Insufficient stock at source branch (${availableAtSource} available, ${transfer.quantity} requested).`
     };
   }
 

@@ -204,7 +204,7 @@ export default function renderProductDetails(productId) {
               </h3>
               <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 bg-[#f8fafc] p-2.5 rounded-md border border-[#e2e8f0] text-xs">
                 ${product.branchStock ? Object.entries(product.branchStock).map(([bId, qty]) => {
-                  const bNames = { "BR-COL": "Colombo", "BR-GAL": "Galle", "BR-MAT": "Matara", "BR-KND": "Kandy" };
+                  const bNames = { "BR-COL": "Colombo", "BR-GAL": "Galle", "BR-MAT": "Matara", "BR-KAN": "Kandy", "BR-KND": "Kandy" };
                   const name = bNames[bId] || bId;
                   return `
                     <div class="p-2 rounded bg-white border border-[#e2e8f0] text-center space-y-0.5 shadow-sm">

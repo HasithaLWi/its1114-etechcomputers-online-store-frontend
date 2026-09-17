@@ -68,9 +68,21 @@ textarea:focus {
 
 /* ── Error Shake Animation for Offline Blocker ───────────────── */
 @keyframes et-shake {
-    0%, 100% { transform: translateX(0); }
-    20%, 60% { transform: translateX(-7px); }
-    40%, 80% { transform: translateX(7px); }
+
+    0%,
+    100% {
+        transform: translateX(0);
+    }
+
+    20%,
+    60% {
+        transform: translateX(-7px);
+    }
+
+    40%,
+    80% {
+        transform: translateX(7px);
+    }
 }
 
 .et-shake {
@@ -158,6 +170,7 @@ textarea:focus {
         opacity: 0;
         transform: translateY(-8px);
     }
+
     to {
         opacity: 1;
         transform: translateY(0);
@@ -216,6 +229,11 @@ textarea:focus {
 }
 
 @media (max-width: 480px) {
+    .card-container {
+        justify-content: left !important;
+        padding-left: 10vw !important;
+    }
+
     #et-panel {
         right: 0 !important;
         bottom: 0 !important;
@@ -229,6 +247,8 @@ textarea:focus {
         bottom: 16px !important;
         right: 16px !important;
     }
+
+
 }
 
 /* ── Hero 3D Card Deck Mockup (Cascading Deck Stack) ──────────── */
@@ -247,82 +267,206 @@ textarea:focus {
     -webkit-backface-visibility: hidden;
 }
 
-/* Front Card (Slot 0 - Active Focus) */
-.card-deck-slot-0 {
+/* ── Card Sizing ──────────────────────────────────────────── */
+.hero-card-3d {
+    width: 195px;
+    height: 330px;
+}
 
-    transform: translate3d(-200px, 0, 0) scale(1) rotateY(0deg);
+.hero-card-img-container {
+    height: 130px;
+}
+
+.hero-card-deck-viewport {
+    height: 375px;
+}
+
+/* ── Front Card (Slot 0 — Active Primary Focus) ──────────── */
+.card-deck-slot-0 {
+    left: 0;
+    transform: translate3d(0, 0, 0) scale(1) rotateY(0deg);
     opacity: 1 !important;
     z-index: 30 !important;
-    box-shadow: 0 20px 40px -10px rgba(37, 99, 235, 0.18), 0 10px 20px -5px rgba(15, 23, 42, 0.08);
+    box-shadow: 0 25px 50px -12px rgba(37, 99, 235, 0.25), 0 12px 24px -8px rgba(15, 23, 42, 0.10);
 }
 
 .card-deck-slot-0:hover {
-    transform: translate3d(-200px, -6px, 0px) scale(1.02);
-    box-shadow: 0 25px 50px -10px rgba(37, 99, 235, 0.24), 0 15px 30px -5px rgba(15, 23, 42, 0.12);
+    transform: translate3d(0, -6px, 0) scale(1.02);
+    box-shadow: 0 30px 60px -12px rgba(37, 99, 235, 0.30), 0 18px 36px -8px rgba(15, 23, 42, 0.14);
 }
 
-/* Middle Card (Slot 1 - Offset Right behind Front) */
+/* ── Middle Card (Slot 1 — Offset Right, Slightly Behind) ── */
 .card-deck-slot-1 {
-
-    transform: translate3d(-100px, 0, 0) scale(0.96) rotateY(-4deg);
+    left: 150px;
+    transform: translate3d(0, 8px, -30px) scale(0.93) rotateY(-3deg);
     opacity: 0.92 !important;
     z-index: 20 !important;
-    box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
+    box-shadow: 0 15px 35px -10px rgba(15, 23, 42, 0.10);
 }
 
 .card-deck-slot-1:hover {
     opacity: 1 !important;
-    transform: translate3d(-104px, -4px, 10px) scale(0.98);
+    transform: translate3d(0, 4px, -20px) scale(0.95) rotateY(-2deg);
 }
 
-/* Back Card (Slot 2 - Offset Further Right behind Middle) */
+/* ── Back Card (Slot 2 — Offset Further Right, Deeper) ──── */
 .card-deck-slot-2 {
-
-    transform: translate3d(0, 0, 0) scale(0.92) rotateY(-8deg) !important;
-    opacity: 0.82 !important;
+    left: 280px;
+    transform: translate3d(0, 16px, -60px) scale(0.87) rotateY(-5deg) !important;
+    opacity: 0.80 !important;
     z-index: 10 !important;
-    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
+    box-shadow: 0 10px 25px -8px rgba(15, 23, 42, 0.08);
 }
 
 .card-deck-slot-2:hover {
-    opacity: 0.95 !important;
-    transform: translate3d(-4px, -4px, 20px) scale(0.94);
+    opacity: 0.92 !important;
+    transform: translate3d(0, 12px, -50px) scale(0.89) rotateY(-4deg) !important;
 }
 
-@media (min-width: 1024px) and (max-width: 1280px) {
-    .card-deck-slot-0 {
-        transform: translate3d(-150px, 0, 0) scale(1) rotateY(0deg);
+/* ── Responsive: Large Desktop (1280px+) ──────────────────── */
+@media (min-width: 1280px) {
+    .hero-card-3d {
+        width: 210px;
+        height: 345px;
     }
 
-    /* Middle Card (Slot 1 - Offset Right behind Front) */
+    .hero-card-img-container {
+        height: 140px;
+    }
+
+    .hero-card-deck-viewport {
+        height: 390px;
+    }
+
     .card-deck-slot-1 {
-        transform: translate3d(-75px, 0, 0) scale(0.96) rotateY(-4deg);
+        left: 165px;
     }
 
-
+    .card-deck-slot-2 {
+        left: 310px;
+    }
 }
 
-@media (max-width: 640px) {
+/* ── Responsive: Medium Desktop (1024px–1279px) ──────────── */
+@media (min-width: 1024px) and (max-width: 1279px) {
+    .hero-card-3d {
+        width: 175px;
+        height: 300px;
+    }
+
+    .hero-card-img-container {
+        height: 110px;
+    }
+
+    .hero-card-deck-viewport {
+        height: 340px;
+    }
+
     .card-deck-slot-0 {
-        transform: translate3d(-100px, 0, 0) scale(1) rotateY(0deg);
+        left: 0;
+        transform: translate3d(0, 0, 0) scale(1) rotateY(0deg);
     }
 
     .card-deck-slot-0:hover {
-        transform: translate3d(-100px, -6px, 0px) scale(1.02);
+        transform: translate3d(0, -5px, 0) scale(1.02);
     }
 
-    /* Middle Card (Slot 1 - Offset Right behind Front) */
     .card-deck-slot-1 {
-        transform: translate3d(-50px, 0, 0) scale(0.96) rotateY(-4deg);
+        left: 130px;
+        transform: translate3d(0, 8px, -25px) scale(0.93) rotateY(-3deg);
     }
 
-    .card-deck-slot-1:hover {
-        transform: translate3d(-52px, -2px, 10px) scale(0.98);
+    .card-deck-slot-2 {
+        left: 245px;
+        transform: translate3d(0, 14px, -50px) scale(0.87) rotateY(-5deg) !important;
     }
+
 
 }
 
+/* ── Responsive: Tablet (641px–1023px) ────────────────────── */
+@media (min-width: 641px) and (max-width: 1023px) {
 
+
+
+    .hero-card-3d {
+        width: 170px;
+        height: 290px;
+    }
+
+    .hero-card-img-container {
+        height: 105px;
+    }
+
+    .hero-card-deck-viewport {
+        height: 330px;
+    }
+
+    .card-deck-slot-0 {
+        left: 0;
+        transform: translate3d(0, 0, 0) scale(1) rotateY(0deg);
+    }
+
+    .card-deck-slot-0:hover {
+        transform: translate3d(0, -5px, 0) scale(1.02);
+    }
+
+    .card-deck-slot-1 {
+        left: 130px;
+        transform: translate3d(0, 8px, -25px) scale(0.93) rotateY(-3deg);
+    }
+
+    .card-deck-slot-2 {
+        left: 245px;
+        transform: translate3d(0, 14px, -50px) scale(0.87) rotateY(-5deg) !important;
+    }
+}
+
+/* ── Responsive: Mobile (≤640px) ──────────────────────────── */
+@media (max-width: 640px) {
+
+
+
+
+    .hero-card-3d {
+        width: 140px;
+        height: 255px;
+    }
+
+    .hero-card-img-container {
+        height: 85px;
+    }
+
+    .hero-card-deck-viewport {
+        height: 295px;
+        max-width: 340px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+    .card-deck-slot-0 {
+        left: 0;
+        transform: translate3d(0, 0, 0) scale(1) rotateY(0deg);
+    }
+
+    .card-deck-slot-0:hover {
+        transform: translate3d(0, -4px, 0) scale(1.01);
+    }
+
+    .card-deck-slot-1 {
+        left: 105px;
+        transform: translate3d(0, 6px, -20px) scale(0.93) rotateY(-3deg);
+    }
+
+    .card-deck-slot-1:hover {
+        transform: translate3d(0, 3px, -15px) scale(0.95) rotateY(-2deg);
+    }
+
+    .card-deck-slot-2 {
+        left: 195px;
+        transform: translate3d(0, 12px, -40px) scale(0.87) rotateY(-5deg) !important;
+    }
+}
 
 .hero-carousel-indicator {
     transition: width 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), background-color 0.3s ease;
@@ -331,6 +475,161 @@ textarea:focus {
 .hero-carousel-indicator.active {
     width: 1.75rem !important;
     background-color: #2563eb !important;
+}
+
+/* ============================================================
+   ETech Home — Dark Hero Section Theme
+   ============================================================ */
+
+/* ── Hero Background & Overlay ─────────────────────────────── */
+.hero-dark-section {
+    position: relative;
+    background-image: url('../../public/images/home_hero_background.jpeg');
+    background-size: cover;
+    background-position: center center;
+    background-repeat: no-repeat;
+    overflow: hidden;
+}
+
+.hero-dark-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(105deg,
+            rgba(11, 17, 32, 0.94) 0%,
+            rgba(15, 23, 42, 0.88) 35%,
+            rgba(15, 23, 42, 0.72) 60%,
+            rgba(11, 17, 32, 0.65) 100%);
+    z-index: 1;
+}
+
+/* Particle canvas sits behind content but above overlay */
+.hero-particle-canvas {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    pointer-events: none;
+}
+
+/* ── Hero Entrance Animations ──────────────────────────────── */
+@keyframes hero-fade-in {
+    from {
+        opacity: 0;
+        transform: translateY(18px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes hero-slide-right {
+    from {
+        opacity: 0;
+        transform: translateX(30px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes hero-glow-pulse {
+
+    0%,
+    100% {
+        opacity: 0.25;
+        transform: scale(1);
+    }
+
+    50% {
+        opacity: 0.45;
+        transform: scale(1.05);
+    }
+}
+
+.hero-animate-in {
+    animation: hero-fade-in 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    opacity: 0;
+}
+
+.hero-animate-in-delay-1 {
+    animation-delay: 0.12s;
+}
+
+.hero-animate-in-delay-2 {
+    animation-delay: 0.24s;
+}
+
+.hero-animate-in-delay-3 {
+    animation-delay: 0.36s;
+}
+
+.hero-animate-in-delay-4 {
+    animation-delay: 0.48s;
+}
+
+.hero-animate-cards {
+    animation: hero-slide-right 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.3s forwards;
+    opacity: 0;
+}
+
+/* ── Hero Ambient Glow Effects ─────────────────────────────── */
+.hero-ambient-glow-1 {
+    position: absolute;
+    bottom: -60px;
+    left: 10%;
+    width: 400px;
+    height: 300px;
+    background: radial-gradient(ellipse, rgba(37, 99, 235, 0.20) 0%, transparent 70%);
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 2;
+    animation: hero-glow-pulse 6s ease-in-out infinite;
+}
+
+.hero-ambient-glow-2 {
+    position: absolute;
+    top: -40px;
+    right: 5%;
+    width: 350px;
+    height: 250px;
+    background: radial-gradient(ellipse, rgba(99, 102, 241, 0.15) 0%, transparent 70%);
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 2;
+    animation: hero-glow-pulse 8s ease-in-out 2s infinite;
+}
+
+/* ── Hero Dark Trust Indicators Row ────────────────────────── */
+.hero-trust-indicators-dark {
+    border-top: 1px solid rgba(255, 255, 255, 0.10);
+}
+
+.hero-trust-icon-dark {
+    width: 1.75rem;
+    height: 1.75rem;
+    border-radius: 0.5rem;
+    background: rgba(37, 99, 235, 0.20);
+    border: 1px solid rgba(59, 130, 246, 0.30);
+    color: #93c5fd;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+/* ── Hero Bottom Transition Gradient ───────────────────────── */
+.hero-bottom-fade {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 80px;
+    background: linear-gradient(to bottom, transparent, #f8fafc);
+    z-index: 3;
+    pointer-events: none;
 }
 
 /* ── Nav Link Active State (Precision Line Underline) ────────── */
@@ -357,8 +656,13 @@ textarea:focus {
 
 /* ── Professional KPI Card Hover Effects ────────────────────── */
 @keyframes et-shimmer {
-    0% { background-position: -200% 0; }
-    100% { background-position: 200% 0; }
+    0% {
+        background-position: -200% 0;
+    }
+
+    100% {
+        background-position: 200% 0;
+    }
 }
 
 .kpi-card-hover {
@@ -401,8 +705,15 @@ textarea:focus {
 
 /* ── Activity Timeline Pulse Dot ────────────────────────────── */
 @keyframes et-timeline-pulse {
-    0%, 100% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.3); }
-    50% { box-shadow: 0 0 0 6px rgba(37, 99, 235, 0); }
+
+    0%,
+    100% {
+        box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.3);
+    }
+
+    50% {
+        box-shadow: 0 0 0 6px rgba(37, 99, 235, 0);
+    }
 }
 
 .timeline-dot-active {

@@ -1,8 +1,9 @@
 import { getCurrentUser } from './login_controller.js';
 import { OrdersApi } from '../api/ordersApi.js';
+import { getBranches } from './branch_controller.js';
 import { restoreBranchStock, deductBranchStock } from '../models/data.js';
 import { iconCheck, iconClose } from '../util/icons.js';
-import { etechAlert } from '../util/index.js';
+import { etechAlert, renderTablePagination } from '../util/index.js';
 import { parseLKR, formatLKR } from '../util/formatters.js';
 
 export const DEFAULT_ORDERS = [];
@@ -54,7 +55,8 @@ export function normalizeOrderFromApi(dto) {
       quantity: Number(item.quantity) || 1,
       image: item.productImage || item.image || 'https://images.unsplash.com/photo-1587202372775-e229f172b9d7?auto=format&fit=crop&w=600&q=80',
       isBundleItem: !!item.bundleId,
-      bundleId: item.bundleId || null
+      bundleId: item.bundleId || null,
+      warranty: item.warranty || 'Official Hardware Warranty'
     })) : [],
     subtotal: formatLKR(numSubtotal),
     tax: formatLKR(numTax),
@@ -66,6 +68,8 @@ export function normalizeOrderFromApi(dto) {
     total: numTotal,
     paymentMethod: dto.paymentMethod || 'Credit / Debit Card',
     status: dto.status || 'Pending',
+    orderDate: dto.orderDate || dto.createdAt || null,
+    createdAt: dto.createdAt || dto.orderDate || null,
     date: dto.orderDate ? new Date(dto.orderDate).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : (dto.date || new Date().toLocaleDateString('en-US'))
   };
 }
@@ -175,8 +179,9 @@ export async function saveOrder(orderData) {
     subtotalAmount: numSubtotal,
     taxAmount: numTax,
     shippingAmount: numShipping,
-    total: numTotal,
-    paymentMethod: orderData.paymentMethod === 'card' ? 'Credit / Debit Card' : 'Cash on Delivery',
+    paymentMethod: orderData.paymentMethod ? (orderData.paymentMethod === 'card' ? 'Credit / Debit Card' : orderData.paymentMethod) : 'Cash on Delivery',
+    paymentReference: orderData.paymentReference || null,
+    paymentStatus: orderData.paymentStatus || (orderData.paymentMethod && orderData.paymentMethod.toLowerCase().includes('cash') ? 'PENDING_ON_DELIVERY' : 'PAID'),
     status: 'Pending'
   };
 
@@ -222,6 +227,9 @@ export async function updateOrderStatus(orderId, newStatus) {
   const nextStatus = (newStatus || '').toLowerCase();
 
   order.status = newStatus;
+  if (nextStatus === 'delivered') {
+    order.paymentStatus = 'PAID';
+  }
 
   // Restore inventory if status changed to Cancelled
   if (prevStatus !== 'cancelled' && nextStatus === 'cancelled') {
@@ -313,42 +321,11 @@ export function getUserOrders(userOrEmail) {
 }
 
 /**
- * Open customer pre-formatted support email via mailto
+ * Open customer pre-formatted support email via mailto (Deprecated / Removed)
  * @param {string} orderId 
  */
 export function openOrderSupportEmail(orderId) {
-  const order = getOrderById(orderId);
-  const subject = encodeURIComponent(`Support Inquiry for Order #${order ? order.orderId : orderId}`);
-  
-  let itemsSummary = '';
-  if (order && Array.isArray(order.items)) {
-    itemsSummary = order.items.map(i => `- ${i.name} (Qty: ${i.quantity})`).join('%0D%0A');
-  }
-
-  const body = encodeURIComponent(
-    `Hello ETech Computers Support Team,\n\n` +
-    `I would like assistance with my order #${order ? order.orderId : orderId}.\n\n` +
-    `Order Summary:\n` +
-    `- Order ID: #${order ? order.orderId : orderId}\n` +
-    `- Order Date: ${order ? order.date : 'N/A'}\n` +
-    `- Customer Name: ${order ? order.customerName : 'Valued Customer'}\n` +
-    `- Customer Email: ${order ? order.email : 'N/A'}\n` +
-    `- Destination: ${order ? order.city : 'N/A'}\n` +
-    `- Total Amount: Rs. ${order ? (order.totalAmount || 0) : '0'}\n` +
-    `- Order Status: ${order ? (order.status || 'Pending') : 'Pending'}\n\n` +
-    `Items Ordered:\n` +
-    `${itemsSummary ? decodeURIComponent(itemsSummary) : 'Hardware Items'}\n\n` +
-    `My Inquiry / Issue:\n` +
-    `[Please describe your question or issue in detail here]\n\n` +
-    `Thank you!`
-  );
-
-  const mailtoUri = `mailto:support@etechcomputers.lk?subject=${subject}&body=${body}`;
-  window.location.href = mailtoUri;
-
-  if (window.showToast) {
-    window.showToast('Opening your email client to contact support...', 'info');
-  }
+  // Email support feature removed
 }
 
 /**
@@ -581,11 +558,6 @@ export async function renderCustomerOrderDetailPage(orderId) {
         </div>
 
         <div class="flex flex-wrap items-center gap-2.5">
-          <button onclick="openOrderSupportEmail('${order.orderId}')" class="px-4 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold text-xs rounded-xl border border-blue-200 transition-all flex items-center space-x-1.5 shadow-xs cursor-pointer whitespace-nowrap">
-            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
-            <span>Email Support</span>
-          </button>
-          
           ${(!isCancelled && !isDelivered && !isShipped) ? `
             <button onclick="handleCustomerCancelOrder('${order.orderId}')" class="px-4 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs rounded-xl border border-rose-200 transition-all flex items-center space-x-1.5 shadow-xs cursor-pointer whitespace-nowrap">
               <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
@@ -689,10 +661,11 @@ export async function renderCustomerOrderDetailPage(orderId) {
                   <div class="min-w-0 flex-1">
                     <h4 class="text-xs sm:text-sm font-bold text-[#0f172a] group-hover:text-blue-600 transition-colors line-clamp-2">${item.name}</h4>
                     <p class="text-xs text-[#64748b] font-mono mt-0.5">Rs. ${parseFloat(item.price || 0).toLocaleString()} &times; <span class="font-bold text-[#0f172a]">Qty: ${item.quantity}</span></p>
-                    <span class="inline-flex items-center space-x-1 text-[10px] text-blue-600 font-semibold mt-1">
-                      <span>View Specifications &amp; Warranty</span>
-                      <span>&rarr;</span>
-                    </span>
+                    <div class="mt-1 flex items-center space-x-2">
+                      <span class="inline-block px-2 py-0.5 bg-blue-50 text-blue-700 text-[10px] font-bold rounded border border-blue-200">
+                        ${item.warranty || 'Official Hardware Warranty'}
+                      </span>
+                    </div>
                   </div>
                 </a>
 
@@ -759,12 +732,6 @@ export async function renderCustomerOrderDetailPage(orderId) {
               <span>Delivery Fee:</span>
               <span class="font-mono font-semibold text-[#0f172a]">${shippingNum > 0 ? `Rs. ${shippingNum.toLocaleString()}` : 'Free'}</span>
             </div>
-            ${taxNum > 0 ? `
-              <div class="flex justify-between text-[#64748b]">
-                <span>Estimated Tax:</span>
-                <span class="font-mono font-semibold text-[#0f172a]">Rs. ${taxNum.toLocaleString()}</span>
-              </div>
-            ` : ''}
             <div class="pt-2 border-t border-[#e2e8f0] flex justify-between items-center">
               <span class="text-sm font-black text-[#0f172a]">Total Amount:</span>
               <span class="text-base font-black text-blue-600 font-mono">Rs. ${totalNum.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
@@ -794,21 +761,6 @@ export async function renderCustomerOrderDetailPage(orderId) {
           </div>
         </div>
 
-        <!-- Support Card -->
-        <div class="bg-blue-50/50 border border-blue-200 rounded-xl p-5 shadow-sm space-y-3 text-xs">
-          <div class="flex items-center space-x-2 text-blue-700 font-bold">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
-            <span>Need Help with this Order?</span>
-          </div>
-          <p class="text-[#64748b] leading-relaxed">
-            Our hardware support team is ready to assist you with order status, address modifications, or warranty inquiries.
-          </p>
-          <button onclick="openOrderSupportEmail('${order.orderId}')" class="w-full py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-md shadow-xs transition-colors flex items-center justify-center space-x-1.5">
-            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
-            <span>Contact Support via Email</span>
-          </button>
-        </div>
-
       </div>
 
     </div>
@@ -820,80 +772,240 @@ export async function renderCustomerOrderDetailPage(orderId) {
  * TAB 3: ORDER MANAGEMENT (STAFF & ADMIN)
  * ============================================================
  */
+let orderSearchQuery = '';
+let orderStatusFilter = 'ALL';
+let orderBranchFilter = 'ALL';
+let orderSortFilter = 'date_desc';
+let orderCurrentPage = 1;
+let orderPageSize = 10;
+let totalOrderItems = 0;
+
+export function changeOrderPage(newPage) {
+  orderCurrentPage = newPage;
+  renderOrdersTab();
+}
+
+export function changeOrderPageSize(newSize) {
+  orderPageSize = newSize;
+  orderCurrentPage = 1;
+  renderOrdersTab();
+}
+
+export function filterOrdersTable() {
+  orderCurrentPage = 1;
+  const searchInput = document.getElementById('order-search-input');
+  orderSearchQuery = searchInput ? searchInput.value.toLowerCase().trim() : '';
+  const statusSelect = document.getElementById('order-status-filter');
+  orderStatusFilter = statusSelect ? statusSelect.value : 'ALL';
+  const branchSelect = document.getElementById('order-branch-filter');
+  orderBranchFilter = branchSelect ? branchSelect.value : 'ALL';
+  const sortSelect = document.getElementById('order-sort-filter');
+  orderSortFilter = sortSelect ? sortSelect.value : 'date_desc';
+  renderOrdersTab();
+}
+
+export function resetOrdersFilter() {
+  orderCurrentPage = 1;
+  orderSearchQuery = '';
+  orderStatusFilter = 'ALL';
+  orderBranchFilter = 'ALL';
+  orderSortFilter = 'date_desc';
+
+  const searchInput = document.getElementById('order-search-input');
+  if (searchInput) searchInput.value = '';
+  const statusSelect = document.getElementById('order-status-filter');
+  if (statusSelect) statusSelect.value = 'ALL';
+  const branchSelect = document.getElementById('order-branch-filter');
+  if (branchSelect) branchSelect.value = 'ALL';
+  const sortSelect = document.getElementById('order-sort-filter');
+  if (sortSelect) sortSelect.value = 'date_desc';
+
+  renderOrdersTab();
+}
+
 export async function renderOrdersTab() {
   const tbody = document.getElementById('orders-tbody');
   if (!tbody) return;
 
-  try {
-    await syncOrdersFromApi();
-  } catch (err) {
-    etechAlert.error('Connection Error', 'Unable to load live orders. Please try again.');
-    tbody.innerHTML = '<tr><td colspan="6" class="py-8 text-center text-xs text-rose-500 font-semibold">⚠️ Unable to load live orders. Please try again later.</td></tr>';
-    return;
-  }
-
   const activeUser = getCurrentUser();
-  const allOrders = getAllOrders();
 
-  let orders = allOrders;
-  // If Staff, strictly scope to assigned branch
-  if (activeUser && activeUser.isStaff() && activeUser.assignedBranch) {
-    orders = allOrders.filter(o => {
-      if (o.fulfillmentBranchId) return o.fulfillmentBranchId === activeUser.assignedBranch;
-      if (o.fulfillmentBranch) return o.fulfillmentBranch.includes(activeUser.assignedBranch);
-      return true;
+  // Populate branch select if not populated yet
+  const branchSelect = document.getElementById('order-branch-filter');
+  if (branchSelect && branchSelect.options.length <= 1) {
+    const branches = (typeof getBranches === 'function') ? getBranches() : [];
+    branches.forEach(b => {
+      const opt = document.createElement('option');
+      opt.value = b.id;
+      opt.textContent = b.name || b.id;
+      branchSelect.appendChild(opt);
     });
   }
 
-  tbody.innerHTML = orders.map(o => {
-    const canModifyOrder = activeUser && (activeUser.hasGlobalAccess() || activeUser.canManageBranch(o.fulfillmentBranchId));
+  // Read filter values from DOM
+  const searchInput = document.getElementById('order-search-input');
+  if (searchInput && searchInput.value !== undefined) {
+    orderSearchQuery = searchInput.value.toLowerCase().trim();
+  }
+  const statusSelect = document.getElementById('order-status-filter');
+  if (statusSelect) {
+    orderStatusFilter = statusSelect.value || 'ALL';
+  }
+  if (branchSelect) {
+    orderBranchFilter = branchSelect.value || 'ALL';
+  }
+  const sortSelect = document.getElementById('order-sort-filter');
+  if (sortSelect) {
+    orderSortFilter = sortSelect.value || 'date_desc';
+  }
 
-    return `
-      <tr class="hover:bg-[#f8fafc] transition-colors cursor-pointer" onclick="renderAdminOrderDetailView('${o.orderId}')">
-        <td class="py-3 px-3.5">
-          <span class="font-mono font-extrabold text-blue-600 hover:underline text-xs">${o.orderId}</span>
-          <p class="text-[10px] text-[#64748b]">${o.date}</p>
-        </td>
-        <td class="py-3 px-3.5">
-          <p class="font-bold text-[#0f172a] text-xs">${o.customerName}</p>
-          <p class="text-[10px] text-[#64748b]">${o.email}</p>
-        </td>
-        <td class="py-3 px-3.5">
-          <p class="font-bold text-[#0f172a] text-xs">${o.fulfillmentBranch || 'Colombo Hub'}</p>
-          <p class="text-[10px] text-[#64748b]">Dest: <strong class="text-blue-600">${o.city}</strong> (${o.distanceKm || 5} km)</p>
-        </td>
-        <td class="py-3 px-3.5 font-bold text-[#0f172a] font-mono text-xs">
-          ${formatLKR(parseLKR(o.totalAmount || o.total))}
-        </td>
-        <td class="py-3 px-3.5">
-          <span class="px-2 py-0.5 rounded text-[9px] font-bold ${getStatusStyle(o.status)}">
-            ${o.status || 'Pending'}
-          </span>
-        </td>
-        <td class="py-3 px-3.5 text-right" onclick="event.stopPropagation()">
-          <div class="flex items-center justify-end space-x-2">
-            ${canModifyOrder ? `
-              <select onchange="changeOrderStatus('${o.orderId}', this.value)" class="bg-[#f8fafc] border border-[#e2e8f0] text-[#0f172a] rounded px-2 py-1 text-xs focus:border-blue-600 cursor-pointer shadow-sm">
-                <option value="Pending" ${o.status === 'Pending' ? 'selected' : ''}>Pending</option>
-                <option value="Processing" ${o.status === 'Processing' ? 'selected' : ''}>Processing</option>
-                <option value="Shipped" ${o.status === 'Shipped' ? 'selected' : ''}>Shipped</option>
-                <option value="Delivered" ${o.status === 'Delivered' ? 'selected' : ''}>Delivered</option>
-                <option value="Cancelled" ${o.status === 'Cancelled' ? 'selected' : ''}>Cancelled</option>
-              </select>
-            ` : `
-              <span class="text-[10px] text-[#94a3b8] font-mono px-2 py-1 bg-slate-50 rounded border border-slate-200">
-                View Only
-              </span>
-            `}
-            <button onclick="renderAdminOrderDetailView('${o.orderId}')" class="px-2.5 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 text-[10px] font-bold rounded border border-blue-200 transition-colors shadow-2xs flex items-center space-x-1">
-              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
-              <span>View</span>
-            </button>
-          </div>
-        </td>
-      </tr>
-    `;
-  }).join('') || '<tr><td colspan="6" class="py-8 text-center text-xs text-[#64748b]">No orders found for your branch.</td></tr>';
+  // If Staff, strictly scope branch
+  let effectiveBranch = orderBranchFilter;
+  if (activeUser && activeUser.isStaff() && activeUser.assignedBranch) {
+    effectiveBranch = activeUser.assignedBranch;
+    if (branchSelect) {
+      branchSelect.value = effectiveBranch;
+      branchSelect.disabled = true;
+    }
+  }
+
+  // Parse sort
+  let sortBy = 'orderDate';
+  let sortDir = 'desc';
+  if (orderSortFilter === 'date_asc') {
+    sortBy = 'orderDate';
+    sortDir = 'asc';
+  } else if (orderSortFilter === 'total_desc') {
+    sortBy = 'totalAmount';
+    sortDir = 'desc';
+  } else if (orderSortFilter === 'total_asc') {
+    sortBy = 'totalAmount';
+    sortDir = 'asc';
+  }
+
+  // Build params for GET /api/v1/orders/filter
+  const params = {
+    page: orderCurrentPage - 1,
+    size: orderPageSize,
+    sortBy: sortBy,
+    sortDir: sortDir
+  };
+  if (orderStatusFilter && orderStatusFilter !== 'ALL') params.status = orderStatusFilter;
+  if (effectiveBranch && effectiveBranch !== 'ALL') params.branchId = effectiveBranch;
+  if (orderSearchQuery) params.search = orderSearchQuery;
+
+  // Show loading indicator
+  tbody.innerHTML = `
+    <tr>
+      <td colspan="6" class="py-8 text-center text-xs text-[#64748b]">
+        <div class="inline-flex items-center space-x-2">
+          <svg class="animate-spin h-4 w-4 text-blue-600" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+          </svg>
+          <span>Loading orders from server...</span>
+        </div>
+      </td>
+    </tr>
+  `;
+
+  try {
+    const res = await OrdersApi.getFiltered(params);
+    let pageData = res?.body || res || {};
+    let rawList = Array.isArray(pageData) ? pageData : (pageData.content || []);
+    let orders = rawList.map(normalizeOrderFromApi).filter(Boolean);
+    totalOrderItems = pageData.totalElements !== undefined ? pageData.totalElements : orders.length;
+
+    // Cache to memoryOrders for getOrderById
+    orders.forEach(o => {
+      const idx = memoryOrders.findIndex(m => m.orderId === o.orderId);
+      if (idx >= 0) memoryOrders[idx] = o;
+      else memoryOrders.push(o);
+    });
+
+    if (orders.length === 0) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="6" class="py-8 text-center text-xs text-[#64748b]">
+            ${orderSearchQuery || orderStatusFilter !== 'ALL' || effectiveBranch !== 'ALL' ? 'No orders matched your filter criteria.' : 'No orders found for your branch.'}
+          </td>
+        </tr>
+      `;
+      renderTablePagination({
+        containerId: 'orders-pagination-container',
+        currentPage: 1,
+        pageSize: orderPageSize,
+        totalItems: 0,
+        itemName: 'orders',
+        onPageChange: 'changeOrderPage',
+        onPageSizeChange: 'changeOrderPageSize'
+      });
+      return;
+    }
+
+    tbody.innerHTML = orders.map(o => {
+      const canModifyOrder = activeUser && (activeUser.hasGlobalAccess() || activeUser.canManageBranch(o.fulfillmentBranchId));
+
+      return `
+        <tr class="hover:bg-[#f8fafc] transition-colors cursor-pointer" onclick="renderAdminOrderDetailView('${o.orderId}')">
+          <td class="py-3 px-3.5">
+            <span class="font-mono font-extrabold text-blue-600 hover:underline text-xs">${o.orderId}</span>
+            <p class="text-[10px] text-[#64748b]">${o.date}</p>
+          </td>
+          <td class="py-3 px-3.5">
+            <p class="font-bold text-[#0f172a] text-xs">${o.customerName}</p>
+            <p class="text-[10px] text-[#64748b]">${o.email}</p>
+          </td>
+          <td class="py-3 px-3.5">
+            <p class="font-bold text-[#0f172a] text-xs">${o.fulfillmentBranch || 'Colombo Hub'}</p>
+            <p class="text-[10px] text-[#64748b]">Dest: <strong class="text-blue-600">${o.city}</strong> (${o.distanceKm || 5} km)</p>
+          </td>
+          <td class="py-3 px-3.5 font-bold text-[#0f172a] font-mono text-xs">
+            ${formatLKR(parseLKR(o.totalAmount || o.total))}
+          </td>
+          <td class="py-3 px-3.5">
+            <span class="px-2 py-0.5 rounded text-[9px] font-bold ${getStatusStyle(o.status)}">
+              ${o.status || 'Pending'}
+            </span>
+          </td>
+          <td class="py-3 px-3.5 text-right" onclick="event.stopPropagation()">
+            <div class="flex items-center justify-end space-x-2">
+              ${canModifyOrder ? `
+                <select onchange="changeOrderStatus('${o.orderId}', this.value)" class="bg-[#f8fafc] border border-[#e2e8f0] text-[#0f172a] rounded px-2 py-1 text-xs focus:border-blue-600 cursor-pointer shadow-sm">
+                  <option value="Pending" ${o.status === 'Pending' ? 'selected' : ''}>Pending</option>
+                  <option value="Processing" ${o.status === 'Processing' ? 'selected' : ''}>Processing</option>
+                  <option value="Shipped" ${o.status === 'Shipped' ? 'selected' : ''}>Shipped</option>
+                  <option value="Delivered" ${o.status === 'Delivered' ? 'selected' : ''}>Delivered</option>
+                  <option value="Cancelled" ${o.status === 'Cancelled' ? 'selected' : ''}>Cancelled</option>
+                </select>
+              ` : `
+                <span class="text-[10px] text-[#94a3b8] font-mono px-2 py-1 bg-slate-50 rounded border border-slate-200">
+                  View Only
+                </span>
+              `}
+              <button onclick="renderAdminOrderDetailView('${o.orderId}')" class="px-2.5 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 text-[10px] font-bold rounded border border-blue-200 transition-colors shadow-2xs flex items-center space-x-1">
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                <span>View</span>
+              </button>
+            </div>
+          </td>
+        </tr>
+      `;
+    }).join('');
+
+    renderTablePagination({
+      containerId: 'orders-pagination-container',
+      currentPage: orderCurrentPage,
+      pageSize: orderPageSize,
+      totalItems: totalOrderItems,
+      itemName: 'orders',
+      onPageChange: 'changeOrderPage',
+      onPageSizeChange: 'changeOrderPageSize'
+    });
+  } catch (err) {
+    console.error('[OrderController] Failed to load paged orders:', err);
+    etechAlert.error('Connection Error', 'Unable to load live orders. Please try again.');
+    tbody.innerHTML = '<tr><td colspan="6" class="py-8 text-center text-xs text-rose-500 font-semibold">⚠️ Unable to load live orders. Please try again later.</td></tr>';
+  }
 }
 
 export async function changeOrderStatus(orderId, newStatus) {
@@ -1320,4 +1432,19 @@ export function getStatusStyle(status) {
     case 'Cancelled': return 'bg-rose-50 text-rose-700 border border-rose-200';
     default: return 'bg-amber-50 text-amber-700 border border-amber-200';
   }
+}
+
+if (typeof window !== 'undefined') {
+  Object.assign(window, {
+    renderOrdersTab,
+    renderAdminOrderDetailView,
+    backToOrdersList,
+    changeOrderStatus,
+    handleAdminOrderStatusUpdate,
+    handleAdminStatusUpdate: handleAdminOrderStatusUpdate,
+    filterOrdersTable,
+    resetOrdersFilter,
+    changeOrderPage,
+    changeOrderPageSize
+  });
 }

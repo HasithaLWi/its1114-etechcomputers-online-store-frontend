@@ -1,13 +1,8 @@
-// ============================================================
-//  src/js/api/categoriesApi.js — Categories Backend API Client
-// ============================================================
 import { ajaxRequest } from './apiClient.js';
 
 export const CategoriesApi = {
-  /**
-   * Fetch all non-deleted categories ordered by display order
-   * GET /api/v1/categories/all
-   */
+
+  // GET /api/v1/categories/all
   async getAll() {
     console.log('[CategoriesAPI] getAll() -> fetching all categories');
     const res = await ajaxRequest({
@@ -17,10 +12,7 @@ export const CategoriesApi = {
     return res.body || res;
   },
 
-  /**
-   * Fetch single category by ID
-   * GET /api/v1/categories/{id}
-   */
+  // GET /api/v1/categories/{id}
   async getById(id) {
     console.log('[CategoriesAPI] getById() -> ID:', id);
     const res = await ajaxRequest({
@@ -30,10 +22,7 @@ export const CategoriesApi = {
     return res.body || res;
   },
 
-  /**
-   * Fetch single category by URL slug
-   * GET /api/v1/categories/slug/{slug}
-   */
+  // GET /api/v1/categories/slug/{slug}
   async getBySlug(slug) {
     console.log('[CategoriesAPI] getBySlug() -> slug:', slug);
     const res = await ajaxRequest({
@@ -43,10 +32,7 @@ export const CategoriesApi = {
     return res.body || res;
   },
 
-  /**
-   * Fetch single category by name
-   * GET /api/v1/categories/name/{name}
-   */
+  // GET /api/v1/categories/name/{name}
   async getByName(name) {
     console.log('[CategoriesAPI] getByName() -> name:', name);
     const res = await ajaxRequest({
@@ -56,10 +42,7 @@ export const CategoriesApi = {
     return res.body || res;
   },
 
-  /**
-   * Filter categories by search keyword
-   * GET /api/v1/categories/filter?search={search}
-   */
+  // GET /api/v1/categories/filter?search={search}
   async filter(search) {
     console.log('[CategoriesAPI] filter() -> search:', search);
     const res = await ajaxRequest({

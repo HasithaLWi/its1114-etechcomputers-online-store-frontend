@@ -46,6 +46,12 @@ export async function renderNewsletterTab() {
   const subscribers = getNewsletterSubscribers();
   const campaigns = getNewsletterCampaigns();
 
+  if (activeSubTab === 'compose') {
+    container.innerHTML = renderComposeBroadcastFullPageHtml(analytics);
+    applyCampaignTemplate('flash_deals');
+    return;
+  }
+
   container.innerHTML = `
     <div class="space-y-6 pb-12">
       <!-- 1. Top Workspace Header -->
@@ -83,7 +89,7 @@ export async function renderNewsletterTab() {
             <span>+ Add Subscriber</span>
           </button>
 
-          <button onclick="openCampaignModal()" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold shadow-md shadow-blue-500/20 transition-all flex items-center space-x-2 cursor-pointer transform hover:-translate-y-0.5">
+          <button onclick="setNewsletterSubTab('compose')" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold shadow-md shadow-blue-500/20 transition-all flex items-center space-x-2 cursor-pointer transform hover:-translate-y-0.5">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
             </svg>
@@ -176,6 +182,14 @@ export async function renderNewsletterTab() {
           </svg>
           <span>Sent Broadcasts Log</span>
           <span class="px-1.5 py-0.2 rounded-full text-[10px] font-mono ${activeSubTab === 'campaigns' ? 'bg-white/20 text-white' : 'bg-slate-200 text-[#475569]'}">${campaigns.length}</span>
+        </button>
+
+        <button onclick="setNewsletterSubTab('compose')"
+          class="px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center space-x-2 ${activeSubTab === 'compose' ? 'bg-blue-600 text-white shadow-xs' : 'text-[#475569] hover:bg-[#f1f5f9] hover:text-[#0f172a]'}">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+          </svg>
+          <span>Compose Broadcast</span>
         </button>
       </div>
 
@@ -571,6 +585,14 @@ export function clearSelectedSubscribers() {
 
 export async function bulkUnsubscribeSelected() {
   if (selectedSubscriberIds.size === 0) return;
+  const confirmed = await etechAlert.confirm({
+    title: 'Confirm Bulk Unsubscribe',
+    message: `Are you sure you want to mark ${selectedSubscriberIds.size} selected subscribers as UNSUBSCRIBED? They will no longer receive future email broadcasts.`,
+    confirmText: 'Yes, Mark Unsubscribed',
+    cancelText: 'Cancel'
+  });
+  if (!confirmed) return;
+
   const ids = Array.from(selectedSubscriberIds);
   await NewsletterApi.bulkUpdateStatus(ids, NEWSLETTER_STATUS.UNSUBSCRIBED);
   showToast(`Updated ${ids.length} subscribers to UNSUBSCRIBED.`, 'info');
@@ -580,6 +602,14 @@ export async function bulkUnsubscribeSelected() {
 
 export async function bulkResubscribeSelected() {
   if (selectedSubscriberIds.size === 0) return;
+  const confirmed = await etechAlert.confirm({
+    title: 'Confirm Bulk Reactivation',
+    message: `Are you sure you want to reactivate ${selectedSubscriberIds.size} selected subscribers? They will start receiving email broadcasts again.`,
+    confirmText: 'Yes, Reactivate',
+    cancelText: 'Cancel'
+  });
+  if (!confirmed) return;
+
   const ids = Array.from(selectedSubscriberIds);
   await NewsletterApi.bulkUpdateStatus(ids, NEWSLETTER_STATUS.SUBSCRIBED);
   showToast(`Reactivated ${ids.length} subscribers!`, 'success');
@@ -627,9 +657,17 @@ export async function deleteSubscriber(id) {
   const confirmed = await etechAlert.confirmDelete(`Subscriber "${sub.email}"`);
   if (!confirmed) return;
 
-  await NewsletterApi.delete(id);
-  showToast(`Subscriber ${sub.email} deleted.`);
-  renderNewsletterTab();
+  try {
+    if (typeof NewsletterApi.deleteSubscriber === 'function') {
+      await NewsletterApi.deleteSubscriber(id);
+    } else {
+      await NewsletterApi.delete(id);
+    }
+    showToast(`Subscriber ${sub.email} deleted.`, 'success');
+    renderNewsletterTab();
+  } catch (err) {
+    etechAlert.error('Delete Failed', err.message || 'Could not delete subscriber.');
+  }
 }
 
 export function sendQuickTestEmail(id) {
@@ -752,169 +790,311 @@ export async function saveNewSubscriberManual(event) {
 }
 
 /**
- * Compose & Broadcast Marketing Campaign Modal
+ * Navigate to Full Page Compose Marketing Broadcast
  */
 export function openCampaignModal() {
-  const container = document.getElementById('newsletter-modals-container');
-  if (!container) return;
+  closeNewsletterModal('campaign-modal');
+  setNewsletterSubTab('compose');
+}
 
-  const analytics = getNewsletterAnalytics();
+/**
+ * 1-Click Insert Personalization Placeholders
+ */
+export function insertPlaceholder(placeholder) {
+  const bodyInput = document.getElementById('campaign-body');
+  if (!bodyInput) return;
+  const start = bodyInput.selectionStart;
+  const end = bodyInput.selectionEnd;
+  const text = bodyInput.value;
+  bodyInput.value = text.substring(0, start) + placeholder + text.substring(end);
+  bodyInput.focus();
+  bodyInput.selectionStart = bodyInput.selectionEnd = start + placeholder.length;
+  updateCampaignPreview();
+}
 
-  container.innerHTML = `
-    <div id="campaign-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#0f172a]/60 backdrop-blur-xs overflow-y-auto">
-      <div class="bg-white rounded-2xl max-w-3xl w-full p-6 sm:p-8 shadow-2xl border border-[#e2e8f0] animate-scaleUp space-y-6 my-8">
-        
-        <!-- Header -->
-        <div class="flex items-center justify-between border-b border-[#e2e8f0] pb-4">
-          <div class="flex items-center space-x-3">
-            <div class="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center border border-blue-200 shadow-xs">
-              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-              </svg>
-            </div>
-            <div>
-              <h3 class="text-lg font-black text-[#0f172a] tracking-tight">Compose Marketing Broadcast</h3>
-              <p class="text-xs text-[#64748b]">Send instant email updates, product launches, and deal alerts to active subscribers.</p>
-            </div>
-          </div>
-          <button onclick="closeNewsletterModal('campaign-modal')" class="text-[#94a3b8] hover:text-[#0f172a] p-1.5 rounded-lg hover:bg-slate-100 cursor-pointer">
-            ${iconClose('w-4 h-4')}
+/**
+ * 1-Click Reactivate All Subscribers directly from the Compose Page
+ */
+export async function reactivateAllSubscribersFromPage() {
+  const subscribers = getNewsletterSubscribers();
+  const ids = subscribers.map(s => s.id).filter(Boolean);
+  if (ids.length === 0) {
+    showToast('No subscriber records found.', 'warning');
+    return;
+  }
+
+  try {
+    await NewsletterApi.bulkUpdateStatus(ids, NEWSLETTER_STATUS.SUBSCRIBED);
+    showToast(`Reactivated all ${ids.length} subscribers!`, 'success');
+    renderNewsletterTab();
+  } catch (err) {
+    etechAlert.error('Reactivation Failed', err.message || 'Could not reactivate subscribers.');
+  }
+}
+
+export const reactivateAllSubscribersFromModal = reactivateAllSubscribersFromPage;
+export function updateCampaignTargetAudienceCount() {}
+
+/**
+ * Dedicated Full-Page Compose Marketing Broadcast Workspace
+ */
+export function renderComposeBroadcastFullPageHtml(analytics) {
+  const hasActive = analytics.activeSubscribers > 0;
+
+  return `
+    <div class="space-y-6 pb-12 animate-fadeIn">
+      <!-- 1. Top Breadcrumb & Action Bar -->
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white border border-[#e2e8f0] rounded-2xl p-5 sm:p-6 shadow-xs">
+        <div class="flex items-center space-x-3.5">
+          <button type="button" onclick="setNewsletterSubTab('subscribers')"
+            class="px-3.5 py-2 rounded-xl border border-[#cbd5e1] hover:border-blue-500 bg-[#f8fafc] hover:bg-blue-50/50 text-[#334155] hover:text-blue-600 font-bold text-xs transition-all flex items-center space-x-1.5 cursor-pointer shadow-2xs">
+            <svg class="w-4 h-4 text-[#64748b]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+            <span>Back to Subscribers</span>
           </button>
+          <div class="h-6 w-px bg-slate-200"></div>
+          <div>
+            <div class="flex items-center space-x-2">
+              <h1 class="text-xl sm:text-2xl font-black text-[#0f172a] tracking-tight">Compose Marketing Broadcast</h1>
+              <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-blue-100 text-blue-700 font-mono">FULL PAGE WORKSPACE</span>
+            </div>
+            <p class="text-xs text-[#64748b]">Draft and dispatch live email announcements to active subscribers via Gmail SMTP.</p>
+          </div>
         </div>
 
-        <form onsubmit="handleSendCampaignSubmit(event)" class="space-y-4 text-xs">
-          <!-- Preset Campaign Templates -->
-          <div>
-            <label class="block font-bold text-[#334155] mb-1.5">Quick Campaign Template Preset:</label>
-            <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
-              <button type="button" onclick="applyCampaignTemplate('flash_deals')" class="p-2.5 rounded-xl border border-blue-200 hover:border-blue-500 bg-blue-50/50 text-left transition-all group cursor-pointer shadow-2xs">
-                <p class="font-bold text-blue-900 group-hover:text-blue-600 inline-flex items-center space-x-1.5">
-                  ${iconFlame('w-3.5 h-3.5 text-rose-600 flex-shrink-0')}
-                  <span>Weekend Flash</span>
-                </p>
-                <p class="text-[10px] text-[#64748b]">Hot Deals & Discounts</p>
-              </button>
-              <button type="button" onclick="applyCampaignTemplate('new_arrivals')" class="p-2.5 rounded-xl border border-slate-200 hover:border-blue-500 bg-slate-50 text-left transition-all group cursor-pointer shadow-2xs">
-                <p class="font-bold text-slate-800 group-hover:text-blue-600 inline-flex items-center space-x-1.5">
-                  ${iconRocket('w-3.5 h-3.5 text-blue-600 flex-shrink-0')}
-                  <span>New Arrivals</span>
-                </p>
-                <p class="text-[10px] text-[#64748b]">Hardware Stock Drops</p>
-              </button>
-              <button type="button" onclick="applyCampaignTemplate('price_drop')" class="p-2.5 rounded-xl border border-slate-200 hover:border-blue-500 bg-slate-50 text-left transition-all group cursor-pointer shadow-2xs">
-                <p class="font-bold text-slate-800 group-hover:text-blue-600 inline-flex items-center space-x-1.5">
-                  ${iconTrendingDown('w-3.5 h-3.5 text-emerald-600 flex-shrink-0')}
-                  <span>Price Drops</span>
-                </p>
-                <p class="text-[10px] text-[#64748b]">GPU & RAM Reductions</p>
-              </button>
-              <button type="button" onclick="applyCampaignTemplate('tech_digest')" class="p-2.5 rounded-xl border border-slate-200 hover:border-blue-500 bg-slate-50 text-left transition-all group cursor-pointer shadow-2xs">
-                <p class="font-bold text-slate-800 group-hover:text-blue-600 inline-flex items-center space-x-1.5">
-                  ${iconLightbulb('w-3.5 h-3.5 text-amber-600 flex-shrink-0')}
-                  <span>Tech Digest</span>
-                </p>
-                <p class="text-[10px] text-[#64748b]">Guides & Specs Matrix</p>
-              </button>
-            </div>
-          </div>
-
-          <!-- Subject & Preheader -->
-          <div class="space-y-3 pt-2">
-            <div>
-              <label class="block font-bold text-[#334155] mb-1">Email Subject Line *</label>
-              <input type="text" id="campaign-subject" required placeholder="e.g., Weekend Flash Deals: Up to 45% OFF Gaming Hardware!"
-                class="w-full px-3.5 py-2.5 border border-[#cbd5e1] rounded-xl text-xs font-bold text-[#0f172a] focus:border-blue-600 focus:outline-none" />
-            </div>
-
-            <div>
-              <label class="block font-bold text-[#334155] mb-1">Preheader / Snippet Text</label>
-              <input type="text" id="campaign-preheader" placeholder="Exclusive discounts on high-performance laptops and graphics cards."
-                class="w-full px-3.5 py-2 border border-[#cbd5e1] rounded-xl text-xs text-[#0f172a] focus:border-blue-600 focus:outline-none" />
-            </div>
-          </div>
-
-          <!-- Target Segment & Category -->
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label class="block font-bold text-[#334155] mb-1">Target Audience Segment</label>
-              <select id="campaign-target-segment" class="w-full px-3.5 py-2 border border-[#cbd5e1] rounded-xl text-xs font-bold text-[#334155] focus:border-blue-600 focus:outline-none">
-                <option value="ALL_ACTIVE">All Active Subscribers (${analytics.activeSubscribers} recipients)</option>
-                <option value="STOREFRONT_ONLY">Storefront Subscribers Only</option>
-                <option value="DEALS_ONLY">Hot Deals VIP Subscribers Only</option>
-              </select>
-            </div>
-
-            <div>
-              <label class="block font-bold text-[#334155] mb-1">Campaign Category Tag</label>
-              <select id="campaign-category" class="w-full px-3.5 py-2 border border-[#cbd5e1] rounded-xl text-xs font-bold text-[#334155] focus:border-blue-600 focus:outline-none">
-                <option value="FLASH_DEALS">Flash Deals & Discounts</option>
-                <option value="NEW_ARRIVALS">New Hardware Arrivals</option>
-                <option value="TECH_GUIDE">Hardware Guides & Specs</option>
-                <option value="STORE_NEWS">Store Announcement</option>
-              </select>
-            </div>
-          </div>
-
-          <!-- Message Body Content -->
-          <div>
-            <label class="block font-bold text-[#334155] mb-1">Broadcast Message Body (HTML / Text)</label>
-            <textarea id="campaign-body" rows="4" required
-              placeholder="Write your email announcement or promotional pitch here..."
-              class="w-full px-3.5 py-2.5 border border-[#cbd5e1] rounded-xl text-xs text-[#0f172a] font-sans leading-relaxed focus:border-blue-600 focus:outline-none"></textarea>
-            <p class="text-[10px] text-[#94a3b8] mt-1">Supported placeholders: <code class="font-mono text-blue-600">{{subscriber_name}}</code>, <code class="font-mono text-blue-600">{{store_url}}</code></p>
-          </div>
-
-          <!-- Live Visual Email Preview Pane -->
-          <div class="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-2">
-            <div class="flex items-center justify-between text-[11px] font-bold text-[#64748b]">
-              <span class="inline-flex items-center space-x-1.5">${iconEye('w-3.5 h-3.5 text-blue-600')}<span>Live Subscriber Inbox Preview</span></span>
-              <span class="text-blue-600">ETech Next-Gen Template</span>
-            </div>
-            <div class="bg-white rounded-lg border border-[#e2e8f0] p-4 shadow-sm space-y-3">
-              <div class="flex items-center justify-between border-b border-[#f1f5f9] pb-2">
-                <div class="flex items-center space-x-2">
-                  <div class="w-6 h-6 rounded bg-blue-600 text-white font-extrabold text-[10px] flex items-center justify-center">ET</div>
-                  <span class="font-bold text-xs text-[#0f172a]">ETech Computers LK</span>
-                </div>
-                <span class="text-[10px] text-[#94a3b8]">noreply@etechcomputers.lk</span>
-              </div>
-              <div class="space-y-1.5">
-                <h4 id="preview-subject" class="font-black text-xs text-[#0f172a]">Weekend Flash Deals: Up to 45% OFF Gaming Hardware!</h4>
-                <p id="preview-body" class="text-[11px] text-[#475569] leading-relaxed">
-                  Hi Kasun, check out our latest curated tech deals this weekend with guaranteed genuine warranties!
-                </p>
-              </div>
-              <div class="pt-2">
-                <a href="#deals" onclick="closeNewsletterModal('campaign-modal')" class="inline-block px-4 py-2 bg-blue-600 text-white text-[10px] font-bold rounded-lg shadow-sm">
-                  Shop Weekend Deals →
-                </a>
-              </div>
-            </div>
-          </div>
-
-          <!-- Actions -->
-          <div class="flex items-center justify-between pt-3 border-t border-[#e2e8f0]">
-            <p class="text-[11px] text-[#64748b]">
-              Will be broadcasted to <strong class="text-blue-600 font-mono font-bold">${analytics.activeSubscribers}</strong> active subscribers.
-            </p>
-            <div class="flex items-center space-x-2">
-              <button type="button" onclick="closeNewsletterModal('campaign-modal')" class="px-4 py-2 rounded-xl bg-[#f1f5f9] text-[#475569] font-bold hover:bg-[#e2e8f0]">
-                Cancel
-              </button>
-              <button type="submit" id="btn-send-broadcast" class="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold shadow-md shadow-blue-500/20 transition-all flex items-center space-x-2 cursor-pointer transform hover:-translate-y-0.5">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
-                <span>Send Broadcast Now</span>
-              </button>
-            </div>
-          </div>
-        </form>
-
+        <div class="flex items-center space-x-2.5">
+          <button type="button" onclick="setNewsletterSubTab('subscribers')"
+            class="px-4 py-2.5 rounded-xl bg-[#f1f5f9] hover:bg-[#e2e8f0] text-[#475569] font-bold text-xs transition-all cursor-pointer">
+            Cancel
+          </button>
+          <button type="button" onclick="document.getElementById('compose-broadcast-form').requestSubmit()"
+            ${!hasActive ? 'disabled' : ''}
+            class="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-md shadow-blue-500/20 transition-all flex items-center space-x-2 cursor-pointer transform hover:-translate-y-0.5 ${!hasActive ? 'opacity-50 cursor-not-allowed hover:bg-blue-600 transform-none' : ''}">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
+            <span>Send Broadcast Now</span>
+          </button>
+        </div>
       </div>
+
+      <!-- 2. Zero Active Subscribers Warning Notice (If Applicable) -->
+      ${!hasActive ? `
+        <div id="campaign-zero-subscribers-notice" class="p-4 bg-amber-50 border border-amber-200 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-amber-900 shadow-xs animate-fadeIn">
+          <div class="flex items-start space-x-3">
+            <svg class="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <div>
+              <p class="font-bold text-xs">No Active Subscribers Found (${analytics.totalSubscribers} total contacts are currently Unsubscribed)</p>
+              <p class="text-[11px] text-amber-700 mt-0.5">Marketing emails are only delivered to active subscribers. Click below to reactivate all contacts.</p>
+            </div>
+          </div>
+          <button type="button" onclick="reactivateAllSubscribersFromPage()" class="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl font-bold text-xs whitespace-nowrap shadow-xs cursor-pointer transition-all flex-shrink-0">
+            Reactivate All (${analytics.totalSubscribers})
+          </button>
+        </div>
+      ` : ''}
+
+      <!-- 3. Form & Live Preview Grid Layout -->
+      <form id="compose-broadcast-form" onsubmit="handleSendCampaignSubmit(event)">
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          
+          <!-- Left Column: Form Controls (7 Columns) -->
+          <div class="lg:col-span-7 space-y-6">
+            
+            <!-- Quick Campaign Template Presets -->
+            <div class="bg-white border border-[#e2e8f0] rounded-2xl p-5 sm:p-6 shadow-xs space-y-3">
+              <div>
+                <label class="block font-extrabold text-[#0f172a] text-xs mb-0.5">Quick Campaign Template Presets</label>
+                <p class="text-[11px] text-[#64748b]">Select a pre-designed copy structure or customize your own announcement.</p>
+              </div>
+              <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                <button type="button" onclick="applyCampaignTemplate('flash_deals')" class="p-3 rounded-xl border border-blue-200 hover:border-blue-500 bg-blue-50/50 text-left transition-all group cursor-pointer shadow-2xs">
+                  <p class="font-bold text-blue-900 group-hover:text-blue-600 inline-flex items-center space-x-1.5 text-xs">
+                    ${iconFlame('w-4 h-4 text-rose-600 flex-shrink-0')}
+                    <span>Weekend Flash</span>
+                  </p>
+                  <p class="text-[10px] text-[#64748b] mt-0.5">Hot Deals & Discounts</p>
+                </button>
+                <button type="button" onclick="applyCampaignTemplate('new_arrivals')" class="p-3 rounded-xl border border-slate-200 hover:border-blue-500 bg-slate-50 text-left transition-all group cursor-pointer shadow-2xs">
+                  <p class="font-bold text-slate-800 group-hover:text-blue-600 inline-flex items-center space-x-1.5 text-xs">
+                    ${iconRocket('w-4 h-4 text-blue-600 flex-shrink-0')}
+                    <span>New Arrivals</span>
+                  </p>
+                  <p class="text-[10px] text-[#64748b] mt-0.5">Hardware Stock Drops</p>
+                </button>
+                <button type="button" onclick="applyCampaignTemplate('price_drop')" class="p-3 rounded-xl border border-slate-200 hover:border-blue-500 bg-slate-50 text-left transition-all group cursor-pointer shadow-2xs">
+                  <p class="font-bold text-slate-800 group-hover:text-blue-600 inline-flex items-center space-x-1.5 text-xs">
+                    ${iconTrendingDown('w-4 h-4 text-emerald-600 flex-shrink-0')}
+                    <span>Price Drops</span>
+                  </p>
+                  <p class="text-[10px] text-[#64748b] mt-0.5">GPU & RAM Reductions</p>
+                </button>
+                <button type="button" onclick="applyCampaignTemplate('tech_digest')" class="p-3 rounded-xl border border-slate-200 hover:border-blue-500 bg-slate-50 text-left transition-all group cursor-pointer shadow-2xs">
+                  <p class="font-bold text-slate-800 group-hover:text-blue-600 inline-flex items-center space-x-1.5 text-xs">
+                    ${iconLightbulb('w-4 h-4 text-amber-600 flex-shrink-0')}
+                    <span>Tech Digest</span>
+                  </p>
+                  <p class="text-[10px] text-[#64748b] mt-0.5">Guides & Specs Matrix</p>
+                </button>
+              </div>
+            </div>
+
+            <!-- Subject & Preheader -->
+            <div class="bg-white border border-[#e2e8f0] rounded-2xl p-5 sm:p-6 shadow-xs space-y-4">
+              <div>
+                <label class="block font-bold text-[#334155] text-xs mb-1.5">Email Subject Line *</label>
+                <input type="text" id="campaign-subject" required oninput="updateCampaignPreview()"
+                  placeholder="e.g., Weekend Flash Deals: Up to 45% OFF Gaming Hardware!"
+                  class="w-full px-4 py-2.5 border border-[#cbd5e1] rounded-xl text-xs font-bold text-[#0f172a] focus:border-blue-600 focus:outline-none transition-colors shadow-2xs" />
+              </div>
+
+              <div>
+                <label class="block font-bold text-[#334155] text-xs mb-1.5">Preheader / Snippet Text</label>
+                <input type="text" id="campaign-preheader" oninput="updateCampaignPreview()"
+                  placeholder="Special member pricing valid across all Sri Lanka branches until Sunday."
+                  class="w-full px-4 py-2.5 border border-[#cbd5e1] rounded-xl text-xs text-[#0f172a] focus:border-blue-600 focus:outline-none transition-colors shadow-2xs" />
+                <p class="text-[10px] text-[#94a3b8] mt-1">Short summary displayed in the subscriber's inbox list right after the subject.</p>
+              </div>
+            </div>
+
+            <!-- Broadcast Message Body -->
+            <div class="bg-white border border-[#e2e8f0] rounded-2xl p-5 sm:p-6 shadow-xs space-y-3">
+              <div class="flex items-center justify-between">
+                <label class="block font-bold text-[#334155] text-xs">Broadcast Message Body (HTML / Text) *</label>
+                <span class="text-[10px] text-[#64748b]">Plain text paragraphs or HTML tags supported</span>
+              </div>
+
+              <textarea id="campaign-body" rows="8" required oninput="updateCampaignPreview()"
+                placeholder="Write your email announcement or promotional pitch here..."
+                class="w-full px-4 py-3 border border-[#cbd5e1] rounded-xl text-xs text-[#0f172a] font-sans leading-relaxed focus:border-blue-600 focus:outline-none transition-colors shadow-2xs"></textarea>
+              
+              <div class="flex items-center justify-between pt-1">
+                <p class="text-[11px] text-[#94a3b8]">
+                  Personalization placeholders: 
+                  <button type="button" onclick="insertPlaceholder('{{subscriber_name}}')" class="font-mono text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded hover:bg-blue-100 cursor-pointer font-bold">{{subscriber_name}}</button>
+                  <button type="button" onclick="insertPlaceholder('{{store_url}}')" class="font-mono text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded hover:bg-blue-100 cursor-pointer font-bold">{{store_url}}</button>
+                </p>
+                <span class="text-[10px] text-emerald-600 font-bold">Auto-Personalized on Dispatch</span>
+              </div>
+            </div>
+
+            <!-- Bottom Dispatch Bar -->
+            <div class="bg-white border border-[#e2e8f0] rounded-2xl p-5 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-3">
+              <div class="space-y-0.5 text-left">
+                <p class="text-xs text-[#334155] font-bold">
+                  Audience: <strong class="text-blue-600 font-mono font-bold">${analytics.activeSubscribers}</strong> Active Subscribers
+                </p>
+                <p class="text-[11px] text-[#64748b]">Delivered Island-Wide via Gmail SMTP (eteccomputers38@gmail.com)</p>
+              </div>
+
+              <div class="flex items-center space-x-2.5">
+                <button type="button" onclick="setNewsletterSubTab('subscribers')"
+                  class="px-4 py-2.5 rounded-xl bg-[#f1f5f9] hover:bg-[#e2e8f0] text-[#475569] font-bold text-xs cursor-pointer transition-all">
+                  Cancel
+                </button>
+                <button type="submit" id="btn-send-broadcast" ${!hasActive ? 'disabled' : ''}
+                  class="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-md shadow-blue-500/20 transition-all flex items-center space-x-2 cursor-pointer transform hover:-translate-y-0.5 ${!hasActive ? 'opacity-50 cursor-not-allowed hover:bg-blue-600 transform-none' : ''}">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
+                  <span>Send Broadcast Now</span>
+                </button>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- Right Column: Sticky Live Subscriber Inbox Preview (5 Columns) -->
+          <div class="lg:col-span-5 space-y-4">
+            <div class="sticky top-6 space-y-3">
+              <div class="flex items-center justify-between text-xs font-bold text-[#64748b]">
+                <span class="inline-flex items-center space-x-1.5">
+                  ${iconEye('w-4 h-4 text-blue-600')}
+                  <span class="text-[#0f172a] font-extrabold">Live Subscriber Inbox Preview</span>
+                </span>
+                <span class="text-[10px] font-bold text-blue-600 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-full font-mono">HTML Email Client</span>
+              </div>
+
+              <!-- Preview Email Client Container -->
+              <div class="bg-white rounded-2xl border border-[#e2e8f0] overflow-hidden shadow-lg space-y-0">
+                
+                <!-- Email Client Top Header -->
+                <div class="bg-[#0f172a] p-4 text-white flex items-center justify-between border-b-2 border-blue-600">
+                  <div class="flex items-center space-x-2.5">
+                    <div class="w-7 h-7 rounded-lg bg-blue-600 text-white font-extrabold text-xs flex items-center justify-center font-mono">ET</div>
+                    <div>
+                      <span class="font-black text-xs tracking-tight text-white">ETech<span class="text-blue-400">Computers</span></span>
+                      <p class="text-[9px] text-slate-400 font-mono">noreply@etechcomputers.lk</p>
+                    </div>
+                  </div>
+                  <span class="text-[9px] font-bold text-blue-300 bg-blue-500/20 border border-blue-400/30 px-2 py-0.5 rounded-full uppercase tracking-wider">Official Broadcast</span>
+                </div>
+
+                <!-- Subject & Preheader Banner in Preview -->
+                <div class="bg-slate-50 border-b border-[#e2e8f0] p-4 space-y-1">
+                  <h3 id="preview-subject" class="font-extrabold text-sm text-[#0f172a] leading-snug">
+                    Weekend Flash Deals: Up to 45% OFF Gaming Hardware!
+                  </h3>
+                  <p id="preview-preheader" class="text-[11px] text-[#64748b] leading-relaxed">
+                    Special member pricing valid across all Sri Lanka branches until Sunday.
+                  </p>
+                </div>
+
+                <!-- Email Body in Preview -->
+                <div class="p-5 space-y-4">
+                  <div id="preview-body" class="text-xs text-[#334155] leading-relaxed whitespace-pre-line space-y-2">
+                    Hi Kasun,
+
+                    Get ready for our biggest hardware drop of the month! We're discounting flagship ROG laptops, Corsair DDR5 RAM kits, and Samsung NVMe SSDs with full local distributor warranties.
+
+                    Visit our store or order online today to claim your limited VIP discount voucher!
+                  </div>
+
+                  <!-- Call to Action Button in Preview -->
+                  <div class="pt-2">
+                    <span class="inline-block px-5 py-2.5 bg-blue-600 text-white text-xs font-bold rounded-xl shadow-md shadow-blue-500/20 text-center cursor-default">
+                      Shop Weekend Deals &rarr;
+                    </span>
+                  </div>
+                </div>
+
+                <!-- Email Footer in Preview -->
+                <div class="bg-slate-50 border-t border-[#e2e8f0] p-4 text-center text-[10px] text-[#94a3b8] space-y-1">
+                  <p class="font-medium text-[#64748b]">ETech Computers LK &bull; Next-Gen Tech Store Official Sri Lanka</p>
+                  <p>You received this broadcast as an active subscriber &bull; Support: eteccomputers38@gmail.com</p>
+                  <p class="text-slate-400 underline">Unsubscribe from marketing emails</p>
+                </div>
+
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </form>
     </div>
   `;
+}
 
-  // Auto-fill initial template
-  applyCampaignTemplate('flash_deals');
+/**
+ * Real-time Email Preview Syncer
+ */
+export function updateCampaignPreview() {
+  const subjectInput = document.getElementById('campaign-subject');
+  const preheaderInput = document.getElementById('campaign-preheader');
+  const bodyInput = document.getElementById('campaign-body');
+  const previewSubject = document.getElementById('preview-subject');
+  const previewPreheader = document.getElementById('preview-preheader');
+  const previewBody = document.getElementById('preview-body');
+
+  if (previewSubject && subjectInput) {
+    previewSubject.textContent = subjectInput.value.trim() || 'Weekend Flash Deals: Up to 45% OFF Gaming Hardware!';
+  }
+  if (previewPreheader && preheaderInput) {
+    previewPreheader.textContent = preheaderInput.value.trim() || 'Special member pricing valid across all Sri Lanka branches until Sunday.';
+  }
+  if (previewBody && bodyInput) {
+    const raw = bodyInput.value || 'Hi Kasun,\n\nGet ready for our biggest hardware drop of the month!\n\nVisit our store or order online today!';
+    previewBody.textContent = raw
+      .replace(/\{\{subscriber_name\}\}/g, 'Kasun')
+      .replace(/\{\{store_url\}\}/g, 'http://127.0.0.1:5500/index.html#deals');
+  }
 }
 
 /**
@@ -924,9 +1104,6 @@ export function applyCampaignTemplate(templateKey) {
   const subjectInput = document.getElementById('campaign-subject');
   const preheaderInput = document.getElementById('campaign-preheader');
   const bodyInput = document.getElementById('campaign-body');
-  const catSelect = document.getElementById('campaign-category');
-  const previewSubject = document.getElementById('preview-subject');
-  const previewBody = document.getElementById('preview-body');
 
   if (!subjectInput || !bodyInput) return;
 
@@ -934,26 +1111,21 @@ export function applyCampaignTemplate(templateKey) {
     subjectInput.value = '🔥 Weekend Flash Deals: Up to 45% OFF RTX 40-Series & Gaming Laptops!';
     if (preheaderInput) preheaderInput.value = 'Special member pricing valid across all Sri Lanka branches until Sunday.';
     bodyInput.value = `Hi {{subscriber_name}},\n\nGet ready for our biggest hardware drop of the month! We're discounting flagship ROG laptops, Corsair DDR5 RAM kits, and Samsung NVMe SSDs with full local distributor warranties.\n\nVisit our store or order online today to claim your limited VIP discount voucher!`;
-    if (catSelect) catSelect.value = 'FLASH_DEALS';
   } else if (templateKey === 'new_arrivals') {
     subjectInput.value = '🚀 New In Stock: Intel Core Ultra & Corsair Dominator Titanium DDR5';
     if (preheaderInput) preheaderInput.value = 'Unleash next-generation rendering and gaming capabilities.';
     bodyInput.value = `Hi {{subscriber_name}},\n\nBrand new cutting-edge hardware has just landed at ETech Computers! Explore the latest Intel Core Ultra processors and premium Titanium memory modules designed for peak performance.\n\nCheck out the full catalog with instant island-wide delivery.`;
-    if (catSelect) catSelect.value = 'NEW_ARRIVALS';
   } else if (templateKey === 'price_drop') {
     subjectInput.value = '📉 Price Drop Alert: Graphics Cards & Liquid Coolers Just Reduced';
     if (preheaderInput) preheaderInput.value = 'Save up to Rs. 40,000 on select custom workstation components.';
     bodyInput.value = `Hi {{subscriber_name}},\n\nWe have lowered retail prices across popular high-demand graphics cards and liquid AIO coolers! Don't miss this opportunity to upgrade your workstation at the best market prices.`;
-    if (catSelect) catSelect.value = 'FLASH_DEALS';
   } else if (templateKey === 'tech_digest') {
     subjectInput.value = '💡 ETech Tech Digest: Best Hardware Configurations for 2026';
     if (preheaderInput) preheaderInput.value = 'Expert benchmark comparisons, power supply recommendations, and more.';
     bodyInput.value = `Hi {{subscriber_name}},\n\nNot sure which power supply or motherboard matches your next setup? Our technical team has put together a comprehensive specs matrix and performance guide to help you make the best decision.`;
-    if (catSelect) catSelect.value = 'TECH_GUIDE';
   }
 
-  if (previewSubject) previewSubject.textContent = subjectInput.value;
-  if (previewBody) previewBody.textContent = bodyInput.value.replace('{{subscriber_name}}', 'Kasun');
+  updateCampaignPreview();
 }
 
 /**
@@ -961,17 +1133,41 @@ export function applyCampaignTemplate(templateKey) {
  */
 export async function handleSendCampaignSubmit(event) {
   if (event) event.preventDefault();
-  const subject = document.getElementById('campaign-subject').value.trim();
-  const preheader = document.getElementById('campaign-preheader').value.trim();
-  const category = document.getElementById('campaign-category').value;
-  const targetSegment = document.getElementById('campaign-target-segment').value;
-  const content = document.getElementById('campaign-body').value.trim();
+  const subjectEl = document.getElementById('campaign-subject');
+  const preheaderEl = document.getElementById('campaign-preheader');
+  const bodyEl = document.getElementById('campaign-body');
+
+  if (!subjectEl || !bodyEl) return;
+
+  const subject = subjectEl.value.trim();
+  const preheader = preheaderEl ? preheaderEl.value.trim() : '';
+  const content = bodyEl.value.trim();
+
+  if (!subject) {
+    showToast('Please enter an email subject line.', 'error');
+    return;
+  }
+  if (!content) {
+    showToast('Please enter broadcast message body content.', 'error');
+    return;
+  }
+
+  const analytics = getNewsletterAnalytics();
+  const recipientCount = analytics.activeSubscribers;
+
+  if (recipientCount === 0) {
+    await etechAlert.warning(
+      'No Active Recipients',
+      'Cannot send broadcast: There are 0 active subscribers in the audience. Please reactivate subscribers before dispatching.'
+    );
+    return;
+  }
 
   const confirmed = await etechAlert.confirm({
-    title: 'Dispatch Email Broadcast?',
-    message: `You are about to broadcast campaign "${subject}" to target segment "${targetSegment}". Confirm delivery to active subscriber mailboxes?`,
+    title: 'Confirm Live Email Broadcast?',
+    message: `You are about to broadcast campaign "${subject}" to ${recipientCount} active subscribers via Gmail SMTP (eteccomputers38@gmail.com). Real emails will be delivered directly to customer mailboxes. Proceed with live dispatch?`,
     type: 'create',
-    confirmText: 'Dispatch Broadcast',
+    confirmText: `Yes, Broadcast to ${recipientCount} Subscribers`,
     cancelText: 'Cancel'
   });
 
@@ -980,28 +1176,36 @@ export async function handleSendCampaignSubmit(event) {
   const btn = document.getElementById('btn-send-broadcast');
   if (btn) {
     btn.disabled = true;
-    btn.innerHTML = `<span class="inline-block animate-spin mr-2">⟳</span> Dispatching Broadcast...`;
+    btn.innerHTML = `<span class="inline-block animate-spin mr-2">⟳</span> Dispatching via Gmail SMTP...`;
   }
 
   try {
     const res = await NewsletterApi.sendCampaign({
       subject,
       preheader,
-      category,
-      targetSegment,
+      category: 'MARKETING_BROADCAST',
+      targetSegment: 'ALL_ACTIVE',
       contentHtml: content,
       authorName: 'Admin Team'
     });
 
     closeNewsletterModal('campaign-modal');
-    showToast(res.message, 'success');
+    showToast(res.message || 'Campaign broadcast dispatched successfully!', 'success');
     activeSubTab = 'campaigns';
     renderNewsletterTab();
+
+    await etechAlert.info(
+      'Email Broadcast Dispatched!',
+      `Campaign "${subject}" has been queued and is actively delivering via Gmail SMTP to your active subscriber base.`
+    );
   } catch (err) {
-    etechAlert.error('Broadcast Dispatch Failed', err.message);
+    etechAlert.error('Broadcast Dispatch Failed', err.message || 'Could not dispatch campaign.');
     if (btn) {
       btn.disabled = false;
-      btn.innerHTML = `<span>Send Broadcast Now</span>`;
+      btn.innerHTML = `
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
+        <span>Send Broadcast Now</span>
+      `;
     }
   }
 }
@@ -1012,6 +1216,54 @@ export async function handleSendCampaignSubmit(event) {
 export function closeNewsletterModal(modalId) {
   const modal = document.getElementById(modalId);
   if (modal) modal.remove();
+}
+
+/**
+ * High-Fidelity Subscription Confirmation Modal
+ */
+export function showSubscriptionSuccessModal(email) {
+  let modal = document.getElementById('subscription-success-modal');
+  if (modal) modal.remove();
+
+  modal = document.createElement('div');
+  modal.id = 'subscription-success-modal';
+  modal.className = 'fixed inset-0 z-[100000] flex items-center justify-center p-4 bg-[#0f172a]/70 backdrop-blur-sm animate-fadeIn';
+  modal.innerHTML = `
+    <div class="bg-white border border-[#e2e8f0] rounded-2xl max-w-md w-full p-6 sm:p-8 shadow-2xl text-center space-y-5 animate-scaleUp">
+      
+      <!-- Icon -->
+      <div class="w-16 h-16 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto border border-emerald-200 shadow-xs">
+        <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
+        </svg>
+      </div>
+
+      <div class="space-y-1.5">
+        <h3 class="text-xl font-black text-[#0f172a] tracking-tight">Subscription Confirmed!</h3>
+        <p class="text-xs text-[#64748b]">
+          Welcome to <strong class="text-blue-600 font-bold">ETech Insider</strong>
+        </p>
+      </div>
+
+      <div class="bg-slate-50 border border-slate-200 rounded-xl p-4 text-left text-xs text-[#475569] space-y-2">
+        <p>
+          Thank you for subscribing with <strong class="text-[#0f172a] font-mono">${escapeHtml(email)}</strong>. A welcome confirmation has been dispatched to your inbox from <strong class="text-blue-600">eteccomputers38@gmail.com</strong>.
+        </p>
+        <div class="border-t border-slate-200 pt-2 text-[11px] text-[#64748b] space-y-1">
+          <p class="font-bold text-[#0f172a]">&bull; What to expect:</p>
+          <p>&bull; Early access to PC hardware arrivals & GPU restocks</p>
+          <p>&bull; Custom workstation builds and performance benchmarks</p>
+          <p>&bull; Zero spam guarantee &bull; 1-click unsubscribe anytime</p>
+        </div>
+      </div>
+
+      <button onclick="document.getElementById('subscription-success-modal').remove()" 
+        class="w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-md shadow-blue-500/20 transition-all cursor-pointer">
+        Got It, Thanks!
+      </button>
+    </div>
+  `;
+  document.body.appendChild(modal);
 }
 
 /**
@@ -1029,22 +1281,24 @@ export async function handleStorefrontNewsletterSubmit(event) {
     return;
   }
 
+  const submitBtn = event.target ? event.target.querySelector('button[type="submit"]') : null;
+  if (submitBtn) {
+    submitBtn.disabled = true;
+    submitBtn.classList.add('opacity-75', 'cursor-wait');
+  }
+
   try {
-    const res = await NewsletterApi.subscribe({
-      email
-    });
+    const res = await NewsletterApi.subscribe({ email });
 
-    if (res.alreadySubscribed) {
-      showToast('You are already subscribed to ETech tech updates!', 'info');
-    } else if (res.reactivated) {
-      showToast('Welcome back! Your subscription has been reactivated.', 'success');
-    } else {
-      showToast('Thank you for subscribing to ETech Computers tech updates!', 'success');
-    }
-
+    showSubscriptionSuccessModal(email);
     input.value = '';
   } catch (err) {
-    showToast(err.message, 'error');
+    showToast(err.message || 'Subscription failed. Please try again.', 'error');
+  } finally {
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.classList.remove('opacity-75', 'cursor-wait');
+    }
   }
 }
 

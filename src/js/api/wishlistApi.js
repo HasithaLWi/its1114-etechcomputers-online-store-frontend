@@ -1,80 +1,118 @@
-// ============================================================
-//  src/js/api/wishlistApi.js — Customer Wishlist Backend API Client
-// ============================================================
-import { ajaxRequest } from './apiClient.js';
+import { ajaxRequest, getToken } from './apiClient.js';
 
 export const WishlistApi = {
-  /**
-   * Fetch customer's full wishlist items with product details
-   * GET /api/v1/wishlist
-   */
+
+  // GET /api/v1/wishlist
   async getWishlist() {
+    if (!getToken()) {
+      return { success: true, items: [] };
+    }
     console.log('[WishlistAPI] getWishlist() -> fetching customer wishlist');
-    const res = await ajaxRequest({
-      endpoint: '/wishlist',
-      method: 'GET'
-    });
-    return res.body || res;
+    try {
+      const res = await ajaxRequest({
+        endpoint: '/wishlist',
+        method: 'GET'
+      });
+      return res.body || res;
+    } catch (err) {
+      console.warn('[WishlistAPI] getWishlist error:', err);
+      return null;
+    }
   },
 
-  /**
-   * Toggle product in customer wishlist (adds if not present, removes if present)
-   * POST /api/v1/wishlist/toggle/{productId}
-   */
+
+  // POST /api/v1/wishlist/toggle/{productId}
   async toggleWishlist(productId) {
+    if (!getToken()) {
+      return { success: true, guest: true };
+    }
     console.log('[WishlistAPI] toggleWishlist() -> Product ID:', productId);
-    return ajaxRequest({
-      endpoint: `/wishlist/toggle/${encodeURIComponent(productId)}`,
-      method: 'POST'
-    });
+    try {
+      const res = await ajaxRequest({
+        endpoint: `/wishlist/toggle/${encodeURIComponent(productId)}`,
+        method: 'POST'
+      });
+      return res.body || res;
+    } catch (err) {
+      console.warn('[WishlistAPI] toggleWishlist error:', err);
+      return null;
+    }
   },
 
-  /**
-   * Explicitly add product to wishlist
-   * POST /api/v1/wishlist/add/{productId}
-   */
+
+  // POST /api/v1/wishlist/add/{productId}
   async addToWishlist(productId) {
+    if (!getToken()) {
+      return { success: true, guest: true };
+    }
     console.log('[WishlistAPI] addToWishlist() -> Product ID:', productId);
-    return ajaxRequest({
-      endpoint: `/wishlist/add/${encodeURIComponent(productId)}`,
-      method: 'POST'
-    });
+    try {
+      const res = await ajaxRequest({
+        endpoint: `/wishlist/add/${encodeURIComponent(productId)}`,
+        method: 'POST'
+      });
+      return res.body || res;
+    } catch (err) {
+      console.warn('[WishlistAPI] addToWishlist error:', err);
+      return null;
+    }
   },
 
-  /**
-   * Remove single product from customer wishlist
-   * DELETE /api/v1/wishlist/remove/{productId}
-   */
+
+  // DELETE /api/v1/wishlist/remove/{productId}
   async removeFromWishlist(productId) {
+    if (!getToken()) {
+      return { success: true, guest: true };
+    }
     console.log('[WishlistAPI] removeFromWishlist() -> Product ID:', productId);
-    return ajaxRequest({
-      endpoint: `/wishlist/remove/${encodeURIComponent(productId)}`,
-      method: 'DELETE'
-    });
+    try {
+      const res = await ajaxRequest({
+        endpoint: `/wishlist/remove/${encodeURIComponent(productId)}`,
+        method: 'DELETE'
+      });
+      return res.body || res;
+    } catch (err) {
+      console.warn('[WishlistAPI] removeFromWishlist error:', err);
+      return null;
+    }
   },
 
-  /**
-   * Clear all items in customer wishlist
-   * DELETE /api/v1/wishlist/clear
-   */
+
+  // DELETE /api/v1/wishlist/clear
   async clearWishlist() {
+    if (!getToken()) {
+      return { success: true, guest: true };
+    }
     console.log('[WishlistAPI] clearWishlist() -> clearing all wishlist items');
-    return ajaxRequest({
-      endpoint: '/wishlist/clear',
-      method: 'DELETE'
-    });
+    try {
+      const res = await ajaxRequest({
+        endpoint: '/wishlist/clear',
+        method: 'DELETE'
+      });
+      return res.body || res;
+    } catch (err) {
+      console.warn('[WishlistAPI] clearWishlist error:', err);
+      return null;
+    }
   },
 
-  /**
-   * Move item from wishlist to cart
-   * POST /api/v1/wishlist/move-to-cart
-   */
+
+  // POST /api/v1/wishlist/move-to-cart
   async moveToCart(productId, branchId = 'BR-COL', quantity = 1) {
+    if (!getToken()) {
+      return { success: true, guest: true };
+    }
     console.log('[WishlistAPI] moveToCart() -> Product ID:', productId, 'Branch:', branchId, 'Qty:', quantity);
-    return ajaxRequest({
-      endpoint: '/wishlist/move-to-cart',
-      method: 'POST',
-      data: { productId, branchId, quantity }
-    });
+    try {
+      const res = await ajaxRequest({
+        endpoint: '/wishlist/move-to-cart',
+        method: 'POST',
+        data: { productId, branchId, quantity }
+      });
+      return res.body || res;
+    } catch (err) {
+      console.warn('[WishlistAPI] moveToCart error:', err);
+      return null;
+    }
   }
 };

@@ -106,6 +106,10 @@ export function renderLoginPage(queryPart) {
                   class="rounded bg-[#f8fafc] border-[#e2e8f0] text-blue-600 focus:ring-0 w-3.5 h-3.5">
                 <span>Remember me</span>
               </label>
+              <button type="button" onclick="openForgotPasswordModal()"
+                class="text-xs font-semibold text-blue-600 hover:text-blue-500 hover:underline transition-colors focus:outline-none cursor-pointer">
+                Forgot password?
+              </button>
             </div>
 
             <button type="submit"

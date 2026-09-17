@@ -1,10 +1,13 @@
-// ============================================================
-//  deals_data.js — Model for Promotions & Composite Deal Bundles
-// ============================================================
 import { getStoredProducts, saveStoredProducts } from './data.js';
 import { getBranches } from '../controller/branch_controller.js';
 import { PromotionsApi } from '../api/promotionsApi.js';
 import { ProductsApi } from '../api/productsApi.js';
+import {
+  HOME_DEAL_STORAGE_KEY,
+  DEAL_BUNDLES_STORAGE_KEY,
+  HOT_DEALS_STORAGE_KEY
+} from '../util/localstorage.js';
+
 
 export const DEFAULT_HOME_DEAL_BANNER = {
   id: 1,
@@ -34,9 +37,9 @@ export const DEFAULT_HOME_DEAL_BANNER = {
 export const DEFAULT_DEAL_BUNDLES = [];
 export const DEFAULT_HOT_DEALS = [];
 
-export const HOME_DEAL_STORAGE_KEY = 'etech_home_deal_banner';
-export const DEAL_BUNDLES_STORAGE_KEY = 'etech_deal_bundles';
-export const HOT_DEALS_STORAGE_KEY = 'etech_hot_deals_list';
+// export const HOME_DEAL_STORAGE_KEY = 'etech_home_deal_banner';
+// export const DEAL_BUNDLES_STORAGE_KEY = 'etech_deal_bundles';
+// export const HOT_DEALS_STORAGE_KEY = 'etech_hot_deals_list';
 
 // Reactive In-Memory Stores
 let memoryHomeDealBanner = { ...DEFAULT_HOME_DEAL_BANNER };
@@ -763,8 +766,8 @@ export async function updateProductDiscount(productId, { price, originalPrice, b
   products[index].price = Number(price);
   if (originalPrice !== undefined) products[index].originalPrice = Number(originalPrice);
   if (badge !== undefined) products[index].badge = badge;
-  products[index].discount = products[index].originalPrice > products[index].price 
-    ? Math.round(((products[index].originalPrice - products[index].price) / products[index].originalPrice) * 100) 
+  products[index].discount = products[index].originalPrice > products[index].price
+    ? Math.round(((products[index].originalPrice - products[index].price) / products[index].originalPrice) * 100)
     : 0;
 
   saveStoredProducts(products);
@@ -979,7 +982,7 @@ export async function toggleHotDealStatus(id) {
     deal.lastUpdated = new Date().toISOString();
     try {
       await updateHotDeal(id, { active: newStatus, isActive: newStatus });
-    } catch (e) {}
+    } catch (e) { }
     return newStatus;
   }
   return false;

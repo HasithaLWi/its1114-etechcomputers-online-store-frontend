@@ -1,6 +1,3 @@
-// ============================================================
-//  src/js/api/ordersApi.js — Customer Orders & Fulfillment API Client
-// ============================================================
 import { ajaxRequest } from './apiClient.js';
 
 export const OrdersApi = {
@@ -12,6 +9,20 @@ export const OrdersApi = {
     console.log('[OrdersAPI] getAll() -> params:', params);
     const res = await ajaxRequest({
       endpoint: '/orders',
+      method: 'GET',
+      data: params
+    });
+    return res.body || res;
+  },
+
+  /**
+   * Filter orders with pagination & query parameters
+   * GET /api/v1/orders/filter
+   */
+  async getFiltered(params = {}) {
+    console.log('[OrdersAPI] getFiltered() -> params:', params);
+    const res = await ajaxRequest({
+      endpoint: '/orders/filter',
       method: 'GET',
       data: params
     });

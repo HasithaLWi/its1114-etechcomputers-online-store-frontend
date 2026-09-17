@@ -4,13 +4,14 @@
 import { getStoredProducts, saveStoredProducts } from './data.js';
 import { runAutoBadgeAssignment, recordProductBehaviorEvent } from './taxonomy_data.js';
 import { ReviewsApi } from '../api/reviewsApi.js';
+import { REVIEWS_STORAGE_KEY } from '../util/localstorage.js';
 
 export const DEFAULT_REVIEWS = [];
 export const DEFAULT_RATINGS = [];
 export const defaultReviews = [];
 export const defaultRatings = [];
 
-export const REVIEWS_STORAGE_KEY = 'etech_product_reviews';
+// export const REVIEWS_STORAGE_KEY = 'etech_product_reviews';
 
 // Reactive In-Memory Reviews Store
 let memoryReviews = [];
@@ -114,6 +115,7 @@ export async function submitProductReview({ productId, userId, userName, userEma
     return { success: false, message: 'Review submission failed: ' + (err.message || 'Server offline') };
   }
 
+  let reviewRecord;
   if (isOverride) {
     allReviews[existingIndex] = {
       ...allReviews[existingIndex],
@@ -182,11 +184,11 @@ export async function submitProductReview({ productId, userId, userName, userEma
         },
         actor: userName || userId
       });
-    } catch (e) {}
+    } catch (e) { }
 
     try {
       runAutoBadgeAssignment();
-    } catch (e) {}
+    } catch (e) { }
 
     return {
       success: true,
@@ -194,8 +196,8 @@ export async function submitProductReview({ productId, userId, userName, userEma
       reviewRecord,
       ratingRecord: reviewRecord,
       product,
-      message: isOverride 
-        ? `Your review & rating have been updated (${ratingNum} ★)!` 
+      message: isOverride
+        ? `Your review & rating have been updated (${ratingNum} ★)!`
         : `Thank you for your review (${ratingNum} ★)!`
     };
   }
