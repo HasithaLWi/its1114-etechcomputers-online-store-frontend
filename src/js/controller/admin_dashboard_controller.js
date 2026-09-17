@@ -268,7 +268,7 @@ function generateSparklineSvg(points, strokeColor, height = 34, width = 160) {
   }
 
   return `
-    <svg class="w-full h-[${height}px] overflow-visible" viewBox="0 0 ${width} ${height}" fill="none">
+    <svg class="w-full overflow-visible" style="height: ${height}px;" viewBox="0 0 ${width} ${height}" fill="none">
       <path d="${pathD}" stroke="${strokeColor}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" />
     </svg>
   `;
@@ -295,10 +295,14 @@ function getTodayStr() {
   return new Date().toISOString().slice(0, 10);
 }
 
-/** Parse an order date string to a Date object */
-function parseOrderDate(dateStr) {
-  if (!dateStr) return null;
-  const d = new Date(dateStr);
+/** Parse an order date value to a Date object */
+function parseOrderDate(dateVal) {
+  if (!dateVal) return null;
+  if (dateVal instanceof Date) return isNaN(dateVal.getTime()) ? null : dateVal;
+  if (typeof dateVal === 'object') {
+    return parseOrderDate(dateVal.orderDate || dateVal.createdAt || dateVal.date);
+  }
+  const d = new Date(dateVal);
   return isNaN(d.getTime()) ? null : d;
 }
 
@@ -308,7 +312,7 @@ function getOrdersInRange(orders, daysAgo) {
   cutoff.setDate(cutoff.getDate() - daysAgo);
   cutoff.setHours(0, 0, 0, 0);
   return orders.filter(o => {
-    const d = parseOrderDate(o.date || o.createdAt);
+    const d = parseOrderDate(o.orderDate || o.createdAt || o.date);
     return d && d >= cutoff;
   });
 }
@@ -351,7 +355,7 @@ function generateOrderSparklineData(orders, daysBack = 30) {
   const interval = daysBack / 10;
 
   orders.forEach(o => {
-    const d = parseOrderDate(o.date || o.createdAt);
+    const d = parseOrderDate(o.orderDate || o.createdAt || o.date);
     if (!d) return;
     const daysAgo = (now - d) / (1000 * 60 * 60 * 24);
     if (daysAgo > daysBack || daysAgo < 0) return;
@@ -373,7 +377,7 @@ function generateRevenueSparklineData(orders, daysBack = 30) {
   const interval = daysBack / 10;
 
   orders.forEach(o => {
-    const d = parseOrderDate(o.date || o.createdAt);
+    const d = parseOrderDate(o.orderDate || o.createdAt || o.date);
     if (!d) return;
     const daysAgo = (now - d) / (1000 * 60 * 60 * 24);
     if (daysAgo > daysBack || daysAgo < 0) return;
@@ -428,6 +432,11 @@ export function renderOverviewTab() {
  * ============================================================
  */
 function renderAdminOverview(container) {
+  if (salesChartInstance) {
+    salesChartInstance.destroy();
+    salesChartInstance = null;
+  }
+
   const orders = getAllOrders();
   const branches = getBranches();
   const healthReport = getStockHealthReport();
@@ -443,7 +452,7 @@ function renderAdminOverview(container) {
   // Real growth calculations (last 30 days vs prior 30 days)
   const last30Orders = getOrdersInRange(orders, 30);
   const prior30Orders = orders.filter(o => {
-    const d = parseOrderDate(o.date || o.createdAt);
+    const d = parseOrderDate(o.orderDate || o.createdAt || o.date);
     if (!d) return false;
     const now = new Date();
     const daysAgo = (now - d) / (1000 * 60 * 60 * 24);
@@ -456,7 +465,7 @@ function renderAdminOverview(container) {
   // Today's metrics
   const todayStr = getTodayStr();
   const todayOrders = orders.filter(o => {
-    const d = parseOrderDate(o.date || o.createdAt);
+    const d = parseOrderDate(o.orderDate || o.createdAt || o.date);
     return d && d.toISOString().slice(0, 10) === todayStr;
   });
   const todayRevenue = calcRevenue(todayOrders);
@@ -764,7 +773,7 @@ function renderAdminOverview(container) {
               <button onclick="setSalesChartRange('30D')" id="btn-range-30D" class="px-2.5 py-1 rounded bg-white text-blue-600 shadow-2xs border border-[#e2e8f0] transition-all">30D</button>
               <button onclick="setSalesChartRange('90D')" id="btn-range-90D" class="px-2.5 py-1 rounded hover:text-[#0f172a] transition-all">90D</button>
               <button onclick="setSalesChartRange('1Y')" id="btn-range-1Y" class="px-2.5 py-1 rounded hover:text-[#0f172a] transition-all">1Y</button>
-              <button class="p-1 rounded hover:text-[#0f172a] text-[#94a3b8] hover:bg-white" title="Custom Date Range">
+              <button onclick="switchAdminTab('analytics')" class="p-1 rounded hover:text-[#0f172a] text-[#94a3b8] hover:bg-white transition-colors" title="Custom Date Range & Full Analytics Hub">
                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
                 </svg>
@@ -1127,52 +1136,176 @@ export function initSalesOrdersChart(range = '30D') {
 
   const ctx = canvas.getContext('2d');
   const orders = getAllOrders();
-  const totalRevenue = orders.reduce((sum, o) => sum + parseLKR(o.totalAmount || o.total), 0);
+  const now = new Date();
 
-  // Multi-range datasets dynamically scaled to match project order amounts
-  const rangeConfigs = {
-    '7D': {
-      labels: ['Aug 21', 'Aug 22', 'Aug 23', 'Aug 24', 'Aug 25', 'Aug 26', 'Aug 27'],
-      revenue: [780000, 930000, 850000, 1100000, 980000, 1250000, totalRevenue || 1380000],
-      orders: [12, 16, 14, 22, 18, 25, orders.length || 28],
-      revSummary: formatLKR(totalRevenue || 1380000),
-      ordersSummary: String(orders.length || 28),
-      aovSummary: formatLKR((totalRevenue || 1380000) / (orders.length || 28))
-    },
-    '30D': {
-      labels: ['Jul 28', 'Aug 02', 'Aug 07', 'Aug 12', 'Aug 17', 'Aug 22', 'Aug 27'],
-      revenue: [520000, 680000, 610000, 820000, 760000, 930000, totalRevenue || 1380000],
-      orders: [48, 62, 58, 76, 70, 90, orders.length || 128],
-      revSummary: formatLKR(totalRevenue || 1380000),
-      ordersSummary: String(orders.length || 128),
-      aovSummary: formatLKR((totalRevenue || 1380000) / (orders.length || 128))
-    },
-    '90D': {
-      labels: ['Jun 01', 'Jun 15', 'Jul 01', 'Jul 15', 'Aug 01', 'Aug 15', 'Aug 27'],
-      revenue: [1400000, 1900000, 2300000, 2800000, 3200000, 3800000, (totalRevenue * 3.2) || 4250000],
-      orders: [130, 180, 210, 260, 310, 360, (orders.length * 3.2).toFixed(0) || 410],
-      revSummary: formatLKR((totalRevenue * 3.2) || 4250000),
-      ordersSummary: String((orders.length * 3.2).toFixed(0) || 410),
-      aovSummary: formatLKR(((totalRevenue * 3.2) || 4250000) / ((orders.length * 3.2) || 410))
-    },
-    '1Y': {
-      labels: ['Sep', 'Nov', 'Jan', 'Mar', 'May', 'Jul', 'Aug'],
-      revenue: [5200000, 6800000, 7900000, 9400000, 11200000, 13500000, (totalRevenue * 11.5) || 15800000],
-      orders: [490, 630, 740, 890, 1050, 1280, (orders.length * 11.6).toFixed(0) || 1490],
-      revSummary: formatLKR((totalRevenue * 11.5) || 15800000),
-      ordersSummary: String((orders.length * 11.6).toFixed(0) || 1490),
-      aovSummary: formatLKR(((totalRevenue * 11.5) || 15800000) / ((orders.length * 11.6) || 1490))
-    }
+  // Helper to extract date & revenue
+  const getOrderInfo = (o) => {
+    const d = parseOrderDate(o.orderDate || o.createdAt || o.date) || now;
+    const rev = parseLKR(o.totalAmount || o.total);
+    return { date: d, rev };
   };
 
-  const cfg = rangeConfigs[range] || rangeConfigs['30D'];
+  let labels = [];
+  let revenueData = [];
+  let ordersData = [];
+  let rangeOrdersTotal = 0;
+  let rangeRevenueTotal = 0;
+
+  if (range === '7D') {
+    // 7 Daily Buckets (past 6 days + today)
+    const dailyBuckets = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
+      const dayStr = d.toISOString().slice(0, 10);
+      const label = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      dailyBuckets.push({ dayStr, label, revenue: 0, orders: 0 });
+    }
+
+    const cutoff7D = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6);
+    cutoff7D.setHours(0, 0, 0, 0);
+
+    orders.forEach(o => {
+      const info = getOrderInfo(o);
+      if (info.date >= cutoff7D && info.date <= now) {
+        const orderDayStr = info.date.toISOString().slice(0, 10);
+        const bucket = dailyBuckets.find(b => b.dayStr === orderDayStr) || dailyBuckets[dailyBuckets.length - 1];
+        bucket.revenue += info.rev;
+        bucket.orders += 1;
+        rangeRevenueTotal += info.rev;
+        rangeOrdersTotal += 1;
+      }
+    });
+
+    labels = dailyBuckets.map(b => b.label);
+    revenueData = dailyBuckets.map(b => b.revenue);
+    ordersData = dailyBuckets.map(b => b.orders);
+
+  } else if (range === '90D') {
+    // 6 intervals of 15 days over the past 90 days
+    const intervalDays = 15;
+    const bucketCount = 6;
+    const buckets = [];
+    for (let i = bucketCount - 1; i >= 0; i--) {
+      const startD = new Date(now.getTime() - (i + 1) * intervalDays * 86400000);
+      const endD = new Date(now.getTime() - i * intervalDays * 86400000);
+      const label = startD.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      buckets.push({ startD, endD, label, revenue: 0, orders: 0 });
+    }
+
+    const cutoff90D = buckets[0].startD;
+    orders.forEach(o => {
+      const info = getOrderInfo(o);
+      if (info.date >= cutoff90D) {
+        let placed = false;
+        for (let b of buckets) {
+          if (info.date >= b.startD && info.date <= b.endD) {
+            b.revenue += info.rev;
+            b.orders += 1;
+            placed = true;
+            break;
+          }
+        }
+        if (!placed && info.date > buckets[buckets.length - 1].endD) {
+          buckets[buckets.length - 1].revenue += info.rev;
+          buckets[buckets.length - 1].orders += 1;
+        }
+        rangeRevenueTotal += info.rev;
+        rangeOrdersTotal += 1;
+      }
+    });
+
+    labels = buckets.map(b => b.label);
+    revenueData = buckets.map(b => b.revenue);
+    ordersData = buckets.map(b => b.orders);
+
+  } else if (range === '1Y') {
+    // 12 Monthly Buckets over the past 12 months
+    const monthlyBuckets = [];
+    for (let m = 11; m >= 0; m--) {
+      const targetMonthDate = new Date(now.getFullYear(), now.getMonth() - m, 1);
+      const year = targetMonthDate.getFullYear();
+      const month = targetMonthDate.getMonth();
+      const label = targetMonthDate.toLocaleDateString('en-US', { month: 'short' });
+      monthlyBuckets.push({ year, month, label, revenue: 0, orders: 0 });
+    }
+
+    const cutoff1Y = new Date(monthlyBuckets[0].year, monthlyBuckets[0].month, 1);
+    orders.forEach(o => {
+      const info = getOrderInfo(o);
+      if (info.date >= cutoff1Y) {
+        const oYear = info.date.getFullYear();
+        const oMonth = info.date.getMonth();
+        const bucket = monthlyBuckets.find(b => b.year === oYear && b.month === oMonth) || monthlyBuckets[monthlyBuckets.length - 1];
+        bucket.revenue += info.rev;
+        bucket.orders += 1;
+        rangeRevenueTotal += info.rev;
+        rangeOrdersTotal += 1;
+      }
+    });
+
+    labels = monthlyBuckets.map(b => b.label);
+    revenueData = monthlyBuckets.map(b => b.revenue);
+    ordersData = monthlyBuckets.map(b => b.orders);
+
+  } else {
+    // Default '30D': 6 intervals of 5 days over the past 30 days
+    const intervalDays = 5;
+    const bucketCount = 6;
+    const buckets = [];
+    for (let i = bucketCount - 1; i >= 0; i--) {
+      const startD = new Date(now.getTime() - (i + 1) * intervalDays * 86400000);
+      const endD = new Date(now.getTime() - i * intervalDays * 86400000);
+      const label = startD.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      buckets.push({ startD, endD, label, revenue: 0, orders: 0 });
+    }
+
+    const cutoff30D = buckets[0].startD;
+    orders.forEach(o => {
+      const info = getOrderInfo(o);
+      if (info.date >= cutoff30D) {
+        let placed = false;
+        for (let b of buckets) {
+          if (info.date >= b.startD && info.date <= b.endD) {
+            b.revenue += info.rev;
+            b.orders += 1;
+            placed = true;
+            break;
+          }
+        }
+        if (!placed && info.date > buckets[buckets.length - 1].endD) {
+          buckets[buckets.length - 1].revenue += info.rev;
+          buckets[buckets.length - 1].orders += 1;
+        }
+        rangeRevenueTotal += info.rev;
+        rangeOrdersTotal += 1;
+      }
+    });
+
+    labels = buckets.map(b => b.label);
+    revenueData = buckets.map(b => b.revenue);
+    ordersData = buckets.map(b => b.orders);
+  }
+
+  // Graceful fallback for initial store setup:
+  // If orders exist in DB but none matched the strict date cutoff, allocate to latest bucket
+  if (rangeOrdersTotal === 0 && orders.length > 0) {
+    const totalRevAll = orders.reduce((sum, o) => sum + parseLKR(o.totalAmount || o.total), 0);
+    revenueData[revenueData.length - 1] = totalRevAll;
+    ordersData[ordersData.length - 1] = orders.length;
+    rangeRevenueTotal = totalRevAll;
+    rangeOrdersTotal = orders.length;
+  }
+
+  const revSummary = formatLKR(rangeRevenueTotal);
+  const ordersSummary = String(rangeOrdersTotal);
+  const aovSummary = rangeOrdersTotal > 0 ? formatLKR(rangeRevenueTotal / rangeOrdersTotal) : 'Rs. 0.00';
 
   const revSumEl = document.getElementById('chart-summary-revenue');
   const ordSumEl = document.getElementById('chart-summary-orders');
   const aovSumEl = document.getElementById('chart-summary-aov');
-  if (revSumEl) revSumEl.textContent = cfg.revSummary;
-  if (ordSumEl) ordSumEl.textContent = cfg.ordersSummary;
-  if (aovSumEl) aovSumEl.textContent = cfg.aovSummary;
+  if (revSumEl) revSumEl.textContent = revSummary;
+  if (ordSumEl) ordSumEl.textContent = ordersSummary;
+  if (aovSumEl) aovSumEl.textContent = aovSummary;
 
   // Area under revenue line gradient
   const gradient = ctx.createLinearGradient(0, 0, 0, 240);
@@ -1187,11 +1320,11 @@ export function initSalesOrdersChart(range = '30D') {
   salesChartInstance = new Chart(ctx, {
     type: 'line',
     data: {
-      labels: cfg.labels,
+      labels: labels,
       datasets: [
         {
           label: 'Revenue',
-          data: cfg.revenue,
+          data: revenueData,
           borderColor: '#2563eb',
           backgroundColor: gradient,
           fill: true,
@@ -1206,7 +1339,7 @@ export function initSalesOrdersChart(range = '30D') {
         },
         {
           label: 'Orders',
-          data: cfg.orders,
+          data: ordersData,
           borderColor: '#10b981',
           backgroundColor: 'transparent',
           fill: false,

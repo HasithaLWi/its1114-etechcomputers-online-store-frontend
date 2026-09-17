@@ -68,6 +68,8 @@ export function normalizeOrderFromApi(dto) {
     total: numTotal,
     paymentMethod: dto.paymentMethod || 'Credit / Debit Card',
     status: dto.status || 'Pending',
+    orderDate: dto.orderDate || dto.createdAt || null,
+    createdAt: dto.createdAt || dto.orderDate || null,
     date: dto.orderDate ? new Date(dto.orderDate).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : (dto.date || new Date().toLocaleDateString('en-US'))
   };
 }

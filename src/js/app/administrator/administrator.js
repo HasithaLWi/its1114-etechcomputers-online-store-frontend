@@ -752,19 +752,272 @@ export function renderAdminPage(queryPart) {
             </div>
           </div>
 
-          <!-- Tab Panel 6: Analytics -->
-          <div id="tab-panel-analytics" class="dashboard-tab-panel hidden">
-            <div class="bg-white border border-[#e2e8f0] rounded-lg p-5 shadow-sm space-y-5">
-              <div>
-                <h3 class="text-lg font-bold text-[#0f172a]">Regional Sales & Performance Analytics</h3>
-                <p class="text-xs text-[#64748b] mt-0.5">Comprehensive revenue metrics and branch sales comparison.</p>
+          <!-- Tab Panel 6: Enterprise Business Intelligence & Analytics Reports -->
+          <div id="tab-panel-analytics" class="dashboard-tab-panel hidden space-y-6">
+            <!-- 1. Header Toolbar & Command Bar -->
+            <div class="bg-white border border-[#e2e8f0] rounded-xl p-5 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div class="space-y-1">
+                <div class="flex items-center gap-2.5">
+                  <div class="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-sm border border-blue-100">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+                  </div>
+                  <div>
+                    <h3 class="text-base font-extrabold text-[#0f172a] tracking-tight">Executive Business Intelligence & Reporting Center</h3>
+                    <p class="text-xs text-[#64748b]">Multi-branch sales velocity, transaction ledgers, and automated audit exports.</p>
+                  </div>
+                </div>
               </div>
 
-              <!-- Branch Sales Performance Meters -->
-              <div class="space-y-3 pt-2">
-                <h4 class="text-xs font-bold text-[#64748b] uppercase tracking-wider">Branch Sales Breakdown</h4>
-                <div id="analytics-branches-list" class="space-y-3">
-                  <!-- Dynamic meters -->
+              <!-- Global Reporting Filter Toolbar -->
+              <div class="flex flex-wrap items-center gap-2">
+                <!-- Branch Filter -->
+                <div class="flex items-center gap-1.5 bg-[#f8fafc] border border-[#e2e8f0] px-3 py-1.5 rounded-lg text-xs font-medium text-[#0f172a]">
+                  <span class="text-[#64748b] font-semibold">Branch:</span>
+                  <select id="analytics-branch-select" class="bg-transparent border-0 focus:ring-0 text-xs font-bold text-[#0f172a] cursor-pointer outline-none">
+                    <option value="ALL">All Branches (Corporate View)</option>
+                  </select>
+                </div>
+
+                <!-- Period Presets -->
+                <div class="inline-flex bg-[#f1f5f9] p-1 rounded-lg border border-[#e2e8f0] text-xs font-semibold text-[#475569]">
+                  <button type="button" data-period="today" class="analytics-period-btn px-2.5 py-1 rounded-md hover:text-[#0f172a] transition-all">Today</button>
+                  <button type="button" data-period="7d" class="analytics-period-btn px-2.5 py-1 rounded-md hover:text-[#0f172a] transition-all">7D</button>
+                  <button type="button" data-period="this_month" class="analytics-period-btn px-2.5 py-1 rounded-md bg-white text-blue-600 shadow-xs transition-all">This Month</button>
+                  <button type="button" data-period="last_month" class="analytics-period-btn px-2.5 py-1 rounded-md hover:text-[#0f172a] transition-all">Last Month</button>
+                  <button type="button" data-period="ytd" class="analytics-period-btn px-2.5 py-1 rounded-md hover:text-[#0f172a] transition-all">YTD</button>
+                  <button type="button" data-period="custom" class="analytics-period-btn px-2.5 py-1 rounded-md hover:text-[#0f172a] transition-all">Custom</button>
+                </div>
+
+                <!-- Custom Date Inputs (Hidden unless Custom is selected) -->
+                <div id="analytics-custom-date-container" class="hidden flex items-center gap-1.5 text-xs bg-[#f8fafc] border border-[#e2e8f0] p-1 rounded-lg">
+                  <input type="date" id="analytics-date-from" class="bg-white border border-[#cbd5e1] rounded px-2 py-1 text-xs text-[#0f172a] outline-none" title="Start Date" />
+                  <span class="text-[#64748b] text-[11px] font-bold">to</span>
+                  <input type="date" id="analytics-date-to" class="bg-white border border-[#cbd5e1] rounded px-2 py-1 text-xs text-[#0f172a] outline-none" title="End Date" />
+                  <button type="button" id="analytics-apply-custom-date" class="px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-bold">Apply</button>
+                </div>
+
+                <!-- Refresh Button -->
+                <button type="button" id="analytics-refresh-btn" class="p-2 text-[#64748b] hover:text-[#0f172a] bg-[#f8fafc] hover:bg-[#f1f5f9] border border-[#e2e8f0] rounded-lg transition-colors cursor-pointer" title="Refresh Analytics Data">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                </button>
+
+                <!-- Export Report Action Dropdown -->
+                <div class="relative inline-block text-left" id="analytics-export-dropdown-container">
+                  <button type="button" id="analytics-export-dropdown-btn" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg shadow-xs transition-colors cursor-pointer">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                    <span>Export Report</span>
+                    <svg class="w-3 h-3 ml-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+                  </button>
+
+                  <div id="analytics-export-menu" class="hidden absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-lg border border-[#e2e8f0] py-1.5 z-50 text-xs text-[#0f172a]">
+                    <button type="button" id="btn-export-pdf" class="w-full flex items-center gap-2.5 px-3.5 py-2 hover:bg-[#f8fafc] text-left font-semibold cursor-pointer">
+                      <span class="w-6 h-6 rounded bg-rose-50 text-rose-600 flex items-center justify-center font-bold text-[11px]">PDF</span>
+                      <div>
+                        <div class="font-bold text-[#0f172a]">Official PDF Document</div>
+                        <div class="text-[10px] text-[#64748b]">Branded, audit-ready summary</div>
+                      </div>
+                    </button>
+                    <button type="button" id="btn-export-excel" class="w-full flex items-center gap-2.5 px-3.5 py-2 hover:bg-[#f8fafc] text-left font-semibold cursor-pointer">
+                      <span class="w-6 h-6 rounded bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold text-[11px]">XLS</span>
+                      <div>
+                        <div class="font-bold text-[#0f172a]">Excel Workbook (.xlsx)</div>
+                        <div class="text-[10px] text-[#64748b]">Multi-sheet structured workbook</div>
+                      </div>
+                    </button>
+                    <button type="button" id="btn-export-csv" class="w-full flex items-center gap-2.5 px-3.5 py-2 hover:bg-[#f8fafc] text-left font-semibold cursor-pointer">
+                      <span class="w-6 h-6 rounded bg-slate-100 text-slate-700 flex items-center justify-center font-bold text-[11px]">CSV</span>
+                      <div>
+                        <div class="font-bold text-[#0f172a]">Raw CSV Data Ledger</div>
+                        <div class="text-[10px] text-[#64748b]">RFC-4180 streaming table records</div>
+                      </div>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 2. Executive KPI Ribbon (5 High-Impact Cards) -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+              <!-- KPI: Gross Revenue -->
+              <div class="bg-white border border-[#e2e8f0] rounded-xl p-4 shadow-xs flex flex-col justify-between space-y-2">
+                <div class="flex items-center justify-between">
+                  <span class="text-[11px] font-bold text-[#64748b] uppercase tracking-wider">Gross Revenue</span>
+                  <span class="w-6 h-6 rounded-md bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-xs">Rs</span>
+                </div>
+                <div>
+                  <div id="kpi-gross-revenue" class="text-xl font-extrabold text-[#0f172a] font-mono">Rs. 0.00</div>
+                  <div class="flex items-center gap-1.5 text-[11px] text-[#64748b] mt-0.5">
+                    <span>Net Active:</span>
+                    <span id="kpi-net-revenue" class="font-mono font-bold text-emerald-600">Rs. 0.00</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- KPI: Total Orders -->
+              <div class="bg-white border border-[#e2e8f0] rounded-xl p-4 shadow-xs flex flex-col justify-between space-y-2">
+                <div class="flex items-center justify-between">
+                  <span class="text-[11px] font-bold text-[#64748b] uppercase tracking-wider">Orders Invoiced</span>
+                  <span class="w-6 h-6 rounded-md bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold text-xs">#</span>
+                </div>
+                <div>
+                  <div id="kpi-total-orders" class="text-xl font-extrabold text-[#0f172a] font-mono">0</div>
+                  <div class="flex items-center gap-1.5 text-[11px] text-[#64748b] mt-0.5">
+                    <span id="kpi-completed-orders" class="font-bold text-emerald-600">0 Delivered</span>
+                    <span>•</span>
+                    <span id="kpi-pending-orders" class="font-medium text-amber-600">0 Pending</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- KPI: Average Order Value (AOV) -->
+              <div class="bg-white border border-[#e2e8f0] rounded-xl p-4 shadow-xs flex flex-col justify-between space-y-2">
+                <div class="flex items-center justify-between">
+                  <span class="text-[11px] font-bold text-[#64748b] uppercase tracking-wider">Avg Ticket (AOV)</span>
+                  <span class="w-6 h-6 rounded-md bg-purple-50 text-purple-600 flex items-center justify-center font-bold text-xs">⌀</span>
+                </div>
+                <div>
+                  <div id="kpi-avg-order-value" class="text-xl font-extrabold text-[#0f172a] font-mono">Rs. 0.00</div>
+                  <div class="text-[11px] text-[#64748b] mt-0.5">Average customer basket</div>
+                </div>
+              </div>
+
+              <!-- KPI: Hardware Units Sold -->
+              <div class="bg-white border border-[#e2e8f0] rounded-xl p-4 shadow-xs flex flex-col justify-between space-y-2">
+                <div class="flex items-center justify-between">
+                  <span class="text-[11px] font-bold text-[#64748b] uppercase tracking-wider">Units Dispatched</span>
+                  <span class="w-6 h-6 rounded-md bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold text-xs">📦</span>
+                </div>
+                <div>
+                  <div id="kpi-units-sold" class="text-xl font-extrabold text-[#0f172a] font-mono">0 Units</div>
+                  <div class="flex items-center gap-1.5 text-[11px] text-[#64748b] mt-0.5">
+                    <span>Fulfillment Rate:</span>
+                    <span id="kpi-fulfillment-rate" class="font-bold text-blue-600">0.0%</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- KPI: Inventory Asset Units -->
+              <div class="bg-white border border-[#e2e8f0] rounded-xl p-4 shadow-xs flex flex-col justify-between space-y-2">
+                <div class="flex items-center justify-between">
+                  <span class="text-[11px] font-bold text-[#64748b] uppercase tracking-wider">Stock Units</span>
+                  <span class="w-6 h-6 rounded-md bg-amber-50 text-amber-600 flex items-center justify-center font-bold text-xs">🏬</span>
+                </div>
+                <div>
+                  <div id="kpi-inventory-units" class="text-xl font-extrabold text-[#0f172a] font-mono">0</div>
+                  <div class="flex items-center gap-1 text-[11px] text-[#64748b] mt-0.5">
+                    <span id="kpi-low-stock-count" class="font-bold text-rose-600">0 Low</span>
+                    <span>•</span>
+                    <span id="kpi-out-stock-count" class="font-medium text-slate-500">0 Out</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 3. Primary Visual Grid: Trends & Regional Matrix -->
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+              <!-- Left: Sales Velocity & Trend (Col 8) -->
+              <div class="lg:col-span-8 bg-white border border-[#e2e8f0] rounded-xl p-5 shadow-xs space-y-4">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#f1f5f9] pb-3">
+                  <div>
+                    <h4 class="text-sm font-extrabold text-[#0f172a]">Daily Sales & Order Velocity Trend</h4>
+                    <p class="text-[11px] text-[#64748b]">Daily revenue stream (bars) and invoice volume (line).</p>
+                  </div>
+                  <div id="analytics-trend-badge" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-50 border border-blue-100 text-blue-700 text-xs font-bold">
+                    <span>Revenue Trend</span>
+                  </div>
+                </div>
+                <div class="relative w-full h-64">
+                  <canvas id="analytics-sales-trend-chart"></canvas>
+                </div>
+              </div>
+
+              <!-- Right: Regional Branch Sales Breakdown (Col 4) -->
+              <div class="lg:col-span-4 bg-white border border-[#e2e8f0] rounded-xl p-5 shadow-xs space-y-4">
+                <div class="border-b border-[#f1f5f9] pb-3">
+                  <h4 class="text-sm font-extrabold text-[#0f172a]">Regional Branch Revenue Matrix</h4>
+                  <p class="text-[11px] text-[#64748b]">Colombo, Galle, Kandy & regional fulfillment hubs.</p>
+                </div>
+                <div class="relative w-full h-64">
+                  <canvas id="analytics-branch-chart"></canvas>
+                </div>
+              </div>
+            </div>
+
+            <!-- 4. Secondary Visual Grid: Category Share & Inventory Health -->
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+              <!-- Left: Category Share (Col 6) -->
+              <div class="lg:col-span-6 bg-white border border-[#e2e8f0] rounded-xl p-5 shadow-xs space-y-4">
+                <div class="border-b border-[#f1f5f9] pb-3">
+                  <h4 class="text-sm font-extrabold text-[#0f172a]">Category Revenue Contribution</h4>
+                  <p class="text-[11px] text-[#64748b]">Hardware market share by product category.</p>
+                </div>
+                <div class="relative w-full h-56 flex items-center justify-center">
+                  <canvas id="analytics-category-chart"></canvas>
+                </div>
+              </div>
+
+              <!-- Right: Regional Branch Stock & Health (Col 6) -->
+              <div class="lg:col-span-6 bg-white border border-[#e2e8f0] rounded-xl p-5 shadow-xs space-y-4">
+                <div class="border-b border-[#f1f5f9] pb-3">
+                  <h4 class="text-sm font-extrabold text-[#0f172a]">Branch Inventory Health & Stock Units</h4>
+                  <p class="text-[11px] text-[#64748b]">Real-time unit capacity and safety threshold alerts.</p>
+                </div>
+                <div id="analytics-inventory-branch-list" class="space-y-3 max-h-56 overflow-y-auto pr-1">
+                  <!-- Dynamic branch inventory bars -->
+                </div>
+              </div>
+            </div>
+
+            <!-- 5. Data Intelligence Tables -->
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+              <!-- Top Hardware Products (Col 7) -->
+              <div class="lg:col-span-7 bg-white border border-[#e2e8f0] rounded-xl shadow-xs overflow-hidden">
+                <div class="p-4 border-b border-[#e2e8f0] flex items-center justify-between">
+                  <div>
+                    <h4 class="text-sm font-extrabold text-[#0f172a]">Top Performing Hardware Catalog</h4>
+                    <p class="text-[11px] text-[#64748b]">Ranked by total revenue and unit sales velocity.</p>
+                  </div>
+                </div>
+                <div class="overflow-x-auto">
+                  <table class="w-full text-left text-xs">
+                    <thead class="bg-[#f8fafc] text-[#64748b] font-bold uppercase text-[10px] tracking-wider border-b border-[#e2e8f0]">
+                      <tr>
+                        <th class="py-2.5 px-4">#</th>
+                        <th class="py-2.5 px-3">SKU</th>
+                        <th class="py-2.5 px-3">Hardware Product</th>
+                        <th class="py-2.5 px-3">Category</th>
+                        <th class="py-2.5 px-3 text-center">Units</th>
+                        <th class="py-2.5 px-4 text-right">Revenue</th>
+                      </tr>
+                    </thead>
+                    <tbody id="analytics-top-products-tbody" class="divide-y divide-[#e2e8f0]">
+                      <!-- Dynamically rendered -->
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <!-- Regional Branch Performance Scorecard (Col 5) -->
+              <div class="lg:col-span-5 bg-white border border-[#e2e8f0] rounded-xl shadow-xs overflow-hidden">
+                <div class="p-4 border-b border-[#e2e8f0]">
+                  <h4 class="text-sm font-extrabold text-[#0f172a]">Regional Fulfillment Scorecard</h4>
+                  <p class="text-[11px] text-[#64748b]">Branch order conversion & delivery success rates.</p>
+                </div>
+                <div class="overflow-x-auto">
+                  <table class="w-full text-left text-xs">
+                    <thead class="bg-[#f8fafc] text-[#64748b] font-bold uppercase text-[10px] tracking-wider border-b border-[#e2e8f0]">
+                      <tr>
+                        <th class="py-2.5 px-4">Branch</th>
+                        <th class="py-2.5 px-3 text-center">Orders</th>
+                        <th class="py-2.5 px-3 text-center">Fulfilled</th>
+                        <th class="py-2.5 px-4 text-right">Revenue</th>
+                        <th class="py-2.5 px-3 text-right">Share</th>
+                      </tr>
+                    </thead>
+                    <tbody id="analytics-branch-scorecard-tbody" class="divide-y divide-[#e2e8f0]">
+                      <!-- Dynamically rendered -->
+                    </tbody>
+                  </table>
                 </div>
               </div>
             </div>

@@ -18,7 +18,7 @@ import { getFeaturedBrands, syncBrandsFromApi } from '../models/brand_data.js';
 import { syncCategoriesFromApi, syncBadgesFromApi } from '../models/taxonomy_data.js';
 import { syncBranchesFromApi } from '../controller/branch_controller.js';
 import { syncNewsletterFromApi } from '../models/newsletter_model.js';
-import { initWishlistLogic, updateWishlistBadge, isInWishlist, toggleWishlist, syncWishlistFromApi } from '../controller/wishlist_controller.js';
+import { initWishlistLogic, updateWishlistBadge, isInWishlist, toggleWishlist, syncWishlistFromApi, refreshAllWishlistButtons } from '../controller/wishlist_controller.js';
 import { renderLoginPage } from './login/login.js';
 import { renderAdminPage } from './administrator/administrator.js';
 import { renderAboutPage } from './about/about.js';
@@ -51,6 +51,8 @@ export async function syncLiveBackendData() {
       syncWishlistFromApi(),
       syncNewsletterFromApi()
     ]);
+    updateWishlistBadge();
+    refreshAllWishlistButtons();
     const hash = window.location.hash || '#home';
     const [routePart, queryPart] = hash.substring(1).split('?');
     triggerPageHooks(routePart || 'home', queryPart);
@@ -65,12 +67,15 @@ export async function syncLiveBackendData() {
 export async function initApp() {
   // 1. Show pre-boot splash loading screen
   showAppLoading('Connecting to ETech Services...');
+  updateWishlistBadge();
+  refreshAllWishlistButtons();
 
   // 2. Register auto-reconnect listener: resync data automatically when server comes back
   onServerReconnect(async () => {
     await syncLiveBackendData();
     updateCartBadge();
     updateWishlistBadge();
+    refreshAllWishlistButtons();
     updateHeaderAuthUI();
     handleRoute();
   });
@@ -338,6 +343,9 @@ function triggerPageHooks(pageName, queryPart) {
   } else if (pageName === 'account') {
     initAccountLogic();
   }
+
+  // Refresh visual state of wishlist heart buttons across active page views
+  setTimeout(refreshAllWishlistButtons, 100);
 }
 
 // ============================================================

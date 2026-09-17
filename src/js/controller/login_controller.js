@@ -11,6 +11,7 @@ import { renderUserProfileModal } from '../components/user_profile_modal_contain
 import { renderForgotPasswordModal } from '../components/forgot_password_modal.js';
 import { EmailService } from '../util/email_servise.js';
 import { showToast } from '../util/toast.js';
+import { syncWishlistFromApi } from './wishlist_controller.js';
 
 export { getToken, setToken, removeToken, getCurrentUser, setCurrentUser, isLoggedIn, logoutUser, CURRENT_USER_STORAGE_KEY };
 
@@ -30,6 +31,7 @@ export async function loginUser(usernameOrEmail, password) {
     const userPayload = payload?.user || payload?.userData || (payload?.id ? payload : null);
     if (token) setToken(token);
     const userInstance = setCurrentUser(new User(userPayload || {}));
+    syncWishlistFromApi().catch(() => {});
     return { success: true, message: 'Logged in successfully!', user: userInstance };
   } catch (err) {
     return { success: false, message: err.message || 'Invalid credentials. Please check your username and password.' };
@@ -60,6 +62,7 @@ export async function registerUser(name, username, email, password) {
     const userPayload = payload?.user || payload?.userData || (payload?.id ? payload : null);
     if (token) setToken(token);
     const userInstance = setCurrentUser(new User(userPayload || {}));
+    syncWishlistFromApi().catch(() => {});
     return { success: true, message: 'Account created successfully!', user: userInstance };
   } catch (err) {
     return { success: false, message: err.message || 'Registration failed. Please check your details and try again.' };
