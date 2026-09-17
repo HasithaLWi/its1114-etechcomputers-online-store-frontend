@@ -4,7 +4,7 @@ export const CURRENT_USER_STORAGE_KEY = 'etech_current_user';
 export const API_BASE_URL =
     (typeof window !== 'undefined' && window.__ENV__?.API_BASE_URL)
         ? window.__ENV__.API_BASE_URL
-        : 'http://localhost:8080/api/v1';
+        : 'https://its1114-etechcomputers-online-store-16e3.onrender.com/api/v1';
 
 export const GEMINI_API_KEY =
     typeof window !== 'undefined' && window.__ENV__?.GEMINI_API_KEY
