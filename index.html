@@ -2382,6 +2382,28 @@
   <!-- ============================================================ -->
   <div id="et-chatbot">
 
+    <!-- Proactive Site-Entry Teaser Bubble -->
+    <div id="et-teaser"
+      class="fixed bottom-24 right-6 z-[9997] hidden max-w-[280px] bg-white rounded-2xl shadow-2xl border border-slate-200 p-3.5 transition-all duration-300 transform translate-y-2 opacity-0"
+      role="alert">
+      <div class="flex items-start gap-3">
+        <div class="w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center flex-shrink-0 text-xs font-black shadow-sm">
+          E-T
+        </div>
+        <div class="flex-1 min-w-0 cursor-pointer" id="et-teaser-content">
+          <div class="flex items-center gap-1">
+            <span class="text-xs font-bold text-slate-900">Need PC Advice? ⚡</span>
+          </div>
+          <p class="text-[11px] text-slate-600 leading-snug mt-0.5">I'm E-T, your AI hardware consultant. Click here to chat with me!</p>
+        </div>
+        <button id="et-teaser-close" class="text-slate-400 hover:text-slate-600 p-1 text-xs rounded-full hover:bg-slate-100 transition-colors" title="Dismiss greeting" aria-label="Dismiss">
+          ✕
+        </button>
+      </div>
+      <!-- Pointer tail pointing down towards FAB -->
+      <div class="absolute -bottom-1.5 right-6 w-3 h-3 bg-white border-b border-r border-slate-200 transform rotate-45"></div>
+    </div>
+
     <!-- Floating Action Button -->
     <button id="et-fab"
       class="fixed bottom-6 right-6 z-[9999] w-[52px] h-[52px] rounded-full bg-blue-600 text-white border border-blue-400/30 cursor-pointer flex items-center justify-center shadow-lg transition-all duration-300 hover:scale-105 hover:bg-blue-500"
@@ -2417,7 +2439,7 @@
         <div class="flex-1 min-w-0">
           <div id="et-bot-name" class="text-sm font-bold text-white">E-T Assistant</div>
           <div class="text-[10px] text-slate-300 flex items-center gap-[5px]">
-            <span class="w-[6px] h-[6px] rounded-full bg-emerald-400 inline-block"></span>
+            <span id="et-status-dot" class="w-[6px] h-[6px] rounded-full bg-emerald-400 inline-block"></span>
             <span id="et-bot-tagline">AI Hardware Advisor</span>
           </div>
         </div>
