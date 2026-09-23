@@ -44,6 +44,15 @@ body {
     background: #94a3b8;
 }
 
+/* ── Cross-Browser Hidden Scrollbar Utility ──────────────────── */
+.no-scrollbar::-webkit-scrollbar {
+    display: none !important;
+}
+.no-scrollbar {
+    -ms-overflow-style: none !important;  /* IE and Edge */
+    scrollbar-width: none !important;  /* Firefox */
+}
+
 /* ── Precision Input Focus Rings ────────────────────────────── */
 input:focus,
 select:focus,
@@ -654,6 +663,30 @@ textarea:focus {
     background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
 }
 
+/* ── Admin Sidebar Custom Slim Scrollbar ───────────────────── */
+.admin-sidebar-nav {
+    scrollbar-width: thin;
+    scrollbar-color: #cbd5e1 transparent;
+    scroll-behavior: smooth;
+}
+
+.admin-sidebar-nav::-webkit-scrollbar {
+    width: 4px;
+}
+
+.admin-sidebar-nav::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.admin-sidebar-nav::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 9999px;
+}
+
+.admin-sidebar-nav::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
+
 /* ── Professional KPI Card Hover Effects ────────────────────── */
 @keyframes et-shimmer {
     0% {
@@ -823,6 +856,14 @@ textarea:focus {
 
 .admin-sidebar.sidebar-force-collapsed .sidebar-text-label {
     display: none !important;
+}
+
+.admin-sidebar.sidebar-force-collapsed a[title="ETech Computers"] {
+    justify-content: center !important;
+}
+
+.admin-sidebar.sidebar-force-collapsed a[title="ETech Computers"] > div:first-child {
+    display: flex !important;
 }
 
 .admin-sidebar.sidebar-force-collapsed .sidebar-nav-btn,

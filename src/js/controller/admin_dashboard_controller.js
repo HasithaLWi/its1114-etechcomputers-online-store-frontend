@@ -53,7 +53,7 @@ let activeTab = 'overview';
 let activeUser = null;
 let sidebarListenersInitialized = false;
 let salesChartInstance = null;
-let currentChartRange = '30D';
+let currentChartRange = '7D';
 let currentStaffAlertFilter = 'ALL';
 
 /**
@@ -633,117 +633,117 @@ function renderAdminOverview(container) {
 
   container.innerHTML = `
     <!-- 1. Top 5 KPI Cards with Sparklines -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+    <div class="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-3 sm:gap-3.5">
       
       <!-- Card 1: Sales Revenue -->
-      <div class="kpi-card-hover bg-white border border-[#e2e8f0] rounded-xl p-4 shadow-xs flex flex-col justify-between">
+      <div class="kpi-card-hover bg-white border border-[#e2e8f0] rounded-xl p-3.5 shadow-xs flex flex-col justify-between">
         <div>
           <div class="flex items-center space-x-2">
-            <div class="w-8 h-8 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center text-sm font-extrabold flex-shrink-0">
+            <div class="w-7 h-7 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center text-xs font-extrabold flex-shrink-0">
               $
             </div>
-            <span class="text-[11px] font-bold text-[#64748b] uppercase tracking-wider">Sales Revenue</span>
+            <span class="text-[10px] font-bold text-[#64748b] uppercase tracking-wider truncate">Sales Revenue</span>
           </div>
-          <div class="mt-2.5">
-            <h3 class="text-2xl font-black text-[#0f172a] font-mono tracking-tight">${formatLKR(totalRevenue)}</h3>
-            <p class="text-[11px] ${renderGrowthColor(revenueGrowth)} font-bold mt-0.5 flex items-center">
+          <div class="mt-2">
+            <h3 class="text-xl sm:text-2xl font-black text-[#0f172a] font-mono tracking-tight truncate">${formatLKR(totalRevenue)}</h3>
+            <p class="text-[10px] ${renderGrowthColor(revenueGrowth)} font-bold mt-0.5 flex items-center truncate">
               ${renderGrowthBadge(revenueGrowth, 'vs prior 30 days')}
             </p>
           </div>
         </div>
-        <div class="mt-3 pt-1">
+        <div class="mt-2.5 pt-1">
           ${generateSparklineSvg(revenueSparkData, '#2563eb')}
         </div>
       </div>
 
       <!-- Card 2: Total Orders -->
-      <div onclick="switchAdminTab('orders')" class="kpi-card-hover bg-white border border-[#e2e8f0] rounded-xl p-4 shadow-xs flex flex-col justify-between hover:border-emerald-300 cursor-pointer">
+      <div onclick="switchAdminTab('orders')" class="kpi-card-hover bg-white border border-[#e2e8f0] rounded-xl p-3.5 shadow-xs flex flex-col justify-between hover:border-emerald-300 cursor-pointer">
         <div>
           <div class="flex items-center space-x-2">
-            <div class="w-8 h-8 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center text-sm font-extrabold flex-shrink-0">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div class="w-7 h-7 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center text-xs font-extrabold flex-shrink-0">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/>
               </svg>
             </div>
-            <span class="text-[11px] font-bold text-[#64748b] uppercase tracking-wider">Total Orders</span>
+            <span class="text-[10px] font-bold text-[#64748b] uppercase tracking-wider truncate">Total Orders</span>
           </div>
-          <div class="mt-2.5">
-            <h3 class="text-2xl font-black text-[#0f172a] font-mono tracking-tight">${orders.length}</h3>
-            <p class="text-[11px] ${renderGrowthColor(ordersGrowth)} font-bold mt-0.5 flex items-center">
+          <div class="mt-2">
+            <h3 class="text-xl sm:text-2xl font-black text-[#0f172a] font-mono tracking-tight truncate">${orders.length}</h3>
+            <p class="text-[10px] ${renderGrowthColor(ordersGrowth)} font-bold mt-0.5 flex items-center truncate">
               ${renderGrowthBadge(ordersGrowth, 'vs prior 30 days')}
             </p>
           </div>
         </div>
-        <div class="mt-3 pt-1">
+        <div class="mt-2.5 pt-1">
           ${generateSparklineSvg(orderSparkData, '#10b981')}
         </div>
       </div>
 
       <!-- Card 3: Pending Processing -->
-      <div onclick="switchAdminTab('orders')" class="kpi-card-hover bg-white border border-[#e2e8f0] rounded-xl p-4 shadow-xs flex flex-col justify-between hover:border-amber-300 cursor-pointer">
+      <div onclick="switchAdminTab('orders')" class="kpi-card-hover bg-white border border-[#e2e8f0] rounded-xl p-3.5 shadow-xs flex flex-col justify-between hover:border-amber-300 cursor-pointer">
         <div>
           <div class="flex items-center space-x-2">
-            <div class="w-8 h-8 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center text-sm font-extrabold flex-shrink-0">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div class="w-7 h-7 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center text-xs font-extrabold flex-shrink-0">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
               </svg>
             </div>
-            <span class="text-[11px] font-bold text-[#64748b] uppercase tracking-wider">Pending Processing</span>
+            <span class="text-[10px] font-bold text-[#64748b] uppercase tracking-wider truncate">Pending Processing</span>
           </div>
-          <div class="mt-2.5">
-            <h3 class="text-2xl font-black text-[#0f172a] font-mono tracking-tight">${pendingOrdersCount}</h3>
-            <p class="text-[11px] ${renderGrowthColor(pendingGrowth)} font-bold mt-0.5 flex items-center">
+          <div class="mt-2">
+            <h3 class="text-xl sm:text-2xl font-black text-[#0f172a] font-mono tracking-tight truncate">${pendingOrdersCount}</h3>
+            <p class="text-[10px] ${renderGrowthColor(pendingGrowth)} font-bold mt-0.5 flex items-center truncate">
               ${renderGrowthBadge(pendingGrowth, 'vs prior 30 days')}
             </p>
           </div>
         </div>
-        <div class="mt-3 pt-1">
+        <div class="mt-2.5 pt-1">
           ${generateSparklineSvg(pendingSparkData, '#f59e0b')}
         </div>
       </div>
 
       <!-- Card 4: Low Stock Items -->
-      <div onclick="switchAdminTab('stock-health')" class="kpi-card-hover bg-white border border-[#e2e8f0] rounded-xl p-4 shadow-xs flex flex-col justify-between hover:border-rose-300 cursor-pointer">
+      <div onclick="switchAdminTab('stock-health')" class="kpi-card-hover bg-white border border-[#e2e8f0] rounded-xl p-3.5 shadow-xs flex flex-col justify-between hover:border-rose-300 cursor-pointer">
         <div>
           <div class="flex items-center space-x-2">
-            <div class="w-8 h-8 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center text-sm font-extrabold flex-shrink-0">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div class="w-7 h-7 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center text-xs font-extrabold flex-shrink-0">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
               </svg>
             </div>
-            <span class="text-[11px] font-bold text-[#64748b] uppercase tracking-wider">Low Stock Items</span>
+            <span class="text-[10px] font-bold text-[#64748b] uppercase tracking-wider truncate">Low Stock Items</span>
           </div>
-          <div class="mt-2.5">
-            <h3 class="text-2xl font-black text-[#0f172a] font-mono tracking-tight">${lowStockCount}</h3>
-            <p class="text-[11px] ${lowStockCount > 0 ? 'text-rose-600' : 'text-emerald-600'} font-bold mt-0.5 flex items-center">
+          <div class="mt-2">
+            <h3 class="text-xl sm:text-2xl font-black text-[#0f172a] font-mono tracking-tight truncate">${lowStockCount}</h3>
+            <p class="text-[10px] ${lowStockCount > 0 ? 'text-rose-600' : 'text-emerald-600'} font-bold mt-0.5 flex items-center truncate">
               ${lowStockCount > 0 ? `<span class="mr-1">⚠</span> ${lowStockCount} items need attention` : '<span class="mr-1">✓</span> All stock healthy'}
             </p>
           </div>
         </div>
-        <div class="mt-3 pt-1">
+        <div class="mt-2.5 pt-1">
           ${generateSparklineSvg(lowStockSparkData, '#ef4444')}
         </div>
       </div>
 
       <!-- Card 5: Active Branches -->
-      <div onclick="switchAdminTab('branches')" class="kpi-card-hover bg-white border border-[#e2e8f0] rounded-xl p-4 shadow-xs flex flex-col justify-between hover:border-purple-300 cursor-pointer">
+      <div onclick="switchAdminTab('branches')" class="kpi-card-hover bg-white border border-[#e2e8f0] rounded-xl p-3.5 shadow-xs flex flex-col justify-between hover:border-purple-300 cursor-pointer col-span-2 sm:col-span-1">
         <div>
           <div class="flex items-center space-x-2">
-            <div class="w-8 h-8 rounded-full bg-purple-50 text-purple-600 flex items-center justify-center text-sm font-extrabold flex-shrink-0">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div class="w-7 h-7 rounded-full bg-purple-50 text-purple-600 flex items-center justify-center text-xs font-extrabold flex-shrink-0">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
               </svg>
             </div>
-            <span class="text-[11px] font-bold text-[#64748b] uppercase tracking-wider">Active Branches</span>
+            <span class="text-[10px] font-bold text-[#64748b] uppercase tracking-wider truncate">Active Branches</span>
           </div>
-          <div class="mt-2.5">
-            <h3 class="text-2xl font-black text-[#0f172a] font-mono tracking-tight">${activeBranchesCount}</h3>
-            <p class="text-[11px] text-[#64748b] font-medium mt-0.5 flex items-center">
+          <div class="mt-2">
+            <h3 class="text-xl sm:text-2xl font-black text-[#0f172a] font-mono tracking-tight truncate">${activeBranchesCount}</h3>
+            <p class="text-[10px] text-[#64748b] font-medium mt-0.5 flex items-center truncate">
               <span class="mr-1">&mdash;</span> All online
             </p>
           </div>
         </div>
-        <div class="mt-3 pt-1">
+        <div class="mt-2.5 pt-1">
           ${generateSparklineSvg(new Array(10).fill(activeBranchesCount), '#a855f7')}
         </div>
       </div>
@@ -751,28 +751,25 @@ function renderAdminOverview(container) {
     </div>
 
     <!-- 2. Middle Row: Sales & Orders Performance + 3 Operational Status Cards -->
-    <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-5">
       
       <!-- Sales & Orders Performance (7 cols) -->
-      <div class="lg:col-span-7 bg-white border border-[#e2e8f0] rounded-xl p-5 shadow-xs flex flex-col justify-between">
+      <div class="lg:col-span-7 bg-white border border-[#e2e8f0] rounded-xl p-4 sm:p-5 shadow-xs flex flex-col justify-between">
         <div>
           <!-- Header with Title & Range Tabs -->
-          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[#f1f5f9]">
-            <div class="flex items-center space-x-2.5">
-              <div class="w-7 h-7 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
+          <div class="flex items-center justify-between gap-2 pb-2.5 border-b border-[#f1f5f9]">
+            <div class="flex items-center space-x-2">
+              <div class="w-7 h-7 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center flex-shrink-0">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
                 </svg>
               </div>
-              <h3 class="text-sm font-extrabold text-[#0f172a]">Sales & Orders Performance</h3>
+              <h3 class="text-xs sm:text-sm font-extrabold text-[#0f172a] truncate">Sales & Orders Performance</h3>
             </div>
 
             <!-- Time Range Selector -->
-            <div class="flex items-center space-x-1 bg-[#f8fafc] p-1 rounded-lg border border-[#e2e8f0] text-xs font-bold text-[#64748b]">
-              <button onclick="setSalesChartRange('7D')" id="btn-range-7D" class="px-2.5 py-1 rounded hover:text-[#0f172a] transition-all">7D</button>
-              <button onclick="setSalesChartRange('30D')" id="btn-range-30D" class="px-2.5 py-1 rounded bg-white text-blue-600 shadow-2xs border border-[#e2e8f0] transition-all">30D</button>
-              <button onclick="setSalesChartRange('90D')" id="btn-range-90D" class="px-2.5 py-1 rounded hover:text-[#0f172a] transition-all">90D</button>
-              <button onclick="setSalesChartRange('1Y')" id="btn-range-1Y" class="px-2.5 py-1 rounded hover:text-[#0f172a] transition-all">1Y</button>
+            <div class="flex items-center space-x-1 bg-[#f8fafc] p-1 rounded-lg border border-[#e2e8f0] text-xs font-bold text-[#64748b] flex-shrink-0">
+              <button onclick="setSalesChartRange('7D')" id="btn-range-7D" class="px-2.5 py-1 rounded bg-white text-blue-600 shadow-2xs border border-[#e2e8f0] transition-all font-bold">7D</button>
               <button onclick="switchAdminTab('analytics')" class="p-1 rounded hover:text-[#0f172a] text-[#94a3b8] hover:bg-white transition-colors" title="Custom Date Range & Full Analytics Hub">
                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
@@ -782,22 +779,22 @@ function renderAdminOverview(container) {
           </div>
 
           <!-- Chart Metrics Summary Header -->
-          <div class="flex flex-wrap items-center gap-4 sm:gap-6 pt-3 pb-2 text-xs">
-            <div class="flex items-center space-x-2">
-              <span class="w-2.5 h-2.5 rounded-full bg-blue-600"></span>
-              <span class="text-[#64748b] font-medium">Revenue</span>
+          <div class="flex flex-wrap items-center gap-x-4 gap-y-1.5 pt-2.5 pb-1.5 text-xs">
+            <div class="flex items-center space-x-1.5">
+              <span class="w-2 h-2 rounded-full bg-blue-600 flex-shrink-0"></span>
+              <span class="text-[#64748b] font-medium text-[11px]">Revenue</span>
               <span id="chart-summary-revenue" class="font-extrabold font-mono text-[#0f172a]">${formatLKR(totalRevenue)}</span>
               <span class="${renderGrowthColor(revenueGrowth)} font-bold text-[10px]">${revenueGrowth.direction === 'up' ? '&uarr;' : (revenueGrowth.direction === 'down' ? '&darr;' : '—')} ${revenueGrowth.pct.toFixed(1)}%</span>
             </div>
-            <div class="flex items-center space-x-2">
-              <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
-              <span class="text-[#64748b] font-medium">Orders</span>
+            <div class="flex items-center space-x-1.5">
+              <span class="w-2 h-2 rounded-full bg-emerald-500 flex-shrink-0"></span>
+              <span class="text-[#64748b] font-medium text-[11px]">Orders</span>
               <span id="chart-summary-orders" class="font-extrabold font-mono text-[#0f172a]">${orders.length}</span>
               <span class="${renderGrowthColor(ordersGrowth)} font-bold text-[10px]">${ordersGrowth.direction === 'up' ? '&uarr;' : (ordersGrowth.direction === 'down' ? '&darr;' : '—')} ${ordersGrowth.pct.toFixed(1)}%</span>
             </div>
-            <div class="flex items-center space-x-2">
-              <span class="w-2.5 h-2.5 rounded-full bg-purple-500"></span>
-              <span class="text-[#64748b] font-medium">Avg. Order Value</span>
+            <div class="flex items-center space-x-1.5">
+              <span class="w-2 h-2 rounded-full bg-purple-500 flex-shrink-0"></span>
+              <span class="text-[#64748b] font-medium text-[11px]">Avg. Order</span>
               <span id="chart-summary-aov" class="font-extrabold font-mono text-[#0f172a]">
                 ${orders.length > 0 ? formatLKR(totalRevenue / orders.length) : 'Rs. 0.00'}
               </span>
@@ -805,183 +802,186 @@ function renderAdminOverview(container) {
           </div>
 
           <!-- Chart Container -->
-          <div class="w-full h-56 sm:h-64 mt-2 relative">
+          <div class="w-full h-48 sm:h-56 mt-1 relative">
             <canvas id="adminSalesOrdersChart"></canvas>
           </div>
         </div>
 
         <!-- 3 Bottom Metric Boxes -->
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-4 border-t border-[#f1f5f9] mt-3">
-          <div class="bg-[#f8fafc] border border-[#e2e8f0] rounded-lg p-3 flex items-center space-x-3">
-            <div class="w-8 h-8 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center font-extrabold text-xs">
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-3 border-t border-[#f1f5f9] mt-2">
+          <div class="bg-[#f8fafc] border border-[#e2e8f0] rounded-lg p-2.5 flex items-center space-x-2.5">
+            <div class="w-7 h-7 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center font-extrabold text-xs flex-shrink-0">
               $
             </div>
-            <div>
-              <span class="text-[10px] text-[#64748b] font-semibold block">Today Revenue</span>
-              <span class="text-xs font-black text-[#0f172a] font-mono">${todayRevenue > 0 ? formatLKR(todayRevenue) : 'Rs. 0.00'}</span>
+            <div class="min-w-0">
+              <span class="text-[10px] text-[#64748b] font-semibold block truncate">Today Revenue</span>
+              <span class="text-xs font-black text-[#0f172a] font-mono truncate block">${todayRevenue > 0 ? formatLKR(todayRevenue) : 'Rs. 0.00'}</span>
             </div>
           </div>
 
-          <div class="bg-[#f8fafc] border border-[#e2e8f0] rounded-lg p-3 flex items-center space-x-3">
-            <div class="w-8 h-8 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center font-extrabold text-xs">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div class="bg-[#f8fafc] border border-[#e2e8f0] rounded-lg p-2.5 flex items-center space-x-2.5">
+            <div class="w-7 h-7 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center font-extrabold text-xs flex-shrink-0">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/>
               </svg>
             </div>
-            <div>
-              <span class="text-[10px] text-[#64748b] font-semibold block">Today Orders</span>
-              <span class="text-xs font-black text-[#0f172a] font-mono">${todayOrderCount}</span>
+            <div class="min-w-0">
+              <span class="text-[10px] text-[#64748b] font-semibold block truncate">Today Orders</span>
+              <span class="text-xs font-black text-[#0f172a] font-mono truncate block">${todayOrderCount}</span>
             </div>
           </div>
 
-          <div class="bg-[#f8fafc] border border-[#e2e8f0] rounded-lg p-3 flex items-center space-x-3">
-            <div class="w-8 h-8 rounded-full bg-purple-50 text-purple-600 flex items-center justify-center font-extrabold text-xs">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div class="bg-[#f8fafc] border border-[#e2e8f0] rounded-lg p-2.5 flex items-center space-x-2.5">
+            <div class="w-7 h-7 rounded-full bg-purple-50 text-purple-600 flex items-center justify-center font-extrabold text-xs flex-shrink-0">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
               </svg>
             </div>
-            <div>
-              <span class="text-[10px] text-[#64748b] font-semibold block">Fulfillment Rate</span>
-              <span class="text-xs font-black text-[#0f172a] font-mono">${fulfillmentRate}%</span>
+            <div class="min-w-0">
+              <span class="text-[10px] text-[#64748b] font-semibold block truncate">Fulfillment Rate</span>
+              <span class="text-xs font-black text-[#0f172a] font-mono truncate block">${fulfillmentRate}%</span>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- 3 Operational Status Cards (5 cols) -->
-      <div class="lg:col-span-5 grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-3 gap-4">
+      <!-- 3 Operational Status Cards (5 cols) - Stacked vertically for perfect fit -->
+      <div class="lg:col-span-5 flex flex-col justify-between gap-3">
         
         <!-- Card 1: Order Pipeline -->
-        <div class="bg-white border border-[#e2e8f0] rounded-xl p-4 shadow-xs flex flex-col justify-between">
+        <div class="bg-white border border-[#e2e8f0] rounded-xl p-3.5 sm:p-4 shadow-xs flex flex-col justify-between">
           <div>
-            <div class="flex items-center space-x-2 pb-3 border-b border-[#f1f5f9]">
-              <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
-              </svg>
-              <h4 class="text-xs font-extrabold text-[#0f172a]">Order Pipeline</h4>
+            <div class="flex items-center justify-between pb-2 border-b border-[#f1f5f9]">
+              <div class="flex items-center space-x-2">
+                <div class="w-6 h-6 rounded-md bg-blue-50 text-blue-600 flex items-center justify-center flex-shrink-0">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                  </svg>
+                </div>
+                <h4 class="text-xs font-extrabold text-[#0f172a]">Order Pipeline</h4>
+              </div>
+              <button onclick="switchAdminTab('orders')" class="text-[11px] font-bold text-blue-600 hover:text-blue-700 transition-colors">
+                View All &rarr;
+              </button>
             </div>
             
-            <div class="space-y-3 pt-3 text-xs">
-              <div class="flex items-center justify-between">
-                <div class="flex items-center space-x-2">
-                  <span class="w-2 h-2 rounded-full bg-amber-500"></span>
-                  <span class="text-[#475569] font-medium">Pending</span>
+            <div class="grid grid-cols-4 gap-2 pt-2.5">
+              <div class="bg-[#f8fafc] border border-[#f1f5f9] rounded-lg p-1.5 sm:p-2 text-center">
+                <div class="flex items-center justify-center space-x-1 text-[10px] text-[#64748b] font-medium">
+                  <span class="w-1.5 h-1.5 rounded-full bg-amber-500 flex-shrink-0"></span>
+                  <span class="truncate">Pending</span>
                 </div>
-                <span class="font-extrabold font-mono text-[#0f172a]">${pipeline.pending}</span>
+                <div class="text-sm font-black font-mono text-[#0f172a] mt-0.5">${pipeline.pending}</div>
               </div>
 
-              <div class="flex items-center justify-between">
-                <div class="flex items-center space-x-2">
-                  <span class="w-2 h-2 rounded-full bg-blue-500"></span>
-                  <span class="text-[#475569] font-medium">Processing</span>
+              <div class="bg-[#f8fafc] border border-[#f1f5f9] rounded-lg p-1.5 sm:p-2 text-center">
+                <div class="flex items-center justify-center space-x-1 text-[10px] text-[#64748b] font-medium">
+                  <span class="w-1.5 h-1.5 rounded-full bg-blue-500 flex-shrink-0"></span>
+                  <span class="truncate">Processing</span>
                 </div>
-                <span class="font-extrabold font-mono text-[#0f172a]">${pipeline.processing}</span>
+                <div class="text-sm font-black font-mono text-[#0f172a] mt-0.5">${pipeline.processing}</div>
               </div>
 
-              <div class="flex items-center justify-between">
-                <div class="flex items-center space-x-2">
-                  <span class="w-2 h-2 rounded-full bg-purple-500"></span>
-                  <span class="text-[#475569] font-medium">Shipped</span>
+              <div class="bg-[#f8fafc] border border-[#f1f5f9] rounded-lg p-1.5 sm:p-2 text-center">
+                <div class="flex items-center justify-center space-x-1 text-[10px] text-[#64748b] font-medium">
+                  <span class="w-1.5 h-1.5 rounded-full bg-purple-500 flex-shrink-0"></span>
+                  <span class="truncate">Shipped</span>
                 </div>
-                <span class="font-extrabold font-mono text-[#0f172a]">${pipeline.shipped}</span>
+                <div class="text-sm font-black font-mono text-[#0f172a] mt-0.5">${pipeline.shipped}</div>
               </div>
 
-              <div class="flex items-center justify-between">
-                <div class="flex items-center space-x-2">
-                  <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
-                  <span class="text-[#475569] font-medium">Delivered</span>
+              <div class="bg-[#f8fafc] border border-[#f1f5f9] rounded-lg p-1.5 sm:p-2 text-center">
+                <div class="flex items-center justify-center space-x-1 text-[10px] text-[#64748b] font-medium">
+                  <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 flex-shrink-0"></span>
+                  <span class="truncate">Delivered</span>
                 </div>
-                <span class="font-extrabold font-mono text-[#0f172a]">${pipeline.delivered}</span>
+                <div class="text-sm font-black font-mono text-[#0f172a] mt-0.5">${pipeline.delivered}</div>
               </div>
             </div>
-          </div>
-
-          <div class="pt-4 border-t border-[#f1f5f9] mt-3">
-            <button onclick="switchAdminTab('orders')" class="w-full text-center text-xs font-bold text-blue-600 hover:text-blue-700 transition-colors">
-              View All Orders &rarr;
-            </button>
           </div>
         </div>
 
         <!-- Card 2: Inventory Health -->
-        <div class="bg-white border border-[#e2e8f0] rounded-xl p-4 shadow-xs flex flex-col justify-between">
+        <div class="bg-white border border-[#e2e8f0] rounded-xl p-3.5 sm:p-4 shadow-xs flex flex-col justify-between">
           <div>
-            <div class="flex items-center space-x-2 pb-3 border-b border-[#f1f5f9]">
-              <svg class="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/>
-              </svg>
-              <h4 class="text-xs font-extrabold text-[#0f172a]">Inventory Health</h4>
+            <div class="flex items-center justify-between pb-2 border-b border-[#f1f5f9]">
+              <div class="flex items-center space-x-2">
+                <div class="w-6 h-6 rounded-md bg-emerald-50 text-emerald-600 flex items-center justify-center flex-shrink-0">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/>
+                  </svg>
+                </div>
+                <h4 class="text-xs font-extrabold text-[#0f172a]">Inventory Health</h4>
+              </div>
+              <button onclick="switchAdminTab('stock-health')" class="text-[11px] font-bold text-blue-600 hover:text-blue-700 transition-colors">
+                View Stock Health &rarr;
+              </button>
             </div>
 
-            <div class="space-y-3 pt-3 text-xs">
-              <div class="flex items-center justify-between">
-                <div class="flex items-center space-x-2">
-                  <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
-                  <span class="text-[#475569] font-medium">Healthy</span>
+            <div class="grid grid-cols-4 gap-2 pt-2.5">
+              <div class="bg-[#f8fafc] border border-[#f1f5f9] rounded-lg p-1.5 sm:p-2 text-center">
+                <div class="flex items-center justify-center space-x-1 text-[10px] text-[#64748b] font-medium">
+                  <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 flex-shrink-0"></span>
+                  <span class="truncate">Healthy</span>
                 </div>
-                <span class="font-extrabold font-mono text-[#0f172a]">${inventoryStatus.healthy}</span>
+                <div class="text-sm font-black font-mono text-[#0f172a] mt-0.5">${inventoryStatus.healthy}</div>
               </div>
 
-              <div class="flex items-center justify-between">
-                <div class="flex items-center space-x-2">
-                  <span class="w-2 h-2 rounded-full bg-amber-500"></span>
-                  <span class="text-[#475569] font-medium">Low Stock</span>
+              <div class="bg-[#f8fafc] border border-[#f1f5f9] rounded-lg p-1.5 sm:p-2 text-center">
+                <div class="flex items-center justify-center space-x-1 text-[10px] text-[#64748b] font-medium">
+                  <span class="w-1.5 h-1.5 rounded-full bg-amber-500 flex-shrink-0"></span>
+                  <span class="truncate">Low Stock</span>
                 </div>
-                <span class="font-extrabold font-mono text-[#0f172a]">${inventoryStatus.lowStock}</span>
+                <div class="text-sm font-black font-mono text-[#0f172a] mt-0.5">${inventoryStatus.lowStock}</div>
               </div>
 
-              <div class="flex items-center justify-between">
-                <div class="flex items-center space-x-2">
-                  <span class="w-2 h-2 rounded-full bg-rose-500"></span>
-                  <span class="text-[#475569] font-medium">Critical</span>
+              <div class="bg-[#f8fafc] border border-[#f1f5f9] rounded-lg p-1.5 sm:p-2 text-center">
+                <div class="flex items-center justify-center space-x-1 text-[10px] text-[#64748b] font-medium">
+                  <span class="w-1.5 h-1.5 rounded-full bg-rose-500 flex-shrink-0"></span>
+                  <span class="truncate">Critical</span>
                 </div>
-                <span class="font-extrabold font-mono text-[#0f172a]">${inventoryStatus.critical}</span>
+                <div class="text-sm font-black font-mono text-[#0f172a] mt-0.5">${inventoryStatus.critical}</div>
               </div>
 
-              <div class="flex items-center justify-between">
-                <div class="flex items-center space-x-2">
-                  <span class="w-2 h-2 rounded-full bg-slate-400"></span>
-                  <span class="text-[#475569] font-medium">Out of Stock</span>
+              <div class="bg-[#f8fafc] border border-[#f1f5f9] rounded-lg p-1.5 sm:p-2 text-center">
+                <div class="flex items-center justify-center space-x-1 text-[10px] text-[#64748b] font-medium">
+                  <span class="w-1.5 h-1.5 rounded-full bg-slate-400 flex-shrink-0"></span>
+                  <span class="truncate">Out Stock</span>
                 </div>
-                <span class="font-extrabold font-mono text-[#0f172a]">${inventoryStatus.outOfStock}</span>
+                <div class="text-sm font-black font-mono text-[#0f172a] mt-0.5">${inventoryStatus.outOfStock}</div>
               </div>
             </div>
-          </div>
-
-          <div class="pt-4 border-t border-[#f1f5f9] mt-3">
-            <button onclick="switchAdminTab('stock-health')" class="w-full text-center text-xs font-bold text-blue-600 hover:text-blue-700 transition-colors">
-              View Stock Health &rarr;
-            </button>
           </div>
         </div>
 
         <!-- Card 3: Branch Network -->
-        <div class="bg-white border border-[#e2e8f0] rounded-xl p-4 shadow-xs flex flex-col justify-between">
+        <div class="bg-white border border-[#e2e8f0] rounded-xl p-3.5 sm:p-4 shadow-xs flex flex-col justify-between">
           <div>
-            <div class="flex items-center space-x-2 pb-3 border-b border-[#f1f5f9]">
-              <svg class="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
-              </svg>
-              <h4 class="text-xs font-extrabold text-[#0f172a]">Branch Network</h4>
+            <div class="flex items-center justify-between pb-2 border-b border-[#f1f5f9]">
+              <div class="flex items-center space-x-2">
+                <div class="w-6 h-6 rounded-md bg-purple-50 text-purple-600 flex items-center justify-center flex-shrink-0">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+                  </svg>
+                </div>
+                <h4 class="text-xs font-extrabold text-[#0f172a]">Branch Network</h4>
+              </div>
+              <button onclick="switchAdminTab('branches')" class="text-[11px] font-bold text-blue-600 hover:text-blue-700 transition-colors">
+                View Branches &rarr;
+              </button>
             </div>
 
-            <div class="space-y-3 pt-3 text-xs">
+            <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 pt-2.5">
               ${branchNetworkHealth.map(b => `
-                <div class="flex items-center justify-between">
-                  <span class="text-[#475569] font-medium truncate max-w-[110px]" title="${b.name}">${b.name}</span>
-                  <span class="flex items-center space-x-1 text-[11px] font-bold text-${b.statusColor}-600">
+                <div class="bg-[#f8fafc] border border-[#f1f5f9] rounded-lg p-2 flex items-center justify-between text-xs">
+                  <span class="text-[#475569] font-medium text-[11px] truncate mr-1.5" title="${b.name}">${b.name}</span>
+                  <span class="flex items-center space-x-1 text-[10px] font-bold text-${b.statusColor}-600 flex-shrink-0">
                     <span class="w-1.5 h-1.5 rounded-full bg-${b.statusColor}-500"></span>
                     <span>${b.status}</span>
                   </span>
                 </div>
               `).join('')}
             </div>
-          </div>
-
-          <div class="pt-4 border-t border-[#f1f5f9] mt-3">
-            <button onclick="switchAdminTab('branches')" class="w-full text-center text-xs font-bold text-blue-600 hover:text-blue-700 transition-colors">
-              View All Branches &rarr;
-            </button>
           </div>
         </div>
 
@@ -990,10 +990,10 @@ function renderAdminOverview(container) {
     </div>
 
     <!-- 3. Bottom Row: Critical Attention (Low Stock) Table + Recent Activity Timeline -->
-    <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-5">
       
       <!-- Critical Attention Table (7 cols) -->
-      <div class="lg:col-span-7 bg-white border border-[#e2e8f0] rounded-xl p-5 shadow-xs flex flex-col justify-between">
+      <div class="lg:col-span-7 bg-white border border-[#e2e8f0] rounded-xl p-4 sm:p-5 shadow-xs flex flex-col justify-between">
         <div>
           <div class="flex items-center justify-between pb-3 border-b border-[#f1f5f9]">
             <div class="flex items-center space-x-2">
@@ -1007,17 +1007,17 @@ function renderAdminOverview(container) {
             </button>
           </div>
 
-          <div class="overflow-x-auto mt-3">
-            <table class="w-full text-left text-xs">
+          <div class="overflow-x-auto mt-2.5">
+            <table class="w-full text-left text-xs whitespace-nowrap">
               <thead class="text-[10px] uppercase font-bold text-[#64748b] border-b border-[#e2e8f0]">
                 <tr>
-                  <th class="py-2.5 px-2">Product</th>
-                  <th class="py-2.5 px-2">SKU</th>
-                  <th class="py-2.5 px-2">Branch</th>
-                  <th class="py-2.5 px-2 text-center">Current Stock</th>
-                  <th class="py-2.5 px-2 text-center">Minimum</th>
-                  <th class="py-2.5 px-2 text-center">Status</th>
-                  <th class="py-2.5 px-2 text-right">Action</th>
+                  <th class="py-2 px-2">Product</th>
+                  <th class="py-2 px-2">SKU</th>
+                  <th class="py-2 px-2">Branch</th>
+                  <th class="py-2 px-2 text-center">Stock</th>
+                  <th class="py-2 px-2 text-center">Min</th>
+                  <th class="py-2 px-2 text-center">Status</th>
+                  <th class="py-2 px-2 text-right">Action</th>
                 </tr>
               </thead>
               <tbody class="divide-y divide-[#f1f5f9] text-[#0f172a]">
@@ -1026,37 +1026,37 @@ function renderAdminOverview(container) {
 
                   return `
                     <tr class="hover:bg-[#f8fafc] transition-colors">
-                      <td class="py-3 px-2">
-                        <div class="flex items-center space-x-2.5">
+                      <td class="py-2.5 px-2">
+                        <div class="flex items-center space-x-2">
                           <img src="${item.image}"
-                            class="w-8 h-8 rounded-lg object-cover bg-white border border-[#e2e8f0] flex-shrink-0" alt="${item.name}">
+                            class="w-7 h-7 rounded-lg object-cover bg-white border border-[#e2e8f0] flex-shrink-0" alt="${item.name}">
                           <div class="min-w-0">
-                            <div class="font-bold text-[#0f172a] text-xs truncate max-w-[140px]" title="${item.name}">${item.name}</div>
-                            <div class="text-[10px] text-[#64748b] truncate max-w-[140px]">${item.subtitle}</div>
+                            <div class="font-bold text-[#0f172a] text-xs truncate max-w-[130px]" title="${item.name}">${item.name}</div>
+                            <div class="text-[10px] text-[#64748b] truncate max-w-[130px]">${item.subtitle}</div>
                           </div>
                         </div>
                       </td>
-                      <td class="py-3 px-2 font-mono text-[11px] text-[#64748b]">${item.sku}</td>
-                      <td class="py-3 px-2 text-[11px] text-[#475569] font-medium truncate max-w-[110px]" title="${item.branchName}">${item.branchName}</td>
-                      <td class="py-3 px-2 text-center font-mono font-black text-xs ${item.currentStock === 0 ? 'text-rose-600' : 'text-amber-600'}">
+                      <td class="py-2.5 px-2 font-mono text-[11px] text-[#64748b]">${item.sku}</td>
+                      <td class="py-2.5 px-2 text-[11px] text-[#475569] font-medium truncate max-w-[100px]" title="${item.branchName}">${item.branchName}</td>
+                      <td class="py-2.5 px-2 text-center font-mono font-black text-xs ${item.currentStock === 0 ? 'text-rose-600' : 'text-amber-600'}">
                         ${item.currentStock}
                       </td>
-                      <td class="py-3 px-2 text-center font-mono text-[#64748b] text-xs">${item.minThreshold}</td>
-                      <td class="py-3 px-2 text-center">
-                        <span class="px-2 py-0.5 rounded text-[10px] font-extrabold uppercase ${item.statusBadgeClass}">
+                      <td class="py-2.5 px-2 text-center font-mono text-[#64748b] text-xs">${item.minThreshold}</td>
+                      <td class="py-2.5 px-2 text-center">
+                        <span class="px-2 py-0.5 rounded text-[9px] font-extrabold uppercase ${item.statusBadgeClass}">
                           ${item.status}
                         </span>
                       </td>
-                      <td class="py-3 px-2 text-right">
+                      <td class="py-2.5 px-2 text-right">
                         ${canManage ? `
                           <button onclick="openQuickRestockModal(${item.id}, '${item.branchId}')"
-                            class="px-2.5 py-1 bg-blue-50 hover:bg-blue-600 text-blue-700 hover:text-white font-bold rounded-md text-[11px] border border-blue-200 transition-all inline-flex items-center space-x-1 shadow-2xs">
+                            class="px-2 py-1 bg-blue-50 hover:bg-blue-600 text-blue-700 hover:text-white font-bold rounded text-[10px] border border-blue-200 transition-all inline-flex items-center space-x-1 shadow-2xs">
                             <span>Restock</span>
                             <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
                           </button>
                         ` : `
                           <button onclick="openInitiateTransferModal({ productId: ${item.id}, toBranchId: '${item.branchId}' })"
-                            class="px-2.5 py-1 bg-slate-50 hover:bg-slate-100 text-[#475569] font-bold rounded-md text-[11px] border border-[#cbd5e1] transition-all inline-flex items-center space-x-1"
+                            class="px-2 py-1 bg-slate-50 hover:bg-slate-100 text-[#475569] font-bold rounded text-[10px] border border-[#cbd5e1] transition-all inline-flex items-center space-x-1"
                             title="Branch-scoped admin / view-only: click to initiate transfer request">
                             <span>Transfer</span>
                           </button>
@@ -1070,7 +1070,7 @@ function renderAdminOverview(container) {
           </div>
         </div>
 
-        <div class="pt-3 border-t border-[#f1f5f9] mt-3 text-center">
+        <div class="pt-2.5 border-t border-[#f1f5f9] mt-2.5 text-center">
           <button onclick="switchAdminTab('stock-health')" class="text-xs font-bold text-blue-600 hover:underline">
             View All Low Stock Items &rarr;
           </button>
@@ -1078,7 +1078,7 @@ function renderAdminOverview(container) {
       </div>
 
       <!-- Recent Activity Feed (5 cols) -->
-      <div class="lg:col-span-5 bg-white border border-[#e2e8f0] rounded-xl p-5 shadow-xs flex flex-col justify-between">
+      <div class="lg:col-span-5 bg-white border border-[#e2e8f0] rounded-xl p-4 sm:p-5 shadow-xs flex flex-col justify-between">
         <div>
           <div class="flex items-center justify-between pb-3 border-b border-[#f1f5f9]">
             <div class="flex items-center space-x-2">
@@ -1093,20 +1093,20 @@ function renderAdminOverview(container) {
           </div>
 
           <!-- Timeline Container -->
-          <div class="relative pl-6 space-y-4 pt-4 before:absolute before:left-2.5 before:top-5 before:bottom-3 before:w-0.5 before:bg-[#e2e8f0]">
+          <div class="relative pl-6 space-y-3.5 pt-3.5 before:absolute before:left-2.5 before:top-5 before:bottom-3 before:w-0.5 before:bg-[#e2e8f0]">
             ${recentActivityEvents.map(evt => `
               <div class="relative flex items-start justify-between gap-3 text-xs">
                 <div class="absolute -left-6 top-0.5 w-5 h-5 rounded-full bg-white border-2 ${evt.dotClass} flex items-center justify-center">
                   <span class="w-1.5 h-1.5 rounded-full ${evt.dotClass.split(' ')[0]}"></span>
                 </div>
-                <div>
+                <div class="min-w-0 flex-1">
                   <div class="flex items-center space-x-2">
-                    <span class="text-[11px] font-mono font-bold text-[#64748b]">${evt.time}</span>
-                    <span class="font-bold text-[#0f172a]">${evt.title}</span>
+                    <span class="text-[10px] font-mono font-bold text-[#64748b]">${evt.time}</span>
+                    <span class="font-bold text-[#0f172a] text-xs truncate">${evt.title}</span>
                   </div>
-                  <p class="text-[11px] text-[#64748b] mt-0.5">${evt.desc}</p>
+                  <p class="text-[11px] text-[#64748b] mt-0.5 truncate">${evt.desc}</p>
                 </div>
-                <span class="px-2 py-0.5 rounded text-[9px] font-extrabold uppercase ${evt.badgeClass}">${evt.badge}</span>
+                <span class="px-2 py-0.5 rounded text-[9px] font-extrabold uppercase ${evt.badgeClass} flex-shrink-0">${evt.badge}</span>
               </div>
             `).join('')}
           </div>
@@ -1125,7 +1125,7 @@ function renderAdminOverview(container) {
 /**
  * Chart.js Line Chart with Dual Y-Axis & Time Ranges
  */
-export function initSalesOrdersChart(range = '30D') {
+export function initSalesOrdersChart(range = '7D') {
   const canvas = document.getElementById('adminSalesOrdersChart');
   if (!canvas) return;
 
@@ -1433,7 +1433,7 @@ export function initSalesOrdersChart(range = '30D') {
  */
 export function setSalesChartRange(range) {
   currentChartRange = range;
-  ['7D', '30D', '90D', '1Y'].forEach(r => {
+  ['7D'].forEach(r => {
     const btn = document.getElementById(`btn-range-${r}`);
     if (!btn) return;
     if (r === range) {
@@ -1537,64 +1537,64 @@ function renderStaffOverview(container) {
     </div>
 
     <!-- 1. Top 4 Action Counters (Strictly Scoped to Assigned Branch) -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
       
       <!-- Counter 1: Critical Alerts -->
-      <div onclick="filterStaffAlerts('STOCK')" class="bg-white border-2 border-rose-200 hover:border-rose-400 rounded-xl p-4 shadow-xs flex items-center justify-between cursor-pointer transition-all group">
+      <div onclick="filterStaffAlerts('STOCK')" class="bg-white border-2 border-rose-200 hover:border-rose-400 rounded-xl p-3.5 sm:p-4 shadow-xs flex items-center justify-between cursor-pointer transition-all group">
         <div>
           <div class="flex items-center space-x-2">
             <span class="w-2.5 h-2.5 rounded-full bg-rose-500 animate-ping"></span>
-            <span class="text-[11px] font-extrabold text-rose-700 uppercase tracking-wider">Critical Alerts</span>
+            <span class="text-[10px] sm:text-[11px] font-extrabold text-rose-700 uppercase tracking-wider truncate">Critical Alerts</span>
           </div>
-          <h3 class="text-3xl font-black text-rose-600 font-mono mt-1">${criticalStockCount}</h3>
-          <p class="text-[11px] text-[#64748b] font-medium">Needs immediate action</p>
+          <h3 class="text-2xl sm:text-3xl font-black text-rose-600 font-mono mt-1">${criticalStockCount}</h3>
+          <p class="text-[10px] sm:text-[11px] text-[#64748b] font-medium truncate">Needs immediate action</p>
         </div>
-        <div class="w-12 h-12 rounded-xl bg-rose-50 group-hover:bg-rose-100 text-rose-600 flex items-center justify-center text-xl font-extrabold transition-colors">
+        <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-rose-50 group-hover:bg-rose-100 text-rose-600 flex items-center justify-center text-lg sm:text-xl font-extrabold transition-colors flex-shrink-0">
           🚨
         </div>
       </div>
 
       <!-- Counter 2: Orders To Process -->
-      <div onclick="switchAdminTab('orders')" class="bg-white border border-[#e2e8f0] hover:border-amber-400 rounded-xl p-4 shadow-xs flex items-center justify-between cursor-pointer transition-all group">
+      <div onclick="switchAdminTab('orders')" class="bg-white border border-[#e2e8f0] hover:border-amber-400 rounded-xl p-3.5 sm:p-4 shadow-xs flex items-center justify-between cursor-pointer transition-all group">
         <div>
           <div class="flex items-center space-x-2">
             <span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
-            <span class="text-[11px] font-extrabold text-amber-700 uppercase tracking-wider">Orders To Process</span>
+            <span class="text-[10px] sm:text-[11px] font-extrabold text-amber-700 uppercase tracking-wider truncate">Orders To Process</span>
           </div>
-          <h3 class="text-3xl font-black text-amber-600 font-mono mt-1">${branchPendingOrders.length}</h3>
-          <p class="text-[11px] text-[#64748b] font-medium">Fulfillment assigned to you</p>
+          <h3 class="text-2xl sm:text-3xl font-black text-amber-600 font-mono mt-1">${branchPendingOrders.length}</h3>
+          <p class="text-[10px] sm:text-[11px] text-[#64748b] font-medium truncate">Fulfillment assigned</p>
         </div>
-        <div class="w-12 h-12 rounded-xl bg-amber-50 group-hover:bg-amber-100 text-amber-600 flex items-center justify-center text-xl font-extrabold transition-colors">
+        <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-amber-50 group-hover:bg-amber-100 text-amber-600 flex items-center justify-center text-lg sm:text-xl font-extrabold transition-colors flex-shrink-0">
           📦
         </div>
       </div>
 
       <!-- Counter 3: Transfer Actions Queue -->
-      <div onclick="switchAdminTab('transfers')" class="bg-white border border-[#e2e8f0] hover:border-blue-400 rounded-xl p-4 shadow-xs flex items-center justify-between cursor-pointer transition-all group">
+      <div onclick="switchAdminTab('transfers')" class="bg-white border border-[#e2e8f0] hover:border-blue-400 rounded-xl p-3.5 sm:p-4 shadow-xs flex items-center justify-between cursor-pointer transition-all group">
         <div>
           <div class="flex items-center space-x-2">
             <span class="w-2.5 h-2.5 rounded-full bg-blue-500"></span>
-            <span class="text-[11px] font-extrabold text-blue-700 uppercase tracking-wider">Transfer Actions</span>
+            <span class="text-[10px] sm:text-[11px] font-extrabold text-blue-700 uppercase tracking-wider truncate">Transfer Actions</span>
           </div>
-          <h3 class="text-3xl font-black text-blue-600 font-mono mt-1">${activeTransfersCount}</h3>
-          <p class="text-[11px] text-[#64748b] font-medium">Inbound verify & outbound dispatch</p>
+          <h3 class="text-2xl sm:text-3xl font-black text-blue-600 font-mono mt-1">${activeTransfersCount}</h3>
+          <p class="text-[10px] sm:text-[11px] text-[#64748b] font-medium truncate">Inbound & outbound</p>
         </div>
-        <div class="w-12 h-12 rounded-xl bg-blue-50 group-hover:bg-blue-100 text-blue-600 flex items-center justify-center text-xl font-extrabold transition-colors">
+        <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-blue-50 group-hover:bg-blue-100 text-blue-600 flex items-center justify-center text-lg sm:text-xl font-extrabold transition-colors flex-shrink-0">
           🔄
         </div>
       </div>
 
       <!-- Counter 4: Low Stock Items -->
-      <div onclick="switchAdminTab('stock-health')" class="bg-white border border-[#e2e8f0] hover:border-amber-400 rounded-xl p-4 shadow-xs flex items-center justify-between cursor-pointer transition-all group">
+      <div onclick="switchAdminTab('stock-health')" class="bg-white border border-[#e2e8f0] hover:border-amber-400 rounded-xl p-3.5 sm:p-4 shadow-xs flex items-center justify-between cursor-pointer transition-all group">
         <div>
           <div class="flex items-center space-x-2">
             <span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
-            <span class="text-[11px] font-extrabold text-amber-700 uppercase tracking-wider">Low Stock Items</span>
+            <span class="text-[10px] sm:text-[11px] font-extrabold text-amber-700 uppercase tracking-wider truncate">Low Stock Items</span>
           </div>
-          <h3 class="text-3xl font-black text-[#0f172a] font-mono mt-1">${lowStockCount}</h3>
-          <p class="text-[11px] text-[#64748b] font-medium">Below branch margin</p>
+          <h3 class="text-2xl sm:text-3xl font-black text-[#0f172a] font-mono mt-1">${lowStockCount}</h3>
+          <p class="text-[10px] sm:text-[11px] text-[#64748b] font-medium truncate">Below branch margin</p>
         </div>
-        <div class="w-12 h-12 rounded-xl bg-amber-50 group-hover:bg-amber-100 text-amber-600 flex items-center justify-center text-xl font-extrabold transition-colors">
+        <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-amber-50 group-hover:bg-amber-100 text-amber-600 flex items-center justify-center text-lg sm:text-xl font-extrabold transition-colors flex-shrink-0">
           ⚠️
         </div>
       </div>

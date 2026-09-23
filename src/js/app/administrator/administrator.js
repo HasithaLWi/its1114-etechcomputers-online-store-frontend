@@ -29,12 +29,12 @@ export function renderAdminPage(queryPart) {
       <!-- ============================================================ -->
       <aside
         id="admin-sidebar"
-        class="admin-sidebar w-16 lg:w-64 bg-white border-r border-[#e2e8f0] flex flex-col justify-between flex-shrink-0 z-30 shadow-sm transition-all duration-300 ease-in-out">
+        class="admin-sidebar w-16 lg:w-60 xl:w-64 bg-white border-r border-[#e2e8f0] flex flex-col h-screen flex-shrink-0 z-30 shadow-sm transition-all duration-300 ease-in-out">
 
-        <!-- Top Brand & Header -->
-        <div class="p-3 lg:p-5 space-y-5">
+        <!-- Top Brand & Header (Pinned) -->
+        <div class="p-3 lg:p-4 border-b border-[#f1f5f9] flex-shrink-0">
           <!-- Brand Logo with ET Monogram & Close Button -->
-          <div class="flex items-center justify-between w-full py-1">
+          <div class="flex items-center justify-between w-full py-0.5">
             <a href="#home" onclick="closeAdminSidebar()" title="ETech Computers" class="flex items-center justify-center lg:justify-start space-x-0 lg:space-x-3 group flex-1 min-w-0">
               <!-- ET Monogram Logo Emblem -->
               <div class="w-10 h-10 rounded-xl bg-blue-50 border border-blue-200 flex items-center justify-center font-extrabold text-base tracking-tight flex-shrink-0 shadow-sm group-hover:border-blue-400 transition-all flex lg:hidden">
@@ -60,144 +60,144 @@ export function renderAdminPage(queryPart) {
               </svg>
             </button>
           </div>
-
-          <!-- Navigation Links -->
-          <nav class="space-y-1.5 pt-1">
-            <button data-tab="overview" onclick="switchAdminTab('overview')" title="Overview"
-              class="sidebar-nav-btn w-full flex items-center justify-center lg:justify-start space-x-0 lg:space-x-3 px-2 lg:px-3.5 py-2.5 rounded-lg font-bold text-xs bg-blue-600 text-white shadow-sm transition-all relative group">
-              <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
-              </svg>
-              <span class="sidebar-text-label hidden lg:inline whitespace-nowrap">Overview</span>
-              <div class="sidebar-tooltip">Overview</div>
-            </button>
-
-            <button data-tab="products" onclick="switchAdminTab('products')" title="Product Catalog"
-              class="sidebar-nav-btn w-full flex items-center justify-center lg:justify-start space-x-0 lg:space-x-3 px-2 lg:px-3.5 py-2.5 rounded-lg font-medium text-xs text-[#475569] hover:text-[#0f172a] hover:bg-[#f1f5f9] transition-all relative group">
-              <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-              </svg>
-              <span class="sidebar-text-label hidden lg:inline whitespace-nowrap">Product Catalog</span>
-              <div class="sidebar-tooltip">Product Catalog</div>
-            </button>
-
-            <button data-tab="promotions" onclick="switchAdminTab('promotions')" title="Deals & Promotions"
-              class="sidebar-nav-btn w-full flex items-center justify-center lg:justify-start space-x-0 lg:space-x-3 px-2 lg:px-3.5 py-2.5 rounded-lg font-medium text-xs text-[#475569] hover:text-[#0f172a] hover:bg-[#f1f5f9] transition-all relative group">
-              <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
-              </svg>
-              <span class="sidebar-text-label hidden lg:inline whitespace-nowrap">Deals & Promotions</span>
-              <div class="sidebar-tooltip">Deals & Promotions</div>
-            </button>
-
-            <button data-tab="orders" onclick="switchAdminTab('orders')" title="Orders Processing"
-              class="sidebar-nav-btn w-full flex items-center justify-center lg:justify-start space-x-0 lg:space-x-3 px-2 lg:px-3.5 py-2.5 rounded-lg font-medium text-xs text-[#475569] hover:text-[#0f172a] hover:bg-[#f1f5f9] transition-all relative group">
-              <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-              </svg>
-              <span class="sidebar-text-label hidden lg:inline whitespace-nowrap">Orders Processing</span>
-              <div class="sidebar-tooltip">Orders Processing</div>
-            </button>
-
-            <button data-tab="stock-health" onclick="switchAdminTab('stock-health')" title="Stock Health & Alerts"
-              class="sidebar-nav-btn w-full flex items-center justify-center lg:justify-start space-x-0 lg:space-x-3 px-2 lg:px-3.5 py-2.5 rounded-lg font-medium text-xs text-[#475569] hover:text-[#0f172a] hover:bg-[#f1f5f9] transition-all relative group">
-              <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-              </svg>
-              <span class="sidebar-text-label hidden lg:inline whitespace-nowrap">Stock Health & Alerts</span>
-              <div class="sidebar-tooltip">Stock Health & Alerts</div>
-            </button>
-            <button data-tab="taxonomy" onclick="switchAdminTab('taxonomy')" title="Categories & Badges"
-              class="sidebar-nav-btn w-full flex items-center justify-center lg:justify-start space-x-0 lg:space-x-3 px-2 lg:px-3.5 py-2.5 rounded-lg font-medium text-xs text-[#475569] hover:text-[#0f172a] hover:bg-[#f1f5f9] transition-all relative group">
-              <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
-              </svg>
-              <span class="sidebar-text-label hidden lg:inline whitespace-nowrap">Categories & Badges</span>
-              <div class="sidebar-tooltip">Categories & Badges</div>
-            </button>
-
-            <button data-tab="brands" onclick="switchAdminTab('brands')" title="Hardware Brands"
-              class="sidebar-nav-btn w-full flex items-center justify-center lg:justify-start space-x-0 lg:space-x-3 px-2 lg:px-3.5 py-2.5 rounded-lg font-medium text-xs text-[#475569] hover:text-[#0f172a] hover:bg-[#f1f5f9] transition-all relative group">
-              <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-              </svg>
-              <span class="sidebar-text-label hidden lg:inline whitespace-nowrap">Hardware Brands</span>
-              <div class="sidebar-tooltip">Hardware Brands</div>
-            </button>
-
-            <button data-tab="newsletter" onclick="switchAdminTab('newsletter')" title="Newsletter & Email Marketing"
-              class="sidebar-nav-btn w-full flex items-center justify-center lg:justify-start space-x-0 lg:space-x-3 px-2 lg:px-3.5 py-2.5 rounded-lg font-medium text-xs text-[#475569] hover:text-[#0f172a] hover:bg-[#f1f5f9] transition-all relative group">
-              <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-              </svg>
-              <span class="sidebar-text-label hidden lg:inline whitespace-nowrap">Newsletter & Email</span>
-              <div class="sidebar-tooltip">Newsletter & Email Marketing</div>
-            </button>
-
-            <button data-tab="branches" onclick="switchAdminTab('branches')" title="Store Branches"
-              class="admin-only-nav sidebar-nav-btn w-full flex items-center justify-center lg:justify-start space-x-0 lg:space-x-3 px-2 lg:px-3.5 py-2.5 rounded-lg font-medium text-xs text-[#475569] hover:text-[#0f172a] hover:bg-[#f1f5f9] transition-all relative group">
-              <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-              </svg>
-              <span class="sidebar-text-label hidden lg:inline whitespace-nowrap">Store Branches</span>
-              <div class="sidebar-tooltip">Store Branches</div>
-            </button>
-
-            <button data-tab="transfers" onclick="switchAdminTab('transfers')" title="Inter-Branch Stock Transfers & Logistics"
-              class="sidebar-nav-btn w-full flex items-center justify-center lg:justify-start space-x-0 lg:space-x-3 px-2 lg:px-3.5 py-2.5 rounded-lg font-medium text-xs text-[#475569] hover:text-[#0f172a] hover:bg-[#f1f5f9] transition-all relative group">
-              <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
-              </svg>
-              <span class="sidebar-text-label hidden lg:inline whitespace-nowrap">Stock Transfers</span>
-              <div class="sidebar-tooltip">Stock Transfers & Logistics</div>
-            </button>
-
-            <button data-tab="users" onclick="switchAdminTab('users')" title="User Directory"
-              class="admin-only-nav sidebar-nav-btn w-full flex items-center justify-center lg:justify-start space-x-0 lg:space-x-3 px-2 lg:px-3.5 py-2.5 rounded-lg font-medium text-xs text-[#475569] hover:text-[#0f172a] hover:bg-[#f1f5f9] transition-all relative group">
-              <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-              </svg>
-              <span class="sidebar-text-label hidden lg:inline whitespace-nowrap">User Directory</span>
-              <div class="sidebar-tooltip">User Directory</div>
-            </button>
-
-            <button data-tab="analytics" onclick="switchAdminTab('analytics')" title="Financial Reports"
-              class="admin-only-nav sidebar-nav-btn w-full flex items-center justify-center lg:justify-start space-x-0 lg:space-x-3 px-2 lg:px-3.5 py-2.5 rounded-lg font-medium text-xs text-[#475569] hover:text-[#0f172a] hover:bg-[#f1f5f9] transition-all relative group">
-              <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-              </svg>
-              <span class="sidebar-text-label hidden lg:inline whitespace-nowrap">Financial Reports</span>
-              <div class="sidebar-tooltip">Financial Reports</div>
-            </button>
-
-            <button data-tab="policies" onclick="switchAdminTab('policies')" title="Store Profile & Legal Policies"
-              class="admin-only-nav sidebar-nav-btn w-full flex items-center justify-center lg:justify-start space-x-0 lg:space-x-3 px-2 lg:px-3.5 py-2.5 rounded-lg font-medium text-xs text-[#475569] hover:text-[#0f172a] hover:bg-[#f1f5f9] transition-all relative group">
-              <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-              <span class="sidebar-text-label hidden lg:inline whitespace-nowrap">Store Profile & Policies</span>
-              <div class="sidebar-tooltip">Store Profile & Policies</div>
-            </button>
-          </nav>
         </div>
 
-        <!-- Bottom Quick Links & Store Switch -->
-        <div class="p-2 lg:p-4 border-t border-[#e2e8f0] space-y-2">
+        <!-- Navigation Links (Scrollable with Slim Scrollbar) -->
+        <nav class="admin-sidebar-nav flex-1 min-h-0 overflow-y-auto p-2 lg:p-3 space-y-1">
+          <button data-tab="overview" onclick="switchAdminTab('overview')" title="Overview"
+            class="sidebar-nav-btn w-full flex items-center justify-center lg:justify-start space-x-0 lg:space-x-3 px-2 lg:px-3 py-2 rounded-lg font-bold text-xs bg-blue-600 text-white shadow-sm transition-all relative group">
+            <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+            </svg>
+            <span class="sidebar-text-label hidden lg:inline whitespace-nowrap">Overview</span>
+            <div class="sidebar-tooltip">Overview</div>
+          </button>
+
+          <button data-tab="products" onclick="switchAdminTab('products')" title="Product Catalog"
+            class="sidebar-nav-btn w-full flex items-center justify-center lg:justify-start space-x-0 lg:space-x-3 px-2 lg:px-3 py-2 rounded-lg font-medium text-xs text-[#475569] hover:text-[#0f172a] hover:bg-[#f1f5f9] transition-all relative group">
+            <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+            </svg>
+            <span class="sidebar-text-label hidden lg:inline whitespace-nowrap">Product Catalog</span>
+            <div class="sidebar-tooltip">Product Catalog</div>
+          </button>
+
+          <button data-tab="promotions" onclick="switchAdminTab('promotions')" title="Deals & Promotions"
+            class="sidebar-nav-btn w-full flex items-center justify-center lg:justify-start space-x-0 lg:space-x-3 px-2 lg:px-3 py-2 rounded-lg font-medium text-xs text-[#475569] hover:text-[#0f172a] hover:bg-[#f1f5f9] transition-all relative group">
+            <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+            </svg>
+            <span class="sidebar-text-label hidden lg:inline whitespace-nowrap">Deals & Promotions</span>
+            <div class="sidebar-tooltip">Deals & Promotions</div>
+          </button>
+
+          <button data-tab="orders" onclick="switchAdminTab('orders')" title="Orders Processing"
+            class="sidebar-nav-btn w-full flex items-center justify-center lg:justify-start space-x-0 lg:space-x-3 px-2 lg:px-3 py-2 rounded-lg font-medium text-xs text-[#475569] hover:text-[#0f172a] hover:bg-[#f1f5f9] transition-all relative group">
+            <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+            </svg>
+            <span class="sidebar-text-label hidden lg:inline whitespace-nowrap">Orders Processing</span>
+            <div class="sidebar-tooltip">Orders Processing</div>
+          </button>
+
+          <button data-tab="stock-health" onclick="switchAdminTab('stock-health')" title="Stock Health & Alerts"
+            class="sidebar-nav-btn w-full flex items-center justify-center lg:justify-start space-x-0 lg:space-x-3 px-2 lg:px-3 py-2 rounded-lg font-medium text-xs text-[#475569] hover:text-[#0f172a] hover:bg-[#f1f5f9] transition-all relative group">
+            <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <span class="sidebar-text-label hidden lg:inline whitespace-nowrap">Stock Health & Alerts</span>
+            <div class="sidebar-tooltip">Stock Health & Alerts</div>
+          </button>
+          <button data-tab="taxonomy" onclick="switchAdminTab('taxonomy')" title="Categories & Badges"
+            class="sidebar-nav-btn w-full flex items-center justify-center lg:justify-start space-x-0 lg:space-x-3 px-2 lg:px-3 py-2 rounded-lg font-medium text-xs text-[#475569] hover:text-[#0f172a] hover:bg-[#f1f5f9] transition-all relative group">
+            <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+            </svg>
+            <span class="sidebar-text-label hidden lg:inline whitespace-nowrap">Categories & Badges</span>
+            <div class="sidebar-tooltip">Categories & Badges</div>
+          </button>
+
+          <button data-tab="brands" onclick="switchAdminTab('brands')" title="Hardware Brands"
+            class="sidebar-nav-btn w-full flex items-center justify-center lg:justify-start space-x-0 lg:space-x-3 px-2 lg:px-3 py-2 rounded-lg font-medium text-xs text-[#475569] hover:text-[#0f172a] hover:bg-[#f1f5f9] transition-all relative group">
+            <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+            </svg>
+            <span class="sidebar-text-label hidden lg:inline whitespace-nowrap">Hardware Brands</span>
+            <div class="sidebar-tooltip">Hardware Brands</div>
+          </button>
+
+          <button data-tab="newsletter" onclick="switchAdminTab('newsletter')" title="Newsletter & Email Marketing"
+            class="sidebar-nav-btn w-full flex items-center justify-center lg:justify-start space-x-0 lg:space-x-3 px-2 lg:px-3 py-2 rounded-lg font-medium text-xs text-[#475569] hover:text-[#0f172a] hover:bg-[#f1f5f9] transition-all relative group">
+            <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+            </svg>
+            <span class="sidebar-text-label hidden lg:inline whitespace-nowrap">Newsletter & Email</span>
+            <div class="sidebar-tooltip">Newsletter & Email Marketing</div>
+          </button>
+
+          <button data-tab="branches" onclick="switchAdminTab('branches')" title="Store Branches"
+            class="admin-only-nav sidebar-nav-btn w-full flex items-center justify-center lg:justify-start space-x-0 lg:space-x-3 px-2 lg:px-3 py-2 rounded-lg font-medium text-xs text-[#475569] hover:text-[#0f172a] hover:bg-[#f1f5f9] transition-all relative group">
+            <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+            </svg>
+            <span class="sidebar-text-label hidden lg:inline whitespace-nowrap">Store Branches</span>
+            <div class="sidebar-tooltip">Store Branches</div>
+          </button>
+
+          <button data-tab="transfers" onclick="switchAdminTab('transfers')" title="Inter-Branch Stock Transfers & Logistics"
+            class="sidebar-nav-btn w-full flex items-center justify-center lg:justify-start space-x-0 lg:space-x-3 px-2 lg:px-3 py-2 rounded-lg font-medium text-xs text-[#475569] hover:text-[#0f172a] hover:bg-[#f1f5f9] transition-all relative group">
+            <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+            </svg>
+            <span class="sidebar-text-label hidden lg:inline whitespace-nowrap">Stock Transfers</span>
+            <div class="sidebar-tooltip">Stock Transfers & Logistics</div>
+          </button>
+
+          <button data-tab="users" onclick="switchAdminTab('users')" title="User Directory"
+            class="admin-only-nav sidebar-nav-btn w-full flex items-center justify-center lg:justify-start space-x-0 lg:space-x-3 px-2 lg:px-3 py-2 rounded-lg font-medium text-xs text-[#475569] hover:text-[#0f172a] hover:bg-[#f1f5f9] transition-all relative group">
+            <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+            </svg>
+            <span class="sidebar-text-label hidden lg:inline whitespace-nowrap">User Directory</span>
+            <div class="sidebar-tooltip">User Directory</div>
+          </button>
+
+          <button data-tab="analytics" onclick="switchAdminTab('analytics')" title="Financial Reports"
+            class="admin-only-nav sidebar-nav-btn w-full flex items-center justify-center lg:justify-start space-x-0 lg:space-x-3 px-2 lg:px-3 py-2 rounded-lg font-medium text-xs text-[#475569] hover:text-[#0f172a] hover:bg-[#f1f5f9] transition-all relative group">
+            <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+            </svg>
+            <span class="sidebar-text-label hidden lg:inline whitespace-nowrap">Financial Reports</span>
+            <div class="sidebar-tooltip">Financial Reports</div>
+          </button>
+
+          <button data-tab="policies" onclick="switchAdminTab('policies')" title="Store Profile & Legal Policies"
+            class="admin-only-nav sidebar-nav-btn w-full flex items-center justify-center lg:justify-start space-x-0 lg:space-x-3 px-2 lg:px-3 py-2 rounded-lg font-medium text-xs text-[#475569] hover:text-[#0f172a] hover:bg-[#f1f5f9] transition-all relative group">
+            <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            <span class="sidebar-text-label hidden lg:inline whitespace-nowrap">Store Profile & Policies</span>
+            <div class="sidebar-tooltip">Store Profile & Policies</div>
+          </button>
+        </nav>
+
+        <!-- Bottom Quick Links & Store Switch (Pinned) -->
+        <div class="p-2 lg:p-3 border-t border-[#e2e8f0] space-y-1.5 flex-shrink-0 bg-white">
           <a href="#home" onclick="closeAdminSidebar()" title="Return to Store Front"
-            class="flex items-center justify-center lg:justify-start space-x-0 lg:space-x-2 text-xs font-semibold text-[#475569] hover:text-[#0f172a] px-2 lg:px-3 py-2.5 rounded-lg bg-[#f8fafc] hover:bg-[#f1f5f9] border border-[#e2e8f0] transition-all relative group shadow-sm">
+            class="flex items-center justify-center lg:justify-start space-x-0 lg:space-x-2 text-xs font-semibold text-[#475569] hover:text-[#0f172a] px-2 lg:px-3 py-2 rounded-lg bg-[#f8fafc] hover:bg-[#f1f5f9] border border-[#e2e8f0] transition-all relative group shadow-sm">
             <svg class="w-4 h-4 text-blue-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
             </svg>
@@ -206,7 +206,7 @@ export function renderAdminPage(queryPart) {
           </a>
 
           <button onclick="handleAdminLogout(); closeAdminSidebar();" title="Sign Out Session"
-            class="w-full text-left flex items-center justify-center lg:justify-start space-x-0 lg:space-x-2 text-xs font-semibold text-rose-700 hover:text-rose-800 px-2 lg:px-3 py-2.5 rounded-lg bg-rose-50 hover:bg-rose-100 border border-rose-200 transition-all relative group shadow-sm">
+            class="w-full text-left flex items-center justify-center lg:justify-start space-x-0 lg:space-x-2 text-xs font-semibold text-rose-700 hover:text-rose-800 px-2 lg:px-3 py-2 rounded-lg bg-rose-50 hover:bg-rose-100 border border-rose-200 transition-all relative group shadow-sm">
             <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                 d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
@@ -224,11 +224,11 @@ export function renderAdminPage(queryPart) {
       <div class="flex-1 flex flex-col min-w-0 h-screen overflow-hidden bg-[#f8fafc]">
 
         <!-- Top Workspace Utility Bar -->
-        <header class="admin-header-bar h-16 px-4 sm:px-6 flex items-center justify-between flex-shrink-0">
+        <header class="admin-header-bar h-14 sm:h-15 px-3.5 sm:px-6 flex items-center justify-between flex-shrink-0">
           <div class="flex items-center space-x-3">
             <!-- Sidebar Collapse / Expand Toggle Button -->
             <button id="admin-sidebar-toggle" onclick="toggleAdminSidebar()" title="Toggle Sidebar"
-              class="p-2 rounded-lg text-[#475569] hover:text-[#0f172a] bg-[#f8fafc] hover:bg-[#f1f5f9] border border-[#e2e8f0] transition-all flex items-center justify-center focus:outline-none focus:border-blue-600 flex lg:hidden">
+              class="p-2 rounded-lg text-[#475569] hover:text-[#0f172a] bg-[#f8fafc] hover:bg-[#f1f5f9] border border-[#e2e8f0] transition-all flex items-center justify-center focus:outline-none focus:border-blue-600 cursor-pointer">
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
               </svg>
@@ -266,7 +266,7 @@ export function renderAdminPage(queryPart) {
         </header>
 
         <!-- Main Dynamic Tab Content Scroll Area -->
-        <main class="admin-content-scroll flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
+        <main class="admin-content-scroll flex-1 overflow-y-auto p-3.5 sm:p-5 lg:p-6">
 
           <!-- Tab Panel 1: Overview (Dynamic Admin or Staff Overview) -->
           <div id="tab-panel-overview" class="dashboard-tab-panel">
