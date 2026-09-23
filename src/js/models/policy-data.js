@@ -130,6 +130,15 @@ export function getBusinessInfo() {
 }
 
 /**
+ * Save business info purely to in-memory state without making backend API update requests
+ */
+export function saveStoredBusinessInfo(info) {
+  if (info && typeof info === 'object') {
+    memoryBusinessInfo = { ...memoryBusinessInfo, ...info };
+  }
+}
+
+/**
  * Save business info to in-memory state and sync with API
  */
 export async function saveBusinessInfo(info) {

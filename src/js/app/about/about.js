@@ -5,7 +5,7 @@
 import { PoliciesApi } from '../../api/policiesApi.js';
 import { BranchesApi } from '../../api/branchesApi.js';
 import {
-  saveBusinessInfo,
+  saveStoredBusinessInfo,
   saveStoredPolicies
 } from '../../models/policy-data.js';
 import { saveBranches } from '../../controller/branch_controller.js';
@@ -103,7 +103,7 @@ export async function renderAboutPage() {
     };
 
     // Keep in-memory store in sync
-    saveBusinessInfo(business);
+    saveStoredBusinessInfo(business);
 
     // Normalize Branches from backend
     let rawBranches = [];

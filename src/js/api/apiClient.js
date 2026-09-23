@@ -81,6 +81,40 @@ export function sanitizeForLogging(payload) {
 }
 
 let lastSessionExpiredNoticeTime = 0;
+let lastAccessDeniedNoticeTime = 0;
+
+/**
+ * Handle HTTP 403 Forbidden / Access Denied (Spring Security @PreAuthorize rejection).
+ * Keeps the user's active session intact (DOES NOT logout or clear tokens).
+ * Displays a clear warning/alert to the user and dispatches an event.
+ */
+export function handleAccessDenied(reason = 'Access denied: You do not have permission to perform this action.', isWriteAction = false) {
+  const now = Date.now();
+  if (now - lastAccessDeniedNoticeTime > 2500) {
+    lastAccessDeniedNoticeTime = now;
+
+    console.warn(`%c🚫 [AccessDenied] Unauthorized Action: "${reason}". Session kept active.`, 'color: #f59e0b; font-weight: bold; font-size: 13px;');
+
+    if (typeof window !== 'undefined') {
+      const cleanReason = (typeof reason === 'string' && reason.trim())
+        ? reason.replace(/^Access denied:\s*/i, '').trim()
+        : 'You do not have permission to perform this action.';
+      const displayMsg = cleanReason || 'You do not have permission to perform this action.';
+
+      // Modal dialog for user-initiated write actions (POST, PUT, DELETE, PATCH),
+      // non-blocking toast for background/read queries (GET)
+      if (isWriteAction && window.etechAlert && typeof window.etechAlert.warning === 'function') {
+        window.etechAlert.warning('Access Denied', displayMsg);
+      } else if (typeof window.showToast === 'function') {
+        window.showToast(`⚠️ Access Denied: ${displayMsg}`, 'warning');
+      } else if (window.etechAlert && typeof window.etechAlert.warning === 'function') {
+        window.etechAlert.warning('Access Denied', displayMsg);
+      }
+
+      window.dispatchEvent(new CustomEvent('accessDenied', { detail: { message: reason, isWriteAction } }));
+    }
+  }
+}
 
 /**
  * Automatically terminates user session, purges auth credentials,
@@ -100,8 +134,10 @@ export function handleSessionExpired(reason = 'Your session has expired. Please 
     console.warn(`%c🔒 [SessionGuard] Session Expired / Invalid Token: "${reason}". Logged out immediately.`, 'color: #ef4444; font-weight: bold; font-size: 13px;');
 
     if (typeof window !== 'undefined') {
-      if (typeof window.showToast === 'function') {
-        window.showToast('🔒 Session expired. Please sign in again to continue.', 'error');
+      if (hadToken) {
+        if (typeof window.showToast === 'function') {
+          window.showToast('🔒 Session expired. Please sign in again to continue.', 'error');
+        }
       }
 
       if (typeof window.updateHeaderAuthUI === 'function') {
@@ -138,6 +174,7 @@ export function ajaxRequest({ endpoint, method = 'GET', data = null, headers = {
     const token = getToken();
     const url = `${API_BASE_URL}${endpoint.startsWith('/') ? endpoint : '/' + endpoint}`;
     const httpMethod = method.toUpperCase();
+    const isWriteAction = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(httpMethod);
     const startTime = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
 
     console.log(`%c[API Request] ${httpMethod} ${endpoint}`, 'color: #2563eb; font-weight: bold;', {
@@ -161,10 +198,25 @@ export function ajaxRequest({ endpoint, method = 'GET', data = null, headers = {
         const duration = (endTime - startTime).toFixed(1);
         const statusCode = xhr ? xhr.status : 200;
 
-        // Check if response body envelops a 401/403 or "Token expired" status
+        // 1. Check for 403 Forbidden / Access Denied enveloped in response body
+        const isAccessDenied = response && (
+          response.status === 403 ||
+          (typeof response.message === 'string' && response.message.toLowerCase().startsWith('access denied'))
+        );
+
+        if (isAccessDenied) {
+          const deniedMsg = response.message || 'Access denied: You do not have permission to perform this action.';
+          console.warn(`%c[API Access Denied 403] ${httpMethod} ${endpoint} (${duration}ms)`, 'color: #f59e0b; font-weight: bold;', response);
+          handleAccessDenied(deniedMsg, isWriteAction);
+          const err = new Error(deniedMsg);
+          err.status = 403;
+          err.responseJSON = response;
+          return reject(err);
+        }
+
+        // 2. Check if response body envelops a 401 or "Token expired" status
         const isAuthError = response && (
           response.status === 401 ||
-          response.status === 403 ||
           (typeof response.message === 'string' && (
             response.message.toLowerCase().includes('token expired') ||
             response.message.toLowerCase().includes('token invalid') ||
@@ -192,8 +244,13 @@ export function ajaxRequest({ endpoint, method = 'GET', data = null, headers = {
         const duration = (endTime - startTime).toFixed(1);
         let errorMessage = 'Network error or server unavailable. Please try again.';
 
-        if (xhr.status === 401 || xhr.status === 403) {
-          errorMessage = xhr.responseJSON?.message || (xhr.status === 401 ? 'Session expired. Please sign in again.' : 'Access denied.');
+        if (xhr.status === 403) {
+          // 403 Forbidden / Pre-Authorization failed: Alert user without logging them out
+          errorMessage = xhr.responseJSON?.message || 'Access denied: You do not have permission for this action.';
+          handleAccessDenied(errorMessage, isWriteAction);
+        } else if (xhr.status === 401) {
+          // 401 Unauthorized / Session expired: Instant logout
+          errorMessage = xhr.responseJSON?.message || 'Session expired. Please sign in again.';
           handleSessionExpired(errorMessage);
         } else if (xhr.responseJSON) {
           if (xhr.responseJSON.message) {
@@ -221,7 +278,7 @@ export function ajaxRequest({ endpoint, method = 'GET', data = null, headers = {
           errorMessage = 'A server error occurred. Please try again later.';
         }
 
-        if (errorMessage.toLowerCase().includes('token expired') || errorMessage.toLowerCase().includes('token invalid') || errorMessage.toLowerCase().includes('jwt expired')) {
+        if (xhr.status !== 403 && (errorMessage.toLowerCase().includes('token expired') || errorMessage.toLowerCase().includes('token invalid') || errorMessage.toLowerCase().includes('jwt expired'))) {
           handleSessionExpired(errorMessage);
         }
 

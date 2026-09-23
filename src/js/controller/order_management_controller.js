@@ -1,4 +1,4 @@
-import { getCurrentUser } from './login_controller.js';
+import { getCurrentUser, isLoggedIn, getToken } from './login_controller.js';
 import { OrdersApi } from '../api/ordersApi.js';
 import { getBranches } from './branch_controller.js';
 import { restoreBranchStock, deductBranchStock } from '../models/data.js';
@@ -80,11 +80,20 @@ export function normalizeOrderFromApi(dto) {
  */
 export async function syncOrdersFromApi() {
   const currentUser = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
+  if (!currentUser || !getToken()) {
+    memoryOrders = [];
+    return memoryOrders;
+  }
+
   let data;
-  if (currentUser && currentUser.role === 'CUSTOMER') {
+  if (currentUser.role === 'CUSTOMER') {
     data = await OrdersApi.getMyOrders();
-  } else {
+  } else if ((typeof currentUser.isAdmin === 'function' && (currentUser.isAdmin() || currentUser.isStaff())) ||
+             ['ADMIN', 'SUPERADMIN', 'STAFF'].includes(currentUser.role)) {
     data = await OrdersApi.getAll();
+  } else {
+    memoryOrders = [];
+    return memoryOrders;
   }
 
   let rawList = [];

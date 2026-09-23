@@ -9,7 +9,7 @@
 
 import { products, getProductById, getFeaturedProducts, getNewArrivalProducts, getStoredProducts, saveProduct, deleteProduct, getProductBranchStock, getMaxStockInAnyBranch } from './src/js/models/data.js';
 import {
-    legalPolicies, getPolicyData, getBusinessInfo, saveBusinessInfo,
+    legalPolicies, getPolicyData, getBusinessInfo, saveBusinessInfo, saveStoredBusinessInfo,
     getStoredPolicies, saveStoredPolicies, updatePolicyDocument,
     DEFAULT_BUSINESS_INFO, DEFAULT_LEGAL_POLICIES
 } from './src/js/models/policy-data.js';
@@ -19,7 +19,8 @@ import {
 } from './src/js/models/user_model.js';
 import { AuthApi, UserApi } from './src/js/api/userApi.js';
 import {
-    TOKEN_STORAGE_KEY, CURRENT_USER_STORAGE_KEY, API_BASE_URL
+    TOKEN_STORAGE_KEY, CURRENT_USER_STORAGE_KEY, API_BASE_URL,
+    ajaxRequest, handleAccessDenied, handleSessionExpired
 } from './src/js/api/apiClient.js';
 import {
     getToken, setToken, removeToken,
@@ -283,7 +284,7 @@ Object.assign(window, {
     getBranches, calculateShippingFee, autoSelectFulfillmentBranch,
 
     // Legal Policies & Corporate Profile
-    legalPolicies, getPolicyData, getBusinessInfo, saveBusinessInfo,
+    legalPolicies, getPolicyData, getBusinessInfo, saveBusinessInfo, saveStoredBusinessInfo,
     getStoredPolicies, saveStoredPolicies, updatePolicyDocument,
     DEFAULT_BUSINESS_INFO, DEFAULT_LEGAL_POLICIES,
     renderAboutPage,
@@ -299,6 +300,7 @@ Object.assign(window, {
 
     // Authentication & User Profile Management
     AuthApi, UserApi, getToken, setToken, removeToken,
+    ajaxRequest, handleAccessDenied, handleSessionExpired,
     registerUser, loginUser, setCurrentUser,
     getCurrentUser, isLoggedIn, logoutUser, refreshCurrentUserSession, handleLogout, updateHeaderAuthUI, renderHomeNewArrivalsGrid,
     toggleMobileMenu, openMobileMenu, closeMobileMenu, handleMobileSearchSubmit, handleHeaderSearchSubmit,
