@@ -38,19 +38,33 @@ window.addEventListener('hashchange', () => {
  * Synchronizes catalog and store data from backend REST APIs into local in-memory stores.
  */
 export async function syncLiveBackendData() {
+  const activeUser = (typeof getCurrentUser === 'function') ? getCurrentUser() : null;
+  const isPrivileged = activeUser && (
+    (typeof activeUser.isAdmin === 'function' && (activeUser.isAdmin() || activeUser.isStaff())) ||
+    ['ADMIN', 'SUPERADMIN', 'STAFF'].includes(activeUser.role)
+  );
+
   try {
-    await Promise.allSettled([
+    const syncTasks = [
       syncProductsFromApi({ page: 0, size: 20 }),
       syncCategoriesFromApi({ activeOnly: true }),
       syncBrandsFromApi({ activeOnly: true }),
       syncBadgesFromApi({ activeOnly: true }),
       syncPromotionsFromApi(),
       syncBranchesFromApi(),
-      syncPoliciesFromApi(),
-      syncOrdersFromApi(),
-      syncWishlistFromApi(),
-      syncNewsletterFromApi()
-    ]);
+      syncPoliciesFromApi()
+    ];
+
+    if (activeUser) {
+      syncTasks.push(syncOrdersFromApi());
+      syncTasks.push(syncWishlistFromApi());
+    }
+
+    if (isPrivileged) {
+      syncTasks.push(syncNewsletterFromApi());
+    }
+
+    await Promise.allSettled(syncTasks);
     updateWishlistBadge();
     refreshAllWishlistButtons();
     const hash = window.location.hash || '#home';
