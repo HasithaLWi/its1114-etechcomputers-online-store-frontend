@@ -1100,7 +1100,11 @@
                   class="text-[10px] font-mono font-extrabold uppercase tracking-widest text-blue-600 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
                   OFFICIAL PARTNERS
                 </span>
-                <span class="text-xs text-[#64748b] hidden sm:inline font-semibold">100% Genuine Hardware & Manufacturer
+                <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-mono font-bold tracking-wide">
+                  <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                  LIVE SHOWCASE
+                </span>
+                <span class="text-xs text-[#64748b] hidden md:inline font-semibold">100% Genuine Hardware & Manufacturer
                   Warranties</span>
               </div>
               <h3 class="text-lg sm:text-xl font-extrabold text-[#0f172a] tracking-tight mt-1">
@@ -1117,14 +1121,14 @@
                 </svg>
               </a>
               <button onclick="scrollHomeBrands(-1)"
-                class="p-2 rounded-xl bg-[#f8fafc] hover:bg-[#f1f5f9] border border-[#e2e8f0] text-[#64748b] hover:text-[#0f172a] transition-all shadow-sm active:scale-95"
+                class="p-2 rounded-xl bg-[#f8fafc] hover:bg-[#f1f5f9] border border-[#e2e8f0] text-[#64748b] hover:text-[#0f172a] transition-all shadow-sm active:scale-95 cursor-pointer"
                 title="Previous Brands">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
                 </svg>
               </button>
               <button onclick="scrollHomeBrands(1)"
-                class="p-2 rounded-xl bg-[#f8fafc] hover:bg-[#f1f5f9] border border-[#e2e8f0] text-[#64748b] hover:text-[#0f172a] transition-all shadow-sm active:scale-95"
+                class="p-2 rounded-xl bg-[#f8fafc] hover:bg-[#f1f5f9] border border-[#e2e8f0] text-[#64748b] hover:text-[#0f172a] transition-all shadow-sm active:scale-95 cursor-pointer"
                 title="Next Brands">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
@@ -1133,8 +1137,8 @@
             </div>
           </div>
 
-          <!-- Dynamic Brands Showcase Horizontal Scroll Track -->
-          <div id="home-brands-container" class="flex items-stretch space-x-4 overflow-x-auto scroll-smooth py-1">
+          <!-- Dynamic Brands Showcase Horizontal Live Carousel Track -->
+          <div id="home-brands-container" class="flex items-stretch space-x-4 sm:space-x-5 overflow-x-auto scroll-smooth py-2 no-scrollbar cursor-grab active:cursor-grabbing select-none" style="scrollbar-width: none; -ms-overflow-style: none;">
             <!-- Dynamically populated by renderHomeBrandsShowcase() -->
           </div>
         </div>

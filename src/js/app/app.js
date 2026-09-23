@@ -14,7 +14,7 @@ import { initCartLogic, initCheckoutLogic, updateCartBadge, addToCart, getCart, 
 import { renderProductDetailsPage, viewProductDetails } from '../controller/product-details_controller.js';
 import { initShopLogic, renderFilteredProducts } from '../controller/shop_controller.js';
 import { initHotDealsLogic } from '../controller/hot_deal_controller.js';
-import { getFeaturedBrands, syncBrandsFromApi } from '../models/brand_data.js';
+import { getFeaturedBrands, getBrands, syncBrandsFromApi } from '../models/brand_data.js';
 import { syncCategoriesFromApi, syncBadgesFromApi } from '../models/taxonomy_data.js';
 import { syncBranchesFromApi } from '../controller/branch_controller.js';
 import { syncNewsletterFromApi } from '../models/newsletter_model.js';
@@ -330,7 +330,11 @@ window.refreshHomePageData = refreshHomePageData;
 function triggerPageHooks(pageName, queryPart) {
   if (pageName === 'home') {
     refreshHomePageData();
-  } else if (pageName === 'shop') {
+  } else {
+    stopBrandCarouselAutoPlay();
+  }
+
+  if (pageName === 'shop') {
     initShopLogic(queryPart);
   } else if (pageName === 'deals' || pageName === 'hot-deals') {
     initHotDealsLogic(queryPart);
@@ -1042,22 +1046,42 @@ export function renderHomeNewArrivalsGrid() {
   }).join('');
 }
 
+// ── Live Featured Brand Carousel Controller ──
+let brandCarouselTimer = null;
+let brandDragListenersAttached = false;
+let isBrandDragging = false;
+let brandDragStartX = 0;
+let brandDragScrollLeft = 0;
+let hasBrandDragMoved = false;
+
 /**
- * Renders Authorized Brands Showcase on Home Page
+ * Renders Authorized Brands Live Carousel on Home Page
  */
 export function renderHomeBrandsShowcase() {
   const container = document.getElementById('home-brands-container');
   if (!container) return;
 
-  const brands = getFeaturedBrands();
+  let brands = getFeaturedBrands();
+  // Fallback to all active brands if none explicitly marked as featured
+  if (!brands || brands.length === 0) {
+    brands = (typeof getBrands === 'function' ? getBrands({ activeOnly: true }) : []).slice(0, 12);
+  }
+
   const allProducts = (typeof getStoredProducts === 'function' ? getStoredProducts() : null) || products || [];
 
   if (!brands || brands.length === 0) {
-    container.innerHTML = `<div class="text-xs text-[#64748b] py-4">No featured brands available.</div>`;
+    container.innerHTML = `<div class="text-xs text-[#64748b] py-6 text-center w-full">No featured brands available.</div>`;
+    stopBrandCarouselAutoPlay();
     return;
   }
 
-  container.innerHTML = brands.map(brand => {
+  // Ensure ample cards for fluid, infinite carousel experience
+  let displayBrands = [...brands];
+  if (displayBrands.length > 0 && displayBrands.length < 8) {
+    displayBrands = [...displayBrands, ...displayBrands];
+  }
+
+  container.innerHTML = displayBrands.map(brand => {
     // Count products for this brand
     const count = allProducts.filter(p => {
       const pBrand = (p.brand || '').toLowerCase().trim();
@@ -1068,41 +1092,185 @@ export function renderHomeBrandsShowcase() {
     const initials = (brand.name || 'BR').substring(0, 2).toUpperCase();
 
     return `
-      <a href="#shop?brand=${brand.id || brand.slug}" class="group flex-shrink-0 w-44 sm:w-52 bg-[#f8fafc] hover:bg-white border border-[#e2e8f0] hover:border-blue-300 rounded-2xl p-4 flex flex-col justify-between transition-all duration-300 hover:-translate-y-1 shadow-sm hover:shadow-md cursor-pointer">
+      <a href="#shop?brand=${encodeURIComponent(brand.id || brand.slug)}" 
+         data-brand-id="${brand.id || brand.slug}"
+         class="brand-carousel-card group flex-shrink-0 w-52 sm:w-60 bg-[#f8fafc] hover:bg-white border border-[#e2e8f0] hover:border-blue-300 rounded-2xl p-4 flex flex-col justify-between transition-all duration-300 hover:-translate-y-1 hover:shadow-xl shadow-xs cursor-pointer select-none">
         <div>
           <!-- Brand Logo Container -->
-          <div class="w-full h-16 rounded-xl bg-white border border-[#e2e8f0] p-2.5 flex items-center justify-center mb-3 shadow-sm group-hover:border-blue-200 transition-colors overflow-hidden">
-            ${brand.logo ? `
-              <img src="${brand.logo}" alt="${brand.name}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" class="max-h-full max-w-full object-contain filter group-hover:scale-105 transition-transform duration-300">
-              <span style="display:none" class="w-10 h-10 rounded-xl bg-blue-50 text-blue-700 font-extrabold text-sm items-center justify-center border border-blue-200">${initials}</span>
+          <div class="w-full h-18 rounded-xl bg-white border border-[#e2e8f0] p-3 flex items-center justify-center mb-3 shadow-xs group-hover:border-blue-200 transition-colors overflow-hidden">
+            ${brand.logo || brand.logoUrl ? `
+              <img src="${brand.logo || brand.logoUrl}" alt="${brand.name}" 
+                   onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" 
+                   class="max-h-full max-w-full object-contain filter group-hover:scale-105 transition-transform duration-300 pointer-events-none">
+              <span style="display:none" class="w-11 h-11 rounded-xl bg-blue-50 text-blue-700 font-extrabold text-sm items-center justify-center border border-blue-200 pointer-events-none">${initials}</span>
             ` : `
-              <span class="w-10 h-10 rounded-xl bg-blue-50 text-blue-700 font-extrabold text-sm flex items-center justify-center border border-blue-200">${initials}</span>
+              <span class="w-11 h-11 rounded-xl bg-blue-50 text-blue-700 font-extrabold text-sm flex items-center justify-center border border-blue-200 pointer-events-none">${initials}</span>
             `}
           </div>
 
           <!-- Brand Title & Tagline -->
-          <div class="space-y-0.5">
-            <h4 class="font-extrabold text-sm text-[#0f172a] group-hover:text-blue-600 transition-colors line-clamp-1">${brand.name}</h4>
-            <p class="text-[11px] text-[#64748b] line-clamp-1">${brand.tagline || `${brand.country || 'Global'} Official Hardware`}</p>
+          <div class="space-y-1">
+            <div class="flex items-center justify-between gap-1">
+              <h4 class="font-extrabold text-sm text-[#0f172a] group-hover:text-blue-600 transition-colors truncate">${brand.name}</h4>
+              <span class="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-100 flex-shrink-0">${brand.country || 'Global'}</span>
+            </div>
+            <p class="text-[11px] text-[#64748b] line-clamp-1 italic">${brand.tagline || 'Authorized Hardware Partner'}</p>
           </div>
         </div>
 
         <!-- Footer: Product Count & Arrow -->
         <div class="mt-3 pt-2.5 border-t border-[#e2e8f0] flex items-center justify-between text-[11px] font-mono">
           <span class="text-blue-600 font-bold">${count} Products</span>
-          <span class="text-slate-400 group-hover:text-blue-600 group-hover:translate-x-0.5 transition-all">Explore →</span>
+          <span class="text-slate-400 font-bold group-hover:text-blue-600 group-hover:translate-x-1 transition-all flex items-center gap-0.5">Explore <span>→</span></span>
         </div>
       </a>
     `;
   }).join('');
+
+  initBrandCarouselInteractions(container);
+  startBrandCarouselAutoPlay();
 }
 
+/**
+ * Wire interactive hover-pause, touch, and click-and-drag gesture listeners
+ */
+function initBrandCarouselInteractions(container) {
+  if (brandDragListenersAttached) return;
+  brandDragListenersAttached = true;
+
+  // Hover to pause auto-rotation
+  container.addEventListener('mouseenter', () => {
+    stopBrandCarouselAutoPlay();
+  });
+
+  container.addEventListener('mouseleave', () => {
+    if (!isBrandDragging) {
+      startBrandCarouselAutoPlay();
+    }
+  });
+
+  // Touch pause & resume
+  container.addEventListener('touchstart', () => {
+    stopBrandCarouselAutoPlay();
+  }, { passive: true });
+
+  container.addEventListener('touchend', () => {
+    startBrandCarouselAutoPlay(4000);
+  }, { passive: true });
+
+  // Mouse Drag to Scroll (fluid desktop flicking)
+  container.addEventListener('mousedown', (e) => {
+    if (e.button !== 0) return; // Only primary button
+    isBrandDragging = true;
+    hasBrandDragMoved = false;
+    brandDragStartX = e.pageX - container.offsetLeft;
+    brandDragScrollLeft = container.scrollLeft;
+    container.classList.add('cursor-grabbing');
+    container.classList.remove('cursor-grab', 'scroll-smooth');
+    stopBrandCarouselAutoPlay();
+  });
+
+  window.addEventListener('mousemove', (e) => {
+    if (!isBrandDragging) return;
+    e.preventDefault();
+    const x = e.pageX - container.offsetLeft;
+    const walk = (x - brandDragStartX) * 1.5;
+    if (Math.abs(walk) > 5) {
+      hasBrandDragMoved = true;
+    }
+    container.scrollLeft = brandDragScrollLeft - walk;
+  });
+
+  window.addEventListener('mouseup', () => {
+    if (!isBrandDragging) return;
+    isBrandDragging = false;
+    container.classList.remove('cursor-grabbing');
+    container.classList.add('cursor-grab', 'scroll-smooth');
+    startBrandCarouselAutoPlay(4000);
+  });
+
+  // Prevent link click when dragging
+  container.addEventListener('click', (e) => {
+    if (hasBrandDragMoved) {
+      e.preventDefault();
+      e.stopPropagation();
+      hasBrandDragMoved = false;
+    }
+  }, true);
+}
+
+/**
+ * Scroll brands left or right manually with arrow buttons
+ */
 export function scrollHomeBrands(direction) {
   const container = document.getElementById('home-brands-container');
-  if (container) {
-    const scrollAmount = direction * 240;
-    container.scrollBy({ left: scrollAmount, behavior: 'smooth' });
+  if (!container) return;
+
+  const card = container.querySelector('.brand-carousel-card');
+  const cardWidth = card ? card.offsetWidth : 240;
+  const gap = 16;
+  const step = (cardWidth + gap) * (direction > 0 ? 1 : -1);
+
+  const maxScroll = container.scrollWidth - container.clientWidth;
+  
+  if (direction > 0 && container.scrollLeft >= maxScroll - 15) {
+    // Smooth wrap back to start
+    container.scrollTo({ left: 0, behavior: 'smooth' });
+  } else if (direction < 0 && container.scrollLeft <= 15) {
+    // Smooth wrap back to end
+    container.scrollTo({ left: maxScroll, behavior: 'smooth' });
+  } else {
+    container.scrollBy({ left: step, behavior: 'smooth' });
   }
+
+  // Restart auto-play with 5 second grace period
+  startBrandCarouselAutoPlay(5000);
+}
+
+/**
+ * Auto-advances the live brand carousel at a set interval
+ */
+export function startBrandCarouselAutoPlay(delayMs = 3200) {
+  stopBrandCarouselAutoPlay();
+
+  brandCarouselTimer = setInterval(() => {
+    const container = document.getElementById('home-brands-container');
+    if (!container || !container.offsetParent) {
+      stopBrandCarouselAutoPlay();
+      return;
+    }
+
+    const maxScroll = container.scrollWidth - container.clientWidth;
+    if (maxScroll <= 10) return; // Not enough content to scroll
+
+    const card = container.querySelector('.brand-carousel-card');
+    const cardWidth = card ? card.offsetWidth : 240;
+    const gap = 16;
+    const step = cardWidth + gap;
+
+    if (container.scrollLeft >= maxScroll - 20) {
+      container.scrollTo({ left: 0, behavior: 'smooth' });
+    } else {
+      container.scrollBy({ left: step, behavior: 'smooth' });
+    }
+  }, delayMs);
+}
+
+/**
+ * Stops the live brand carousel auto-advance timer
+ */
+export function stopBrandCarouselAutoPlay() {
+  if (brandCarouselTimer) {
+    clearInterval(brandCarouselTimer);
+    brandCarouselTimer = null;
+  }
+}
+
+// Global window bindings
+if (typeof window !== 'undefined') {
+  window.scrollHomeBrands = scrollHomeBrands;
+  window.startBrandCarouselAutoPlay = startBrandCarouselAutoPlay;
+  window.stopBrandCarouselAutoPlay = stopBrandCarouselAutoPlay;
 }
 
 // ── Hero New Arrivals Product Carousel Controller ──

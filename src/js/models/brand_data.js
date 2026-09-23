@@ -131,20 +131,40 @@ export async function saveBrand(brandData, isEdit = false) {
   const slug = (brandData.slug || brandData.name || '').toLowerCase().trim().replace(/[^a-z0-9]+/g, '-');
   const status = (brandData.status || (brandData.active !== false ? 'ACTIVE' : 'INACTIVE')).toUpperCase();
 
-  if (isEdit) {
-    const index = brands.findIndex(b => b.id === brandData.id || b.slug === brandData.slug);
-    if (index !== -1) {
-      brands[index] = {
-        ...brands[index],
-        ...brandData,
-        status: status,
-        active: status === 'ACTIVE',
-        slug: slug || brands[index].slug
-      };
+  const effectiveIsEdit = Boolean(isEdit || (brandData.id && brands.some(b => b.id === brandData.id)));
 
-      await BrandsApi.update(brands[index].id, brands[index]);
-      return brands[index];
+  if (effectiveIsEdit) {
+    const index = brands.findIndex(b => (brandData.id && b.id === brandData.id) || (brandData.slug && b.slug === brandData.slug));
+    const targetId = index !== -1 ? brands[index].id : brandData.id;
+
+    const updatedBrand = {
+      ...(index !== -1 ? brands[index] : {}),
+      ...brandData,
+      id: targetId,
+      name: brandData.name || (index !== -1 ? brands[index].name : 'Brand'),
+      slug: slug || (index !== -1 ? brands[index].slug : slug),
+      logo: brandData.logo || brandData.logoUrl || (index !== -1 ? brands[index].logo : ''),
+      logoUrl: brandData.logoUrl || brandData.logo || (index !== -1 ? brands[index].logoUrl : ''),
+      country: brandData.country || (index !== -1 ? brands[index].country : 'Global'),
+      founded: brandData.founded || brandData.foundedYear || (index !== -1 ? brands[index].founded : ''),
+      foundedYear: brandData.foundedYear || brandData.founded || (index !== -1 ? brands[index].foundedYear : ''),
+      website: brandData.website || brandData.websiteUrl || (index !== -1 ? brands[index].website : ''),
+      websiteUrl: brandData.websiteUrl || brandData.website || (index !== -1 ? brands[index].websiteUrl : ''),
+      tagline: brandData.tagline !== undefined ? brandData.tagline : (index !== -1 ? brands[index].tagline : ''),
+      description: brandData.description !== undefined ? brandData.description : (index !== -1 ? brands[index].description : ''),
+      featured: brandData.featured !== undefined ? Boolean(brandData.featured) : (index !== -1 ? Boolean(brands[index].featured) : false),
+      status: status,
+      active: status === 'ACTIVE',
+      displayOrder: brandData.displayOrder !== undefined ? Number(brandData.displayOrder) : (index !== -1 ? (brands[index].displayOrder || 0) : 0)
+    };
+
+    await BrandsApi.update(targetId, updatedBrand);
+    if (index !== -1) {
+      brands[index] = updatedBrand;
+    } else {
+      brands.push(updatedBrand);
     }
+    return { success: true, message: `Brand "${updatedBrand.name}" updated successfully.`, brand: updatedBrand };
   }
 
   // Create New Brand
@@ -155,16 +175,21 @@ export async function saveBrand(brandData, isEdit = false) {
     logo: brandData.logo || brandData.logoUrl || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=400&q=80',
     logoUrl: brandData.logoUrl || brandData.logo || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=400&q=80',
     country: brandData.country || 'Global',
-    website: brandData.website || '',
+    founded: brandData.founded || brandData.foundedYear || '',
+    foundedYear: brandData.foundedYear || brandData.founded || '',
+    website: brandData.website || brandData.websiteUrl || '',
+    websiteUrl: brandData.websiteUrl || brandData.website || '',
+    tagline: brandData.tagline || '',
     description: brandData.description || '',
     featured: Boolean(brandData.featured),
     status: status,
-    active: status === 'ACTIVE'
+    active: status === 'ACTIVE',
+    displayOrder: Number(brandData.displayOrder) || 0
   };
 
-  brands.push(newBrand);
   await BrandsApi.create(newBrand);
-  return newBrand;
+  brands.push(newBrand);
+  return { success: true, message: `Brand "${newBrand.name}" registered successfully.`, brand: newBrand };
 }
 
 /**
@@ -200,7 +225,10 @@ export async function deleteBrand(idOrSlug) {
   } catch (err) {
     console.warn(`[BrandModel] Backend brand soft-delete notice for ${idOrSlug}:`, err.message);
   }
-  return res.success;
+  return {
+    success: Boolean(res && res.success),
+    message: res && res.success ? 'Brand deleted successfully.' : (res?.message || 'Failed to delete brand.')
+  };
 }
 
 /**
@@ -238,6 +266,6 @@ export async function toggleBrandFeatured(idOrSlug) {
   } catch (err) {
     console.warn('[BrandModel] Backend brand featured toggle notice:', err.message || err);
   }
-  return { success: true, brand };
+  return { success: true, message: `Brand "${brand.name}" featured status updated.`, brand };
 }
 

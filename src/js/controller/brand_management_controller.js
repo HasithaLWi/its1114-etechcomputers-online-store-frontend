@@ -732,6 +732,7 @@ export function triggerBrandFormSubmit() {
 }
 
 export function closeBrandFormPage() {
+  currentEditingBrandId = null;
   const formPanel = document.getElementById('tab-panel-brand-form');
   if (formPanel) formPanel.classList.add('hidden');
 
@@ -787,12 +788,13 @@ export async function handleSaveBrandFormPage(event) {
     displayOrder: displayOrder
   };
 
-  const result = await saveBrand(brandData);
-  if (result.success) {
-    showToast(result.message, 'success');
+  try {
+    const result = await saveBrand(brandData, isEdit);
+    showToast(result.message || (isEdit ? `Brand "${name}" updated successfully.` : `Brand "${name}" registered successfully.`), 'success');
     closeBrandFormPage();
-  } else {
-    etechAlert.error('Save Brand Failed', result.message);
+  } catch (err) {
+    console.error('Save brand error:', err);
+    etechAlert.error('Save Brand Failed', err.message || 'Unable to save brand. Please try again.');
   }
 }
 
@@ -818,13 +820,18 @@ export function resetBrandFilters() {
   renderBrandsTab();
 }
 
-export function handleToggleBrandFeatured(id) {
-  const result = toggleBrandFeatured(id);
-  if (result.success) {
-    showToast(result.message, 'success');
-    renderBrandsTab();
-  } else {
-    showToast(result.message, 'error');
+export async function handleToggleBrandFeatured(id) {
+  try {
+    const result = await toggleBrandFeatured(id);
+    if (result && result.success) {
+      showToast(result.message || 'Brand featured status updated.', 'success');
+      renderBrandsTab();
+    } else {
+      showToast(result?.message || 'Failed to update featured status.', 'error');
+    }
+  } catch (err) {
+    console.error('Toggle brand featured error:', err);
+    showToast(err.message || 'Failed to update featured status.', 'error');
   }
 }
 
@@ -832,12 +839,17 @@ export async function handleDeleteBrand(id, name) {
   const confirmed = await etechAlert.confirmDelete(`Brand "${name}"`, 'This will delete the manufacturer partner.');
   if (!confirmed) return;
 
-  const result = await deleteBrand(id);
-  if (result.success) {
-    showToast(result.message, 'success');
-    renderBrandsTab();
-  } else {
-    etechAlert.error('Delete Failed', result.message);
+  try {
+    const result = await deleteBrand(id);
+    if (result && (result.success || result === true)) {
+      showToast((result && result.message) || `Brand "${name}" deleted successfully.`, 'success');
+      renderBrandsTab();
+    } else {
+      etechAlert.error('Delete Failed', (result && result.message) || 'Unable to delete brand.');
+    }
+  } catch (err) {
+    console.error('Delete brand error:', err);
+    etechAlert.error('Delete Failed', err.message || 'Unable to delete brand.');
   }
 }
 
